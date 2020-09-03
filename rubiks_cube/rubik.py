@@ -124,9 +124,9 @@ class RubiksCube:
             Comma-seperated sequence of applied rotations.
         ____________________________________________________________
         '''
-        faces = pd.np.random.choice(a=list(self._face_axes), size=moves)
-        turns = pd.np.random.randint(low=1, high=4, size=moves)
-        layers = pd.np.random.randint(low=1, high=self.dim+1, size=moves)
+        faces = pd.np.random.choice(a=list(self._face_axes), size=nn)
+        turns = pd.np.random.randint(low=1, high=4, size=n)
+        layers = pd.np.random.randint(low=1, high=self.dim+1, size=n)
         operation = ','.join(f'{layer}{face}{turn}' for face, turn, layer in zip(faces, turns, layers))
         self.rotate(operation=operation)
         return operation
@@ -171,7 +171,14 @@ class RubiksCube:
         ])
     
     def get_figure(self:object) -> dict:
+        '''
+        ____________________________________________________________
+        > Returns a 3D figure dictionary.
         
+        Output:
+            Plotly figure dictionary.
+        ____________________________________________________________
+        '''
         # Initialize figure with empty data.
         figure = {
             'data':[],
