@@ -1,5 +1,6 @@
 # Nicholas Eterovic, 2020.
 
+import numpy as np
 import pandas as pd
 import itertools as it
 import plotly.offline as py
@@ -57,7 +58,7 @@ class RubiksCube:
         rads *= -1 if sign=='-' else +1
         
         # Construct 3D rotation matrix.
-        cos, sin = pd.np.cos(rads), (-1 if axis=='y' else +1)*pd.np.sin(rads)
+        cos, sin = np.cos(rads), (-1 if axis=='y' else +1)*np.sin(rads)
         rotation = pd.DataFrame(data=0, index=self._axes, columns=self._axes)
         rotation.loc[axis, axis] = 1
         rotation.loc[rotation.index.difference([axis]), rotation.columns.difference([axis])] = [
@@ -105,10 +106,10 @@ class RubiksCube:
         else:
             raise ValueError(f'Invalid operation prefix "{prfx}" in "{operation}"')
         if not sffx:
-            rads = pd.np.pi/2
+            rads = np.pi/2
             notation = f'{notation}1'
         elif sffx.isnumeric():
-            rads = int(sffx)*pd.np.pi/2
+            rads = int(sffx)*np.pi/2
         else:
             raise ValueError(f'Invalid operation suffix "{sffx}" in "{operation}"')
         
@@ -134,9 +135,9 @@ class RubiksCube:
             Comma-seperated sequence of applied rotations.
         ____________________________________________________________
         '''
-        faces = pd.np.random.choice(a=list(self._face_axes), size=n)
-        turns = pd.np.random.randint(low=1, high=4, size=n)
-        layers = pd.np.random.randint(low=1, high=self.dim+1, size=n)
+        faces = np.random.choice(a=list(self._face_axes), size=n)
+        turns = np.random.randint(low=1, high=4, size=n)
+        layers = np.random.randint(low=1, high=self.dim+1, size=n)
         operation = ','.join(f'{layer}{face}{turn}' for face, turn, layer in zip(faces, turns, layers))
         self.rotate(operation=operation)
         return operation
