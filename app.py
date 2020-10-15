@@ -10,6 +10,7 @@ import rubiks_cube.rubik as rubik
 
 app = dash.Dash(__name__, external_stylesheets=['https://codepen.io/chriddyp/pen/bWLwgP.css'])
 app.title= 'Nick\'s Projects'
+server = app.server
 
 ####################################################################################################
 
