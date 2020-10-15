@@ -9,30 +9,40 @@ class RubiksCube:
     ###############################################################################################
     # INITIALIZATION
     
-    def __init__(self:object, dim:int=3) -> object:
+    def __init__(self:object, dim:int=3, state:list=None) -> object:
         '''
         ____________________________________________________________
-        > Instantiate a <dim>x<dim>x<dim> Rubik's cube in solved state.
+        > Instantiate a Rubik's cube.
         ____________________________________________________________
         '''
         self.dim = dim
         self._axes = ['x', 'y', 'z']
         self._colors = ['yellow', 'green', 'red', 'white', 'blue', 'orange']
         self._face_axes = {'L':'x-', 'R':'x+', 'U':'y+', 'D':'y-', 'F':'z+', 'B':'z-'}
-        
-        state = []
-        for c, color in enumerate(self._colors):
-            z = self._axes[c%3]
-            x, y = [axis for axis in self._axes if axis!=z]
-            state.extend([
-                {'color':color, z:(-1 if c%2 else +1)*dim, x:i, y:j}
-                for i, j in it.product(range(1-dim, dim), repeat=2)
-                if i%2!=dim%2 and j%2!=dim%2
-            ])
-        
-        self._state = pd.DataFrame(state)
         self._history = []
-        return None
+        
+        if state is None:
+            state = []
+            for c, color in enumerate(self._colors):
+                z = self._axes[c%3]
+                x, y = [axis for axis in self._axes if axis!=z]
+                state.extend([
+                    {'color':color, z:(-1 if c%2 else +1)*dim, x:i, y:j}
+                    for i, j in it.product(range(1-dim, dim), repeat=2)
+                    if i%2!=dim%2 and j%2!=dim%2
+                ])
+        self._state = pd.DataFrame(state)
+        
+
+    ###############################################################################################
+    # GETTERS/SETTERS
+    
+    def get_state(self:object) -> list:
+        return self._state.to_dict(orient='records')
+    
+    def set_state(self:object, state:list) -> object:
+        self._state = pd.DataFrame(state)
+        return self
     
     ###############################################################################################
     # ATOMIC OPERATIONS
@@ -124,7 +134,7 @@ class RubiksCube:
             Comma-seperated sequence of applied rotations.
         ____________________________________________________________
         '''
-        faces = pd.np.random.choice(a=list(self._face_axes), size=nn)
+        faces = pd.np.random.choice(a=list(self._face_axes), size=n)
         turns = pd.np.random.randint(low=1, high=4, size=n)
         layers = pd.np.random.randint(low=1, high=self.dim+1, size=n)
         operation = ','.join(f'{layer}{face}{turn}' for face, turn, layer in zip(faces, turns, layers))

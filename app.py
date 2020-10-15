@@ -1,63 +1,98 @@
 import dash
+import dash_bootstrap_components as dbc
 import dash_core_components as dcc
-import dash_html_components as html
-import plotly.graph_objs as go
+import dash_html_components as dhc
+import dash.dependencies as ddp
 
-########### Define your variables
-beers=['Chesapeake Stout', 'Snake Dog IPA', 'Imperial Porter', 'Double Dog IPA']
-ibu_values=[35, 60, 85, 75]
-abv_values=[5.4, 7.1, 9.2, 4.3]
-color1='lightblue'
-color2='darkgreen'
-mytitle='Beer Comparison'
-tabtitle='beer!'
-myheading='Flying Dog Beers'
-label1='IBU'
-label2='ABV'
-githublink='https://github.com/austinlasseter/flying-dog-beers'
-sourceurl='https://www.flyingdog.com/beers/'
+import rubiks_cube.rubik as rubik
 
-########### Set up the chart
-bitterness = go.Bar(
-    x=beers,
-    y=ibu_values,
-    name=label1,
-    marker={'color':color1}
-)
-alcohol = go.Bar(
-    x=beers,
-    y=abv_values,
-    name=label2,
-    marker={'color':color2}
-)
+####################################################################################################
 
-beer_data = [bitterness, alcohol]
-beer_layout = go.Layout(
-    barmode='group',
-    title = mytitle
-)
+app = dash.Dash(__name__, external_stylesheets=['https://codepen.io/chriddyp/pen/bWLwgP.css'])
+app.title= 'Nick\'s Projects'
 
-beer_fig = go.Figure(data=beer_data, layout=beer_layout)
+####################################################################################################
 
+app.layout = dhc.Div([
+    dcc.Tabs([
+        dcc.Tab(
+            style={'width':'10vh', 'padding':10},
+            className='fas fa-cube fa-lg',
+            children=[
+                dcc.Store(id='rubik-store-state', data=None),
+                dbc.Row(
+                    no_gutters=True,
+                    children=[
+                        dbc.Col(
+                            width=2,
+                            children=[
+                                dbc.Button(id='rubik-button-reset', children='reset', n_clicks=0),
+                            ],
+                        ),
+                        dbc.Col(
+                            width=10,
+                            children=[
+                                dcc.Graph(
+                                    id='rubik-graph-state',
+                                    style={'height':'90vh'},
+                                    figure={},
+                                    config={'scrollZoom':False, 'displayModeBar':False},
+                                ),
+                            ],
+                        ),
+                    ],
+                ),   
+            ],
+        ),
+    ]),
+])
 
-########### Initiate the app
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-server = app.server
-app.title=tabtitle
-
-########### Set up the layout
-app.layout = html.Div(children=[
-    html.H1(myheading),
-    dcc.Graph(
-        id='flyingdog',
-        figure=beer_fig
-    ),
-    html.A('Code on Github', href=githublink),
-    html.Br(),
-    html.A('Data Source', href=sourceurl),
-    ]
-)
+####################################################################################################
 
 if __name__ == '__main__':
-    app.run_server()
+    
+    @app.callback(
+        ddp.Output('rubik-store-state', 'data'),
+        [
+            ddp.Input('rubik-button-reset', 'n_clicks'),
+            ddp.Input('rubik-graph-state', 'clickData'),
+        ],
+        [
+            ddp.State('rubik-store-state', 'data'),
+        ],
+    )
+    def set_cube_state(reset_clicks:int, clickData:dict, state:list) -> list:
+        cube = rubik.RubiksCube(state=state)
+        trigger = dash.callback_context.triggered[0]
+        if not state or trigger['prop_id'].endswith('reset.n_clicks'):
+            cube = rubik.RubiksCube(state=None)
+        elif trigger['prop_id'].endswith('state.clickData'):
+            if not clickData:
+                return dash.no_update
+            face = clickData['points'][0]['text']
+            cube.rotate(operation=face)
+        return cube.get_state()
+    
+    @app.callback(
+        [
+            ddp.Output('rubik-graph-state', 'figure'),
+            ddp.Output('rubik-graph-state', 'clickData'),
+        ],
+        [ddp.Input('rubik-store-state', 'data')],
+    )
+    def graph_cube_state(state:list) -> dict:
+        if not state:
+            return {}, None
+        figure = rubik.RubiksCube().set_state(state).get_figure()
+        figure['data'][-1].update({
+            'hovertemplate' : 'Click to Rotate',
+        })
+        figure['layout'].update({
+            'hovermode':'closest',
+            'uirevision':'keep',
+            'padding':{'t':0,'b':0,'l':0,'r':0},
+            'showlegend':False,
+        })
+        return figure, None
+ 
+    app.run_server(debug=False)
