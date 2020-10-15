@@ -50,50 +50,51 @@ app.layout = dhc.Div([
 
 ####################################################################################################
 
+@app.callback(
+    ddp.Output('rubik-store-state', 'data'),
+    [
+        ddp.Input('rubik-button-reset', 'n_clicks'),
+        ddp.Input('rubik-graph-state', 'clickData'),
+    ],
+    [
+        ddp.State('rubik-store-state', 'data'),
+    ],
+)
+def set_cube_state(reset_clicks:int, clickData:dict, state:list) -> list:
+    cube = rubik.RubiksCube(state=state)
+    trigger = dash.callback_context.triggered[0]
+    if not state or trigger['prop_id'].endswith('reset.n_clicks'):
+        cube = rubik.RubiksCube(state=None)
+    elif trigger['prop_id'].endswith('state.clickData'):
+        if not clickData:
+            return dash.no_update
+        face = clickData['points'][0]['text']
+        cube.rotate(operation=face)
+    return cube.get_state()
+
+@app.callback(
+    [
+        ddp.Output('rubik-graph-state', 'figure'),
+        ddp.Output('rubik-graph-state', 'clickData'),
+    ],
+    [ddp.Input('rubik-store-state', 'data')],
+)
+def graph_cube_state(state:list) -> dict:
+    if not state:
+        return {}, None
+    figure = rubik.RubiksCube().set_state(state).get_figure()
+    figure['data'][-1].update({
+        'hovertemplate' : 'Click to Rotate',
+    })
+    figure['layout'].update({
+        'hovermode':'closest',
+        'uirevision':'keep',
+        'padding':{'t':0,'b':0,'l':0,'r':0},
+        'showlegend':False,
+    })
+    return figure, None
+    
+####################################################################################################
+
 if __name__ == '__main__':
-    
-    @app.callback(
-        ddp.Output('rubik-store-state', 'data'),
-        [
-            ddp.Input('rubik-button-reset', 'n_clicks'),
-            ddp.Input('rubik-graph-state', 'clickData'),
-        ],
-        [
-            ddp.State('rubik-store-state', 'data'),
-        ],
-    )
-    def set_cube_state(reset_clicks:int, clickData:dict, state:list) -> list:
-        cube = rubik.RubiksCube(state=state)
-        trigger = dash.callback_context.triggered[0]
-        if not state or trigger['prop_id'].endswith('reset.n_clicks'):
-            cube = rubik.RubiksCube(state=None)
-        elif trigger['prop_id'].endswith('state.clickData'):
-            if not clickData:
-                return dash.no_update
-            face = clickData['points'][0]['text']
-            cube.rotate(operation=face)
-        return cube.get_state()
-    
-    @app.callback(
-        [
-            ddp.Output('rubik-graph-state', 'figure'),
-            ddp.Output('rubik-graph-state', 'clickData'),
-        ],
-        [ddp.Input('rubik-store-state', 'data')],
-    )
-    def graph_cube_state(state:list) -> dict:
-        if not state:
-            return {}, None
-        figure = rubik.RubiksCube().set_state(state).get_figure()
-        figure['data'][-1].update({
-            'hovertemplate' : 'Click to Rotate',
-        })
-        figure['layout'].update({
-            'hovermode':'closest',
-            'uirevision':'keep',
-            'padding':{'t':0,'b':0,'l':0,'r':0},
-            'showlegend':False,
-        })
-        return figure, None
- 
     app.run_server(debug=False)
