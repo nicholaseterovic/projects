@@ -110,7 +110,7 @@ app.layout = dhc.Div([
                     dcc.Graph(
                         id='rubik-graph-state',
                         style={'height':'90vh', 'border':'1px black solid'},
-                        config={'scrollZoom':True, 'displayModeBar':False},
+                        config={'scrollZoom':True, 'displayModeBar':True, 'displaylogo':False},
                         figure={},
                     ),
                 ],
