@@ -1,0 +1,1231 @@
+﻿//
+// SNIPPETS from accessibility.js and scripts.js required for accessibility support in non-bootstrap modules
+// included in Header.ascx
+//
+var isAccessibilityJSVerbose = false; // set to false for commits; set to true for verbose console (local to this file only)
+
+//
+// MORE DETAILED EXPLANATION required please! :)
+//
+
+// --------------------------------------------------------------------------------
+// return true if 'x' represents nothing
+// --------------------------------------------------------------------------------
+function isEmpty(x) {
+
+	if (typeof x === 'undefined') {
+		return true;
+	} else if (x === null) {
+		return true;
+	} else if (typeof x === 'string' && x.trim().length < 1) {
+		return true;
+	}
+	return false;
+}
+
+function isString(x) {
+	return typeof x === 'string';
+}
+
+function isNumber(x) {
+	return typeof x === 'number' && !isNaN(x);
+}
+
+// ========================================================
+// ******        ACCESSIBILITY-LIGHT BEGINS          ******
+// ========================================================
+
+var numberNames = [];
+numberNames[0] = 'zero';
+numberNames[1] = 'one';
+numberNames[2] = 'two';
+numberNames[3] = 'three';
+numberNames[4] = 'four';
+numberNames[5] = 'five';
+numberNames[6] = 'six';
+numberNames[7] = 'seven';
+numberNames[8] = 'eight';
+numberNames[9] = 'nine';
+numberNames[10] = 'ten';
+numberNames[11] = 'eleven';
+numberNames[12] = 'twelve';
+numberNames[13] = 'thirteen';
+numberNames[14] = 'fourteen';
+numberNames[15] = 'fifteen';
+numberNames[16] = 'sixteen';
+numberNames[17] = 'seventeen';
+numberNames[18] = 'eighteen';
+numberNames[19] = 'nineteen';
+
+var tensNames = [];
+tensNames[0] = '';
+tensNames[1] = '';
+tensNames[2] = 'twenty';
+tensNames[3] = 'thirty';
+tensNames[4] = 'fourty';
+tensNames[5] = 'fifty';
+tensNames[6] = 'sixty';
+tensNames[7] = 'seventy';
+tensNames[8] = 'eighty';
+tensNames[9] = 'ninety';
+
+function getAriaNumberName(n) {
+	if (isEmpty(n)) {
+		console.error('n is empty');
+		return '';
+	} else if (!isNumber(n)) {
+		console.error('n is not a number');
+		return '';
+	}
+
+	var numberName = '';
+	if (n < 0) {
+		numberName += 'minus ';
+		n = - n;
+	}
+
+	n = Math.floor(n);
+	if (n < 20) {
+		numberName += numberNames[n];
+	} else if (n < 100) {
+		var tens = Math.floor(n / 10);
+		var ones = Math.floor(n % 10);
+		numberName += tensNames[tens];
+		if (ones > 0) {
+			numberName += ' ' + numberNames[ones];
+		}
+	} else {
+		numberName += n;
+	}
+
+	return numberName;
+}
+
+// --------------------------------------------------------------------------------
+// find blocks of text surrounded by (x,y)
+// --------------------------------------------------------------------------------
+function findFirstTextBlockInsideXY(text, x, y) {
+	if (text === undefined || text === null) {
+		console.error('text is null or undefined');
+		return '';
+	}
+	if (x === undefined || x === null) {
+		console.error('x is null or undefined');
+		return '';
+	}
+	if (y === undefined || y === null) {
+		console.error('y is null or undefined');
+		return '';
+	}
+
+	var sx = text.indexOf(x);
+	if (sx < 0) {
+		return; // can't find the opening of the block
+	}
+
+	var ex = text.indexOf(y, sx + 1);
+	if (ex < 0) {
+		return;	// can't find closure to the block
+	}
+	ex += y.length;
+
+	return text.substring(sx, ex);
+}
+
+
+// --------------------------------------------------------------------------------
+// replace all occurances of 'x' with 'y' in a string
+// --------------------------------------------------------------------------------
+function replaceAll(text, x, y) {
+	if (text === undefined || text === null) {
+		console.error('text is null or undefined');
+		return '';
+	}
+	if (x === undefined || x === null) {
+		console.error('x is null or undefined');
+		return '';
+	}
+	if (y === undefined || y === null) {
+		console.error('y is null or undefined');
+		return '';
+	}
+
+	if (!text.includes(x)) {
+		return text; // nothing to do
+	}
+
+	var intermediate = 'ξπθ';
+	if (x.includes(intermediate) || y.includes(intermediate)) {
+		intermediate = 'ΨΦΔ';
+	}
+
+	text = text.replace(x, intermediate);
+	while (text.includes(x)) {
+		text = text.replace(x, intermediate);
+	}
+
+	text = text.replace(intermediate, y);
+	while (text.includes(intermediate)) {
+		text = text.replace(intermediate, y);
+	}
+
+	return text;
+}
+
+function getEncodedHtmlContent(text) {
+	if (isEmpty(text)) {
+		return '';
+	}
+
+	var elem = document.createElement('span');
+	elem.textContent = text;
+
+	var encodedHtml = elem.innerHTML;
+	if (isEmpty(encodedHtml)) {
+		encodedHtml = '';
+	}
+
+	return encodedHtml;
+}
+
+function extractPureTextContentFromHtml(htmlContent) {
+	if (isEmpty(htmlContent)) {
+		return '';
+	}
+	
+	var scriptContent = findFirstTextBlockInsideXY(htmlContent, '<script>', '</script>');
+	while (!isEmpty(scriptContent)) {
+		htmlContent = htmlContent.replace(scriptContent, ' ');
+		scriptContent = findFirstTextBlockInsideXY(htmlContent, '<script>', '</script>');
+	}
+
+	var styleContent = findFirstTextBlockInsideXY(htmlContent, '<style>', '</style>');
+	while (!isEmpty(styleContent)) {
+		htmlContent = htmlContent.replace(styleContent, ' ');
+		styleContent = findFirstTextBlockInsideXY(htmlContent, '<style>', '</style>');
+	}
+
+	// BREATHER (space) around HTML content to leave something readable by screen reader
+	htmlContent = replaceAll(htmlContent, '<br>', ' <br>');
+	htmlContent = replaceAll(htmlContent, '<br/>', ' <br/>');
+	htmlContent = replaceAll(htmlContent, '<p>', ' <p>');
+	htmlContent = replaceAll(htmlContent, '</p>', ' </p>');
+	htmlContent = replaceAll(htmlContent, '<span>', ' <span>');
+	htmlContent = replaceAll(htmlContent, '</span>', ' </span>');
+	htmlContent = replaceAll(htmlContent, '<div>', ' <div>');
+	htmlContent = replaceAll(htmlContent, '</div>', ' </div>');
+	htmlContent = replaceAll(htmlContent, '<script>', ' <script>');
+	htmlContent = replaceAll(htmlContent, '</script>', ' </script>');
+	htmlContent = replaceAll(htmlContent, '<style>', ' <style>');
+	htmlContent = replaceAll(htmlContent, '</style>', ' </style>');
+
+	// CLEANUP all the extra spaces that may have been injected or been present to begin with
+	htmlContent = replaceAll(htmlContent, '	', ' '); // replace TAB with SPACE
+	htmlContent = replaceAll(htmlContent, '  ', ' '); // replace DOUBLE-SPACE with SINGLE-SPACE 1st time
+	htmlContent = replaceAll(htmlContent, '  ', ' '); // replace DOUBLE-SPACE with SINGLE-SPACE 2nd time
+	htmlContent = replaceAll(htmlContent, '  ', ' '); // replace DOUBLE-SPACE with SINGLE-SPACE 3rd time
+
+	var elem = document.createElement('span');
+	elem.innerHTML = htmlContent;
+
+	var text = elem.textContent;
+	if (isEmpty(text)) {
+		return '';
+	}
+
+	return text.trim();
+}
+
+function setupKeyboardSupportForClickableElement(elemId) {
+	if (isEmpty(elemId)) {
+		console.error('elemId is empty');
+		return;
+	} else if (!isString(elemId)) {
+		console.error('elemId is not a string');
+		return;
+	}
+
+	if (!elemId.startsWith('#')) {
+		elemId ='#' + elemId;
+	}
+
+	// console.log('> setupKeyboardSupportForClickableElement() elemId=' + elemId);
+
+	setTimeout(function () {
+		$(elemId).attr('data-z', elemId);
+		$(elemId).keyup(function (event) {
+			if (event.which === 13 || event.which === 32) {
+				$(elemId).click();
+			}
+		});
+	}, 500);
+}
+
+function addAriaLabelPunctuation(text, punctuationChar) {
+	var tailPadding = ' ';
+	if (isEmpty(text)) {
+		return tailPadding;
+	}
+
+	text = text.trim();
+	var hasPunctuation = text.endsWith('.') || text.endsWith('!') || text.endsWith('?') || text.endsWith(':') || text.endsWith(';') || text.endsWith('-') || text.endsWith(',');
+
+	if (isEmpty(punctuationChar)) {
+		// Don't force the punctuation - just use a '.' if there is no punctuation present
+		if (hasPunctuation) {
+			return text + tailPadding;
+		} else {
+			return text + '.' + tailPadding;
+		}
+	} else {
+		// Force punctuation to {punctuationChar} value; will replace existing punctuation if present
+		if (text.endsWith(punctuationChar)) {
+			return text + tailPadding;
+		} else {
+			if (hasPunctuation) {
+				if (text.length <= 1) {
+					// text is a single-character punctuation mark to begin with - equivalent to an empty string
+					return tailPadding;
+				} else {
+					return text.substring(0, text.length - 1) + punctuationChar + tailPadding;
+				}
+			} else {
+				return text + punctuationChar + tailPadding;
+			}
+		}
+	}
+
+	return text; // default - do nothing
+}
+
+function getSafeAriaLabelText(textContent) {
+	// console.log('> [accessibility.js] getSafeAriaLabelText() {a} textContent=' + textContent);
+	if (isEmpty(textContent)) {
+		return ' ';
+	}
+	var safeAttributeText = extractPureTextContentFromHtml(textContent);
+	safeAttributeText = replaceAll(safeAttributeText, '"', '“');
+	safeAttributeText = replaceAll(safeAttributeText, "'", "’");
+	// console.log('> [accessibility.js] getSafeAriaLabelText() {b} safeAttributeText=' + safeAttributeText);
+	return safeAttributeText;
+}
+
+function getSafeAriaLabelTextTrim(textContent) {
+	return getSafeAriaLabelText(textContent).trim();
+}
+
+// --------------------------------------------------------------------------------
+// SELECTIZE management
+// - help with aria-label on the base input when typing and navigating result list
+// - jQuery is OK in the following selectize functions
+// --------------------------------------------------------------------------------
+var selectizeResultCount = {};	// count of the actual number of list items added (html) to the result list during build; incremented during loop/build
+var selectizeResultLength = {};	// the length of the result list used to build the (html) results; set once when we receive the results
+function setupSelectizeInput(wrapperId, selectizeInputAriaLabel, isSelectizeInputRequired) {
+	console.log('> setupSelectizeInput() begins...');
+
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	if (isEmpty(selectizeInputAriaLabel)) {
+		selectizeInputAriaLabel = '';
+	}
+	if (isEmpty(isSelectizeInputRequired)) {
+		isSelectizeInputRequired = false;
+	}
+
+	var selectizeInputId = '#' + wrapperId + ' input';
+	var selectizeInput = $(selectizeInputId);
+	if (isEmpty(selectizeInput)) {
+		console.error('selectizeInput is empty');
+		return;
+	}
+
+	var dataOriginalAriaLabel = addAriaLabelPunctuation(selectizeInputAriaLabel);
+	if (isSelectizeInputRequired === true) {
+		dataOriginalAriaLabel += ' Required.';
+	}
+	dataOriginalAriaLabel = getSafeAriaLabelTextTrim(dataOriginalAriaLabel);
+
+	selectizeInputAriaLabel = dataOriginalAriaLabel;
+	selectizeInputAriaLabel += ' Start typing and wait for suggestions.';
+
+	console.log('> setupSelectizeInput() selectizeInputAriaLabel=' + selectizeInputAriaLabel);
+	selectizeInput.attr('data-original-aria-label', dataOriginalAriaLabel);
+	selectizeInput.attr('aria-label', selectizeInputAriaLabel);
+	selectizeInput.attr('tabindex', '0');
+
+	selectizeInput.keyup(function (event) {
+		console.log('> KEYUP event.which=' + event.which);
+		if (event.which == 38 || event.which == 40) {
+			// up/down arrows
+			setAriaLabelForSelectize(wrapperId);
+		}
+	});
+
+	console.log('> wrapperId=' + wrapperId + ', selectizeInputAriaLabel=' + selectizeInputAriaLabel);
+	console.log('> setupSelectizeInput() wrapperId=' + wrapperId + ', complete!');
+}
+function clearSelectizeResults(wrapperId) {
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	// console.log('> clearSelectizeResults() wrapperId=' + wrapperId);
+	if (!isEmpty(selectizeResultCount[wrapperId])) {
+		delete selectizeResultCount[wrapperId];
+	}
+	if (!isEmpty(selectizeResultLength[wrapperId])) {
+		delete selectizeResultLength[wrapperId];
+	}
+}
+function incrementAndGetSelectizeResultCount(wrapperId) {	
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	if (isEmpty(selectizeResultCount[wrapperId])) {
+		selectizeResultCount[wrapperId] = 0;
+	}
+	selectizeResultCount[wrapperId] = selectizeResultCount[wrapperId] + 1;
+	return selectizeResultCount[wrapperId];
+}
+function setSelectizeResultLength(wrapperId, count) {
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	if (isEmpty(count)) {
+		console.error('count is empty');
+		return;
+	}
+	selectizeResultLength[wrapperId] = count;
+	// console.log('> setSelectizeResultLength() wrapperId=' + wrapperId + ', count=' + count);
+}
+function getSelectizeResultLength(wrapperId) {
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	if (isEmpty(selectizeResultLength[wrapperId])) {
+		return 0;
+	}
+	// console.log('> getSelectizeResultLength() wrapperId=' + wrapperId + ', selectizeResultLength[wrapperId]=' + selectizeResultLength[wrapperId]);
+	return selectizeResultLength[wrapperId];
+}
+function getSelectizeResultCount(wrapperId) {
+	var listItemsSelector = '#' + wrapperId + ' div.selectize-dropdown-content div';
+	var listItems = $(listItemsSelector);
+	return (listItems === undefined || listItems === null) ? 0 : listItems.length / 2;
+}
+function setAriaLabelForSelectize(wrapperId, inputLabelText, includeResultCount) {
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	if (isEmpty(inputLabelText)) {
+		inputLabelText = '';
+	}
+	if (isEmpty(includeResultCount)) {
+		includeResultCount = false;
+	}
+	console.log('> setAriaLabelForSelectize() wrapperId=' + wrapperId);
+	var activeItemSelector = '#' + wrapperId + ' div.selectize-dropdown-content div.active';
+	// activeItemSelector = 'div.selectize-dropdown-content div.active'
+	var activeItem = $(activeItemSelector);
+	if (activeItem !== undefined && activeItem !== null && activeItem.length == 1) {
+		var dataValue = activeItem.attr('data-value');
+		var listItemAriaLabel = activeItem.attr('aria-label');
+		console.log('> KEYUP activeItem.dataValue=' + dataValue + ', activeItem.aria-label=' + listItemAriaLabel);
+		if (!isEmpty(listItemAriaLabel)) {
+			var originalInputAriaLabel = $('#' + wrapperId + ' input').attr('data-original-aria-label');
+			if (isEmpty(originalInputAriaLabel)) {
+				console.error('> NOTE setAriaLabelForSelectize() originalInputAriaLabel is empty');
+				originalInputAriaLabel = inputLabelText;
+			}
+			var inputAriaLabel = '';
+			if (includeResultCount === true) {
+				inputAriaLabel = inputAriaLabel + getSelectizeResultCount(wrapperId) + ' Results. ';
+			}
+			inputAriaLabel = inputAriaLabel + ' ' + listItemAriaLabel + ' ';
+			if (!isEmpty(originalInputAriaLabel)) {
+				inputAriaLabel = inputAriaLabel + addAriaLabelPunctuation(originalInputAriaLabel);
+			}
+			inputAriaLabel = inputAriaLabel + ' Use up and down arrows to navigate list results.';
+			inputAriaLabel = getSafeAriaLabelTextTrim(inputAriaLabel);
+			console.log('> KEYUP inputAriaLabel=' + inputAriaLabel);
+			$('#' + wrapperId + ' input').attr('aria-label', inputAriaLabel);
+		}
+	}
+}
+function setAriaLabelForSelectizeDelayed(waitMillis, wrapperId, inputLabelText, includeResultCount) {
+	if (isEmpty(waitMillis)) {
+		console.error('waitMillis is empty');
+		return;
+	}
+	setTimeout(function () {
+		setAriaLabelForSelectize(wrapperId, inputLabelText, includeResultCount);
+	}, waitMillis);
+}
+
+function getAriaLabelForSelectizeStudents(wrapperId, full_name, email, student_type, student_yog) {
+	console.log('> getAriaLabelForSelectizeStudents() begins...');
+
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return '';
+	}
+
+	if (isEmpty(full_name)) {
+		console.error('full_name is empty');
+		return '';
+	}
+
+	var resultCount = incrementAndGetSelectizeResultCount(wrapperId);
+	var resultsLength = getSelectizeResultLength(wrapperId);
+	if (resultsLength < 1) {
+		console.log('> NOTE getAriaLabelForSelectizeStudents() resultsLength < 1');
+	}
+
+	var listItemAriaLabel = '';
+	// listItemAriaLabel = listItemAriaLabel + 'Option ' + resultCount + ' of ' + resultsLength + '. ';
+
+	listItemAriaLabel += getSafeAriaLabelTextTrim(full_name);
+	if (!isEmpty(email)) {
+		listItemAriaLabel += ', email ' + getSafeAriaLabelTextTrim(email);
+	}
+	var studentDetails = '';
+	if (!isEmpty(student_type)) {
+		studentDetails += getSafeAriaLabelTextTrim(student_type) + ' ';
+	}
+	if (!isEmpty(student_yog)) {
+		studentDetails += 'graduating ' + getSafeAriaLabelTextTrim(student_yog);
+	}
+	if (!isEmpty(studentDetails)) {
+		listItemAriaLabel += ', ' + getSafeAriaLabelTextTrim(studentDetails);
+	}
+	listItemAriaLabel = addAriaLabelPunctuation(listItemAriaLabel);
+
+	return getSafeAriaLabelTextTrim(listItemAriaLabel);
+}
+
+// --------------------------------------------------------------------------------
+// Group acronym feedback helper
+// --------------------------------------------------------------------------------
+function setAriaLabelForGroupAcronymInput() {
+	// console.log('> setAriaLabelForGroupAcronymInput() begins...');
+
+	var inputElem = $("#login");
+	if (isEmpty(inputElem) || inputElem.length !== 1) {
+		console.error('inputElem is empty');
+		return;
+	}
+
+	var dataOriginalAriaLabel = inputElem.attr('data-original-aria-label');
+	if (isEmpty(dataOriginalAriaLabel)) {
+		console.error('dataOriginalAriaLabel is empty');
+		dataOriginalAriaLabel = '';
+	}
+	dataOriginalAriaLabel = dataOriginalAriaLabel.trim();
+
+	// console.log('> login.aria-label=' + $("#login").attr('aria-label'));
+	// console.log('> dataOriginalAriaLabel=' + dataOriginalAriaLabel);
+
+	var loginHelpblock = $("#login_helpblock");
+	if (isEmpty(loginHelpblock) || loginHelpblock.length !== 1) {
+		console.error('loginHelpblock is empty');
+		return;
+	}
+	var loginHelpblockTextContent = loginHelpblock.text();
+	if (!isEmpty(loginHelpblockTextContent)) {
+		dataOriginalAriaLabel = loginHelpblockTextContent + ' ' + dataOriginalAriaLabel;
+	}
+
+	dataOriginalAriaLabel = getSafeAriaLabelTextTrim(dataOriginalAriaLabel);
+
+	setTimeout(function () {
+		inputElem.attr('aria-label', dataOriginalAriaLabel);
+		// console.log('> setAriaLabelForGroupAcronymInput() dataOriginalAriaLabel=' + dataOriginalAriaLabel);
+	}, 250);
+}
+
+// --------------------------------------------------------------------------------
+// Keyboard input manager for dropdown/select inputs (custom BuildSelect using checkbox options inside select)
+// --------------------------------------------------------------------------------
+function getCharFromKeyup(which, isShiftKey) {
+	if (isEmpty(which)) {
+		console.error('which is empty');
+		return;
+	} else if (!isNumber(which)) {
+		console.error('which is not a number');
+		return;
+	}
+
+	if (isEmpty(isShiftKey)) {
+		console.error('isShiftKey is empty');
+		return;
+	} else if (!isBoolean(isShiftKey)) {
+		console.error('isShiftKey is not a boolean');
+		return;
+	}
+
+	var block186LowerCase = ';=,-./`';
+	var block186UpperCase = ':+<_>?~';
+	var block219LowerCase = "[\\]'";
+	var block219UpperCase = '{|}"';
+	var lettersLowerCase = 'abcdefghijklmnopqrstuvwxyz';
+	var lettersUpperCase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+	var numbersLowerCase = '0123456789';
+	var numbersUpperCase = ')!@#$%^&*(';
+	var numpadChars = '*+ -./'
+
+	console.log('> getCharFromKeyup() isShiftKey=' + isShiftKey + ', which=' + which);
+
+	var charValue = null;
+	if (isShiftKey) {
+		if (which >= 48 && which <= 57) {
+			charValue = numbersUpperCase[which - 48];
+		} else if (which >= 65 && which <= 90) {
+			charValue = lettersUpperCase[which - 65];
+		} else if (which >= 96 && which <= 105) {
+			charValue = numbersLowerCase[which - 96];
+		} else if (which >= 106 && which <= 111) {
+			charValue = numpadChars[which - 106];
+		} else if (which >= 186 && which <= 192) {
+			charValue = block186UpperCase[which - 186];
+		} else if (which >= 219 && which <= 222) {
+			charValue = block219UpperCase[which - 219];
+		}
+	} else {
+		if (which >= 48 && which <= 57) {
+			charValue = numbersLowerCase[which - 48];
+		} else if (which >= 65 && which <= 90) {
+			charValue = lettersLowerCase[which - 65];
+		} else if (which >= 96 && which <= 105) {
+			charValue = numbersLowerCase[which - 96];
+		} else if (which >= 106 && which <= 111) {
+			charValue = numpadChars[which - 106];
+		} else if (which >= 186 && which <= 192) {
+			charValue = block186LowerCase[which - 186];
+		} else if (which >= 219 && which <= 222) {
+			charValue = block219LowerCase[which - 219];
+		}
+	}
+
+	console.log('> charValue=' + charValue);
+
+	if (isEmpty(charValue)) {
+		charValue = null;
+	}
+
+	return charValue;
+}
+
+function setActiveOptionAriaLabelForSelectMultipleNewWithClass(aOption) {
+	var aOptionParent = $(aOption).parent();
+	if ($(aOptionParent).is('li')) {
+		var isChecked = false;
+		if (aOptionParent.hasClass('active')) {
+			isChecked = true;
+			if (isAccessibilityJSVerbose) {
+				console.log('> aOptionParent is ACTIVE');
+			}
+		}
+		var aOptionLabel = $(aOption).find('div label');
+		if (!isEmpty(aOptionLabel) && aOptionLabel.length === 1) {
+			var labelText = aOptionLabel.text();
+			var labelAriaLabel = addAriaLabelPunctuation(labelText);
+			if (isChecked) {
+				labelAriaLabel += ' Checked.'
+			}
+			labelAriaLabel = getSafeAriaLabelTextTrim(labelAriaLabel);
+			if (isAccessibilityJSVerbose) {
+				console.log('> aOptionentLabel=' + labelText);
+				console.log('> labelAriaLabel=' + labelAriaLabel);
+			}
+			$(aOptionLabel).attr('aria-label', labelAriaLabel);
+			$(aOption).attr('aria-label', labelAriaLabel);
+			if (isChecked) {
+				$(aOption).attr('checked', '');
+			} else {
+				$(aOption).removeAttr('checked');
+			}
+		}
+		var aOptionInput = $(aOption).find('div input');
+		if (!isEmpty(aOptionInput) && aOptionInput.length === 1) {
+			if (isChecked) {
+				$(aOptionInput).attr('checked', '');
+			} else {
+				$(aOptionInput).removeAttr('checked');
+			}
+		}
+	}
+}
+
+function setOptionLinkRolesForSelectMultipleNewWithClass(selectId) {
+
+	if (isEmpty(selectId)) {
+		console.error('selectId is empty');
+		return;
+	} else if (!isString(selectId)) {
+		console.error('selectId is not a string');
+		return;
+	}
+	if (selectId.startsWith('#')) {
+		selectId = selectId.substring(1);
+	}
+
+	var optionLinks = $('#' + selectId).next().find('ul li a');
+	console.log('> optionLinks.length=' + optionLinks.length);
+	for (var i=0; i<optionLinks.length; i++) {
+		var optionLink = $(optionLinks.get(i));
+		$(optionLink).attr('role', 'checkbox');
+
+		if ($(optionLink).parent().hasClass('active')) {
+			$(optionLink).attr('checked', '');
+			$(optionLink).find('div input').attr('checked', '');
+		} else {
+			$(optionLink).removeAttr('checked');
+			$(optionLink).find('div input').removeAttr('checked');
+		}
+	}
+}
+
+function manageKeyboardForSelectMultipleNewWithClass(selectId, optionCount) {
+	console.log('> manageKeyboardForSelectMultipleNewWithClass(b) selectId=' + selectId + ', optionCount=' + optionCount);
+
+	if (isEmpty(selectId)) {
+		console.error('selectId is empty');
+		return;
+	} else if (!isString(selectId)) {
+		console.error('selectId is not a string');
+		return;
+	}
+	if (selectId.startsWith('#')) {
+		selectId = selectId.substring(1);
+	}
+
+	if (isEmpty(optionCount)) {
+		optionCount = 0;
+	}
+
+	var useApplicationMode = false;
+	if (optionCount >= 15) {
+		useApplicationMode = true;
+	}
+
+	var chars = '';
+	var sortOrder = 0; // -1 descending : +1 ascending : 0 not sorted
+
+	setOptionLinkRolesForSelectMultipleNewWithClass(selectId);
+
+	if (useApplicationMode) {
+		// flag this area as an application to prevent NVDA/etc. from handling keyboard input
+		$('#' + selectId).parent().attr('role', 'application');
+
+		setTimeout(function () {
+			sortOrder = getDropdownSortOrder(selectId);
+			// console.log('> sortOrder=' + sortOrder);
+		}, 100);
+	}
+
+	var selectButton = $('#' + selectId).next().find('button');
+	if (!isEmpty(selectButton) && selectButton.length === 1) {
+		var originalAriaLabel = $(selectButton).attr('aria-label');
+		$(selectButton).attr('data-original-aria-label', originalAriaLabel);
+
+		if (useApplicationMode) {
+			var newAriaLabel = addAriaLabelPunctuation(originalAriaLabel).trim() + ' Enter or arrow down to expand the list. Start typing to navigate to the nearest option. Backspace or delete to empty typing buffer.'
+			$(selectButton).attr('aria-label', newAriaLabel);
+		}
+	}
+
+	$('#' + selectId).next().keyup(function (event) {
+		console.log('> SELECT keyup selectId=' + selectId + ', sortOrder=' + sortOrder);
+
+		if (isAccessibilityJSVerbose) {
+			console.log('keyup');
+		}
+		if (event.which === 27) {
+			// escape key
+			if (isAccessibilityJSVerbose) {
+				console.log('> keyup event.which=' + event.which + ' *** ESC escape key pressed!');
+			}
+			$('#' + selectId).next().removeClass('open');
+			selectButton.focus();
+		}
+		
+		if (useApplicationMode) {
+			if (event.which === 8 || event.which === 46) {
+				// backspace and delete
+				if (isAccessibilityJSVerbose) {
+					console.log('> keyup event.which=' + event.which);
+				}
+				chars = '';
+			} else if (event.which === 13 || event.which === 32) {
+				// enter or space bar
+				var activeElem = document.activeElement;
+				setActiveOptionAriaLabelForSelectMultipleNewWithClass(activeElem);
+			} else {
+				// all other keys
+				if (isAccessibilityJSVerbose) {
+					console.log('> keyup event.which=' + event.which);
+				}
+
+				var char = getCharFromKeyup(event.which, event.shiftKey);
+				if (!isEmpty(char)) {
+					char = char.toLowerCase();
+					console.log('> char=' + char);
+					chars += char;
+					console.log('> chars=' + chars);
+
+					var hasFocused = false;
+					var optionLabels = $('#' + selectId).next().find('ul li a div label');
+					console.log('> optionLabels.length=' + optionLabels.length);
+					for (var i=0; i<optionLabels.length; i++) {
+						var optionLabel = $(optionLabels.get(i));
+						var title = $(optionLabel).attr('title');
+						if (!hasFocused && !isEmpty(title)) {
+							title = title.trim().toLowerCase();
+							console.log('> title=' + title);
+							if (!isEmpty(chars)) {
+								var takeFocus = false;
+								if (title.startsWith(chars)) {
+									console.log('> *** FOCUS{a} on=' + title);
+									takeFocus = true;
+								} else {
+									if (sortOrder > 0 && title.localeCompare(chars) > 0) {
+										console.log('> *** FOCUS{ascending} on=' + title);
+										takeFocus = true;
+									} else if (sortOrder < 0 && title.localeCompare(chars) < 0) {
+										console.log('> *** FOCUS{descending} on' + title);
+										takeFocus = true;
+									}
+								}
+							}
+
+							if (takeFocus) {
+								hasFocused = true;
+								var option = $(optionLabel).parent().parent();
+								setActiveOptionAriaLabelForSelectMultipleNewWithClass(option);
+								option.focus();
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+}
+
+function getDropdownSortOrder(selectId) {
+	if (isEmpty(selectId)) {
+		console.error('selectId is empty');
+		return 0;
+	} else if (!isString(selectId)) {
+		console.error('selectId is not a string');
+		return 0;
+	}
+
+	if (selectId.startsWith('#')) {
+		selectId = selectId.substring(1);
+	}
+
+	var optionLabels = $('#' + selectId).next().find('ul li a div label');
+	console.log('> optionLabels.length=' + optionLabels.length);
+	var prevTitle = null;
+	var isAscending = true;
+	var isDescending = true;
+	for (var i=0; i<optionLabels.length; i++) {
+		var optionLabel = $(optionLabels.get(i));
+		var title = $(optionLabel).attr('title').trim().toLowerCase();
+		if (prevTitle === null) {
+			prevTitle = title;
+		} else {
+			if (title.localeCompare(prevTitle) >= 0) {
+				isDescending = false;
+			} else if (title.localeCompare(prevTitle) <= 0) {
+				isAscending = false;
+			}
+		}
+	}
+
+	if (isAscending) {
+		return +1;
+	} else if (isDescending) {
+		return -1;
+	}
+
+	return 0;
+}
+
+// --------------------------------------------------------------------------------
+// Manage keyboard navigation for event carousel/slideshow
+// --------------------------------------------------------------------------------
+
+function previousEventCarouselButtonOnClick(divWrapperId, h2SlideshowPreviousId) {
+	// console.log('> previousEventCarouselButtonOnClick() begins...');
+
+	if (isEmpty(divWrapperId)) {
+		console.error('divWrapperId is empty');
+		return;
+	} else if (!isString(divWrapperId)) {
+		console.error('divWrapperId is not a string');
+		return;
+	}
+
+	if (!divWrapperId.startsWith('#')) {
+		divWrapperId = '#' + divWrapperId;
+	}
+
+	if (isEmpty(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is empty');
+		return;
+	} else if (!isString(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is not a string');
+		return;
+	}
+
+	if (!h2SlideshowPreviousId.startsWith('#')) {
+		h2SlideshowPreviousId = '#' + h2SlideshowPreviousId;
+	}
+
+	var waitMillis = 250;
+	var slickActiveSlides = $(divWrapperId + ' div.slick-track div.slick-active');
+	if (!isEmpty(slickActiveSlides) && slickActiveSlides.length > 0) {
+		var focusCard = slickActiveSlides.get(0);
+		var cgCardNumber = $(focusCard).attr('data-cg-card-number');
+		if (cgCardNumber === '1') {
+			waitMillis = 750;
+		}
+	}
+
+	// $(h2SlideshowPreviousId).click();
+	// $('.event_slider').slick('slickPrev');
+	$(divWrapperId + ' .event_slider').slick('slickPrev');
+
+	setTimeout(function () {
+		setFocusOnEventsCarouselPreviousSlideButtonClick(divWrapperId, h2SlideshowPreviousId);
+	}, waitMillis);
+}
+
+function nextEventCarouselButtonOnClick(divWrapperId, h2SlideshowNextId) {
+	if (isEmpty(divWrapperId)) {
+		console.error('divWrapperId is empty');
+		return;
+	} else if (!isString(divWrapperId)) {
+		console.error('divWrapperId is not a string');
+		return;
+	}
+
+	if (!divWrapperId.startsWith('#')) {
+		divWrapperId = '#' + divWrapperId;
+	}
+
+	if (isEmpty(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is empty');
+		return;
+	} else if (!isString(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is not a string');
+		return;
+	}
+
+	if (!h2SlideshowNextId.startsWith('#')) {
+		h2SlideshowNextId = '#' + h2SlideshowNextId;
+	}
+
+	// $(h2SlideshowNextId).click();
+	// $('.event_slider').slick('slickNext');
+	$(divWrapperId + ' .event_slider').slick('slickNext');
+
+	setTimeout(function () {
+		setFocusOnEventsCarouselNextSlideButtonClick(divWrapperId, h2SlideshowNextId);
+	}, 250);	
+}
+
+function setupKeyboardNavigationForEventCarouselSlideshow(divWrapperId, h2SlideshowPreviousId, h2SlideshowNextId, spanSlideshowPreviousId, spanSlideshowNextId) {
+
+	// console.log('> setupKeyboardNavigationForEventCarouselSlideshow() begins...');
+
+	if (isEmpty(divWrapperId)) {
+		console.error('divWrapperId is empty');
+		return;
+	} else if (!isString(divWrapperId)) {
+		console.error('divWrapperId is not a string');
+		return;
+	}
+
+	if (isEmpty(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is empty');
+		return;
+	} else if (!isString(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is not a string');
+		return;
+	}
+
+	if (isEmpty(spanSlideshowPreviousId)) {
+		console.error('spanSlideshowPreviousId is empty');
+		return;
+	} else if (!isString(spanSlideshowPreviousId)) {
+		console.error('spanSlideshowPreviousId is not a string');
+		return;
+	}
+
+	if (isEmpty(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is empty');
+		return;
+	} else if (!isString(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is not a string');
+		return;
+	}
+
+	if (isEmpty(spanSlideshowNextId)) {
+		console.error('spanSlideshowNextId is empty');
+		return;
+	} else if (!isString(spanSlideshowNextId)) {
+		console.error('spanSlideshowNextId is not a string');
+		return;
+	}
+
+	if (!divWrapperId.startsWith('#')) {
+		divWrapperId = '#' + divWrapperId;
+	}
+
+	if (!h2SlideshowPreviousId.startsWith('#')) {
+		h2SlideshowPreviousId = '#' + h2SlideshowPreviousId;
+	}
+
+	if (!spanSlideshowPreviousId.startsWith('#')) {
+		spanSlideshowPreviousId = '#' + spanSlideshowPreviousId;
+	}
+
+	if (!h2SlideshowNextId.startsWith('#')) {
+		h2SlideshowNextId = '#' + h2SlideshowNextId;
+	}
+
+	if (!spanSlideshowNextId.startsWith('#')) {
+		spanSlideshowNextId = '#' + spanSlideshowNextId;
+	}
+
+	$(h2SlideshowPreviousId).keyup(function (event) {
+		if (isAccessibilityJSVerbose) {
+			// console.log('> KEYUP previous event slide, event.which=' + event.which);
+		}
+		var useNumbersTwoToNine = false;
+		if (event.which == 13) {
+			var useThis101 = false;
+			if (useThis101) {
+				var waitMillis = 100;
+				var slickActiveSlides = $(divWrapperId + ' div.slick-track div.slick-active');
+				if (!isEmpty(slickActiveSlides) && slickActiveSlides.length > 0) {
+					var focusCard = slickActiveSlides.get(0);
+					var cgCardNumber = $(focusCard).attr('data-cg-card-number');
+					if (cgCardNumber === '1') {
+						waitMillis = 650;
+					}
+				}
+				$(h2SlideshowPreviousId).click();
+				setTimeout(function () {
+					setFocusOnEventsCarouselPreviousSlideButtonClick(divWrapperId, h2SlideshowPreviousId);
+				}, waitMillis);
+			}
+			previousEventCarouselButtonOnClick(divWrapperId, h2SlideshowPreviousId);
+		} else if (useNumbersTwoToNine && event.which >= 50 && event.which <= 57) {
+			var maxIntervals = event.which - 48;
+			var intervalId = setInterval(function () {
+				$(h2SlideshowPreviousId).click();
+
+				maxIntervals--;
+				if (isAccessibilityJSVerbose) {
+					console.log('> maxIntervals=' + maxIntervals);
+				}
+				if (maxIntervals <= 0) {
+					clearInterval(intervalId);
+					setFocusOnEventsCarouselPreviousSlideButtonClick(divWrapperId, h2SlideshowPreviousId);
+				}
+			}, 1250);
+		}
+	});
+
+	$(h2SlideshowNextId).keyup(function (event) {
+		if (isAccessibilityJSVerbose) {
+			console.log('> KEYUP next event slide, event.which=' + event.which);
+		}
+		if (event.which == 13) {
+			$(h2SlideshowNextId).click();
+			setFocusOnEventsCarouselNextSlideButtonClick(divWrapperId, h2SlideshowNextId);
+		} else if (event.which >= 50 && event.which <= 57) {
+			var maxIntervals = event.which - 48;
+			var intervalId = setInterval(function () {
+				$(h2SlideshowNextId).click();
+
+				maxIntervals--;
+				if (isAccessibilityJSVerbose) {
+					console.log('> maxIntervals=' + maxIntervals);
+				}
+				if (maxIntervals <= 0) {
+					clearInterval(intervalId);
+					setFocusOnEventsCarouselNextSlideButtonClick(divWrapperId, h2SlideshowNextId);
+				}
+			}, 1250);
+		}
+	});
+
+	$(h2SlideshowPreviousId).focus(function () {
+		if (isAccessibilityJSVerbose) {
+			console.log('> #h2-slideshow-previous-00.focus()');
+		}
+		$(spanSlideshowPreviousId).removeClass('mdi-chevron-left');
+		$(spanSlideshowPreviousId).addClass('mdi-chevron-left-box');
+	});
+
+	$(h2SlideshowNextId).focus(function () {
+		if (isAccessibilityJSVerbose) {
+			console.log('> #h2-slideshow-next-00.focus()');
+		}
+		$(spanSlideshowNextId).removeClass('mdi-chevron-right');
+		$(spanSlideshowNextId).addClass('mdi-chevron-right-box');
+	});
+
+	$(h2SlideshowPreviousId).blur(function () {
+		if (isAccessibilityJSVerbose) {
+			console.log('> #h2-slideshow-previous-00.blur()');
+		}
+		$(spanSlideshowPreviousId).removeClass('mdi-chevron-left-box');
+		$(spanSlideshowPreviousId).addClass('mdi-chevron-left');
+		// $(h2SlideshowPreviousId).attr('aria-label', 'Previous Event Slide');
+	});
+
+	$(h2SlideshowNextId).blur(function () {
+		if (isAccessibilityJSVerbose) {
+			console.log('> #h2-slideshow-next-00.blur()');
+		}
+		$(spanSlideshowNextId).removeClass('mdi-chevron-right-box');
+		$(spanSlideshowNextId).addClass('mdi-chevron-right');
+		// $(h2SlideshowNextId).attr('aria-label', 'Next Event Slide');
+	});
+
+	var doThis = true;
+	if (doThis)
+	{
+		var intervalId = setInterval(function () {
+			var slickDots = $(divWrapperId + ' ul.slick-dots li button');
+			// console.log('> slickDots.length=' + slickDots.length);
+			if (!isEmpty(slickDots) && slickDots.length > 0) {
+				var slickDotsContainer = $(divWrapperId + ' div.slick-dotted ul.slick-dots');
+				if (!isEmpty(slickDotsContainer) && slickDotsContainer.length > 0) {
+					$(slickDotsContainer.get(0)).attr('aria-label', 'Event slideshow dots. Navigate the slideshow using these dots. This control does not work as expected using screen reader software, however, we are working to improve it.');
+				}
+				for (var i=0; i<slickDots.length; i++) {
+					var slickDot = slickDots.get(i);
+					var dotId = slickDot.id;
+					var cardId = dotId.replace('-control', '');
+					// console.log('> dotId=' + dotId);
+					// console.log('> cardId=' + cardId);
+					var cardAriaLabel = $('#' + cardId).attr('aria-label');
+					if (!isEmpty(cardAriaLabel)) {
+						// console.log('> cardAriaLabel=' + cardAriaLabel);
+						var dotAriaLabel = cardAriaLabel.replace('Event slide ', 'Event slide control ');
+						$(slickDot).attr('aria-label', dotAriaLabel);
+					}
+				}
+				clearInterval(intervalId);
+			}
+		}, 250);
+	}
+}
+
+function setFocusOnEventsCarouselPreviousSlideButtonClick(divWrapperId, h2SlideshowPreviousId) {
+
+	if (isAccessibilityJSVerbose) {
+		console.log('> setFocusOnEventsCarouselPreviousSlideButtonClick() begins...');
+	}
+
+	if (isEmpty(divWrapperId)) {
+		console.error('divWrapperId is empty');
+		return;
+	} else if (!isString(divWrapperId)) {
+		console.error('divWrapperId is not a string');
+		return;
+	}
+
+	if (isEmpty(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is empty');
+		return;
+	} else if (!isString(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is not a string');
+		return;
+	}
+
+	if (!divWrapperId.startsWith('#')) {
+		divWrapperId = '#' + divWrapperId;
+	}
+
+	if (!h2SlideshowPreviousId.startsWith('#')) {
+		h2SlideshowPreviousId = '#' + h2SlideshowPreviousId;
+	}
+
+	setTimeout(function () {
+		var slickActiveSlides = $(divWrapperId + ' div.slick-track div.slick-active');
+		if (!isEmpty(slickActiveSlides) && slickActiveSlides.length > 0) {
+			var focusCard = slickActiveSlides.get(0);
+			if (isAccessibilityJSVerbose) {
+				console.log('> focusCard=' + getElementPath(focusCard));
+			}
+			$(focusCard).focus();
+		}
+	}, 100);
+}
+
+function setFocusOnEventsCarouselNextSlideButtonClick(divWrapperId, h2SlideshowNextId) {
+	if (isAccessibilityJSVerbose) {
+		console.log('> setFocusOnEventsCarouselNextSlideButtonClick() begins...');
+	}
+
+	if (isEmpty(divWrapperId)) {
+		console.error('divWrapperId is empty');
+		return;
+	} else if (!isString(divWrapperId)) {
+		console.error('divWrapperId is not a string');
+		return;
+	}
+
+	if (isEmpty(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is empty');
+		return;
+	} else if (!isString(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is not a string');
+		return;
+	}
+
+	if (!divWrapperId.startsWith('#')) {
+		divWrapperId = '#' + divWrapperId;
+	}
+
+	if (!h2SlideshowNextId.startsWith('#')) {
+		h2SlideshowNextId = '#' + h2SlideshowNextId;
+	}
+
+	setTimeout(function () {
+		var slickActiveSlides = $(divWrapperId + ' div.slick-track div.slick-active');
+		if (!isEmpty(slickActiveSlides) && slickActiveSlides.length > 0) {
+			var focusCard = slickActiveSlides.get(slickActiveSlides.length - 1);
+			if (isAccessibilityJSVerbose) {
+				console.log('> focusCard=' + getElementPath(focusCard));
+			}
+			$(focusCard).focus();
+		}
+	}, 100);
+}
+
+// --------------------------------------------------------------------------------
+// Manage keyboard navigation on website slideshow
+// --------------------------------------------------------------------------------
+
+// ========================================================
+// ******         ACCESSIBILITY-LIGHT ENDS           ******
+// ========================================================
+
+console.log('> accessibility_light is ready.');

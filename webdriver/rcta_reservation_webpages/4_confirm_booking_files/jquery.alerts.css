@@ -1,0 +1,36 @@
+#popup_container {
+	background: #ffffff;
+	border: 1px solid rgba(0,0,0,.2);
+    border-radius: 6px;
+	max-width: 600px;
+	min-width: 300px;
+    outline: 0;
+    box-shadow: 0 3px 9px rgba(0,0,0,.5);
+    -webkit-box-shadow: 0 3px 9px rgba(0,0,0,.5);
+}
+#popup_title {
+    background: #e0e0e0e0;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+	cursor: default;
+	font-size: 16px;
+	font-weight: 500;
+	margin: 0;
+	line-height: 2.2em;
+	text-align: center;
+}
+#popup_content {
+	margin: 0;
+	padding: 1em 2em;
+	text-align: center;
+}
+#popup_message { text-align: center; }
+
+#popup_panel {
+	text-align: center;
+	margin: 1em 0em 0em 1em;
+}
+
+#popup_prompt {
+	margin: .5em 0em;
+}

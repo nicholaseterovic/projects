@@ -1,0 +1,4385 @@
+﻿var currentDateInput;
+var datePickerMadeAccessible = false;
+var isAccessibilityJSVerbose = false; // set to false for commits; set to true for verbose console (local to this file only)
+
+var daysOfWeek = [];
+daysOfWeek[0] = 'Sunday';
+daysOfWeek[1] = 'Monday';
+daysOfWeek[2] = 'Tuesday';
+daysOfWeek[3] = 'Wednesday';
+daysOfWeek[4] = 'Thursday';
+daysOfWeek[5] = 'Friday';
+daysOfWeek[6] = 'Saturday';
+
+function accessibilityMagic() {
+	setTimeout(function() {
+		// Hide the "today" button because it doesn't do what
+		// you think it supposed to do
+		$(".ui-datepicker-current").hide();
+
+		var container = document.getElementById('ui-datepicker-div');
+
+		if (!container) {
+			console.log("No container");
+			return;
+		}
+		
+		container.setAttribute('role', 'application');
+		container.setAttribute('aria-label', 'Calendar view date-picker');
+
+		// the top controls:
+		var prev = $('.ui-datepicker-prev', container)[0],
+			next = $('.ui-datepicker-next', container)[0];
+
+
+		// This is the line that needs to be fixed for use on pages with base URL set in head
+		next.href = 'javascript:;';
+		prev.href = 'javascript:;';
+
+		next.setAttribute('role', 'button');
+		next.removeAttribute('title');
+		prev.setAttribute('role', 'button');
+		prev.removeAttribute('title');
+
+		appendOffscreenMonthText(next);
+		appendOffscreenMonthText(prev);
+
+		// delegation won't work here for whatever reason, so we are
+		// forced to attach individual click listeners to the prev /
+		// next month buttons each time they are added to the DOM
+		$(next).on('click', handleNextClicks);
+		$(prev).on('click', handlePrevClicks);
+
+		monthDayYearText();
+		
+		datePickHandler();
+		
+		$(document).on('click', '#ui-datepicker-div .ui-datepicker-close', function () {
+			closeCalendar();
+		});
+	});
+}
+
+function datePickHandler() {
+	var container = document.getElementById('ui-datepicker-div');
+	if (!container) {
+		console.log("No container");
+		return;
+	}
+	var activeDate;
+	var prev = $('.ui-datepicker-prev', container)[0],
+		next = $('.ui-datepicker-next', container)[0];
+		
+    $('#ui-datepicker-div').on('keydown', function calendarKeyboardListener(keyVent) {
+		console.log(keyVent);
+        var which = keyVent.which;
+        var target = keyVent.target;
+        var dateCurrent = getCurrentDate(container);
+
+        if (!dateCurrent) {
+            dateCurrent = $('a.ui-state-default')[0];
+            setHighlightState(dateCurrent, container);
+        }
+
+        if (27 === which) {
+            keyVent.stopPropagation();
+            return closeCalendar();
+        } else if (which === 9 && keyVent.shiftKey) { // SHIFT + TAB
+            keyVent.preventDefault();
+            if ($(target).hasClass('ui-datepicker-close')) { // close button
+                $('.ui-datepicker-prev')[0].focus();
+            } else if ($(target).hasClass('ui-state-default')) { // a date link
+                $('.ui-datepicker-close')[0].focus();
+            } else if ($(target).hasClass('ui-datepicker-prev')) { // the prev link
+                $('.ui-datepicker-next')[0].focus();
+            } else if ($(target).hasClass('ui-datepicker-next')) { // the next link
+                activeDate = $('.ui-state-highlight') ||
+                    $('.ui-state-active')[0];
+                if (activeDate) {
+                    activeDate.focus();
+                }
+            }
+        } else if (which === 9) { // TAB
+            keyVent.preventDefault();
+            if ($(target).hasClass('ui-datepicker-close')) { // close button
+                activeDate = $('.ui-state-highlight') ||
+                    $('.ui-state-active')[0];
+                if (activeDate) {
+                    activeDate.focus();
+                }
+            } else if ($(target).hasClass('ui-state-default')) {
+                $('.ui-datepicker-next')[0].focus();
+            } else if ($(target).hasClass('ui-datepicker-next')) {
+                $('.ui-datepicker-prev')[0].focus();
+            } else if ($(target).hasClass('ui-datepicker-prev')) {
+                $('.ui-datepicker-close')[0].focus();
+            }
+        } else if (which === 37) { // LEFT arrow key
+            // if we're on a date link...
+            if (!$(target).hasClass('ui-datepicker-close') && $(target).hasClass('ui-state-default')) {
+                keyVent.preventDefault();
+                previousDay(target);
+            }
+        } else if (which === 39) { // RIGHT arrow key
+            // if we're on a date link...
+            if (!$(target).hasClass('ui-datepicker-close') && $(target).hasClass('ui-state-default')) {
+                keyVent.preventDefault();
+                nextDay(target);
+            }
+        } else if (which === 38) { // UP arrow key
+            if (!$(target).hasClass('ui-datepicker-close') && $(target).hasClass('ui-state-default')) {
+                keyVent.preventDefault();
+                upHandler(target, container, prev);
+            }
+        } else if (which === 40) { // DOWN arrow key
+            if (!$(target).hasClass('ui-datepicker-close') && $(target).hasClass('ui-state-default')) {
+                keyVent.preventDefault();
+                downHandler(target, container, next);
+            }
+        } else if (which === 13) { // ENTER
+            if ($(target).hasClass('ui-state-default')) {
+                setTimeout(function () {
+                    closeCalendar();
+                }, 100);
+            } else if ($(target).hasClass('ui-datepicker-prev')) {
+                handlePrevClicks();
+            } else if ($(target).hasClass('ui-datepicker-next')) {
+                handleNextClicks();
+            }
+        } else if (32 === which) {
+            if ($(target).hasClass('ui-datepicker-prev') || $(target).hasClass('ui-datepicker-next')) {
+                target.click();
+            }
+        } else if (33 === which) { // PAGE UP
+            keyVent.preventDefault();
+            moveOneMonth(target, 'prev');
+        } else if (34 === which) { // PAGE DOWN
+            keyVent.preventDefault();
+            moveOneMonth(target, 'next');
+        } else if (36 === which) { // HOME
+            keyVent.preventDefault();
+            var firstOfMonth = $(target).closest('tbody').find('.ui-state-default')[0];
+            if (firstOfMonth) {
+                firstOfMonth.focus();
+                setHighlightState(firstOfMonth, $('#ui-datepicker-div')[0]);
+            }
+        } else if (35 === which) { // END
+            keyVent.preventDefault();
+            var $daysOfMonth = $(target).closest('tbody').find('.ui-state-default');
+            var lastDay = $daysOfMonth[$daysOfMonth.length - 1];
+            if (lastDay) {
+                lastDay.focus();
+                setHighlightState(lastDay, $('#ui-datepicker-div')[0]);
+            }
+        }
+        $(".ui-datepicker-current").hide();
+    });
+}
+
+function closeCalendar() {
+    //var container = $('#ui-datepicker-div');
+    //$(container).off('keydown');
+    $(currentDateInput).datepicker('hide');
+	//$(currentDateInput).focus();
+	//currentDateInput = undefined;
+}
+
+///////////////////////////////
+//////////////////////////// //
+///////////////////////// // //
+// UTILITY-LIKE THINGS // // //
+///////////////////////// // //
+//////////////////////////// //
+///////////////////////////////
+function isOdd(num) {
+    return num % 2;
+}
+
+function moveOneMonth(currentDate, dir) {
+    var button = (dir === 'next')
+        ? $('.ui-datepicker-next')[0]
+        : $('.ui-datepicker-prev')[0];
+
+    if (!button) {
+        return;
+    }
+
+    var ENABLED_SELECTOR = '#ui-datepicker-div tbody td:not(.ui-state-disabled)';
+    var $currentCells = $(ENABLED_SELECTOR);
+    var currentIdx = $.inArray(currentDate.parentNode, $currentCells);
+
+    button.click();
+    setTimeout(function () {
+        updateHeaderElements();
+
+        var $newCells = $(ENABLED_SELECTOR);
+        var newTd = $newCells[currentIdx];
+        var newAnchor = newTd && $(newTd).find('a')[0];
+
+        while (!newAnchor) {
+            currentIdx--;
+            newTd = $newCells[currentIdx];
+            newAnchor = newTd && $(newTd).find('a')[0];
+        }
+
+        setHighlightState(newAnchor, $('#ui-datepicker-div')[0]);
+        newAnchor.focus();
+
+    }, 0);
+
+}
+
+function handleNextClicks() {
+    setTimeout(function () {
+		console.log('next');
+        updateHeaderElements();
+        prepHighlightState();
+        $('.ui-datepicker-next').focus();
+        $(".ui-datepicker-current").hide();
+    }, 0);
+}
+
+function handlePrevClicks() {
+    setTimeout(function () {
+        console.log('prev');
+        updateHeaderElements();
+        prepHighlightState();
+        $('.ui-datepicker-prev').focus();
+        $(".ui-datepicker-current").hide();
+    }, 0);
+}
+
+function previousDay(dateLink) {
+    var container = document.getElementById('ui-datepicker-div');
+    if (!dateLink) {
+        return;
+    }
+    var td = $(dateLink).closest('td');
+    if (!td) {
+        return;
+    }
+
+    var prevTd = $(td).prev(),
+        prevDateLink = $('a.ui-state-default', prevTd)[0];
+
+    if (prevTd && prevDateLink) {
+        setHighlightState(prevDateLink, container);
+        prevDateLink.focus();
+    } else {
+        handlePrevious(dateLink);
+    }
+}
+
+
+function handlePrevious(target) {
+    var container = document.getElementById('ui-datepicker-div');
+    if (!target) {
+        return;
+    }
+    var currentRow = $(target).closest('tr');
+    if (!currentRow) {
+        return;
+    }
+    var previousRow = $(currentRow).prev();
+
+    if (!previousRow || previousRow.length === 0) {
+        // there is not previous row, so we go to previous month...
+        previousMonth();
+    } else {
+        var prevRowDates = $('td a.ui-state-default', previousRow);
+        var prevRowDate = prevRowDates[prevRowDates.length - 1];
+
+        if (prevRowDate) {
+            setTimeout(function () {
+                setHighlightState(prevRowDate, container);
+                prevRowDate.focus();
+            }, 0);
+        }
+    }
+}
+
+function previousMonth() {
+	console.log("previousMonth");
+    var prevLink = $('.ui-datepicker-prev')[0];
+    var container = document.getElementById('ui-datepicker-div');
+    prevLink.click();
+    // focus last day of new month
+    setTimeout(function () {
+        var trs = $('tr', container),
+            lastRowTdLinks = $('td a.ui-state-default', trs[trs.length - 1]),
+            lastDate = lastRowTdLinks[lastRowTdLinks.length - 1];
+
+        // updating the cached header elements
+        updateHeaderElements();
+
+        setHighlightState(lastDate, container);
+        lastDate.focus();
+
+    }, 0);
+}
+
+///////////////// NEXT /////////////////
+/**
+ * Handles right arrow key navigation
+ * @param  {HTMLElement} dateLink The target of the keyboard event
+ */
+function nextDay(dateLink) {
+    var container = document.getElementById('ui-datepicker-div');
+    if (!dateLink) {
+        return;
+    }
+    var td = $(dateLink).closest('td');
+    if (!td) {
+        return;
+    }
+    var nextTd = $(td).next(),
+        nextDateLink = $('a.ui-state-default', nextTd)[0];
+
+    if (nextTd && nextDateLink) {
+        setHighlightState(nextDateLink, container);
+        nextDateLink.focus(); // the next day (same row)
+    } else {
+        handleNext(dateLink);
+    }
+}
+
+function handleNext(target) {
+    var container = document.getElementById('ui-datepicker-div');
+    if (!target) {
+        return;
+    }
+    var currentRow = $(target).closest('tr'),
+        nextRow = $(currentRow).next();
+
+    if (!nextRow || nextRow.length === 0) {
+        nextMonth();
+    } else {
+        var nextRowFirstDate = $('a.ui-state-default', nextRow)[0];
+        if (nextRowFirstDate) {
+            setHighlightState(nextRowFirstDate, container);
+            nextRowFirstDate.focus();
+        }
+    }
+}
+
+function nextMonth() {
+    nextMon = $('.ui-datepicker-next')[0];
+    var container = document.getElementById('ui-datepicker-div');
+    nextMon.click();
+    // focus the first day of the new month
+    setTimeout(function () {
+        // updating the cached header elements
+        updateHeaderElements();
+
+        var firstDate = $('a.ui-state-default', container)[0];
+        setHighlightState(firstDate, container);
+        firstDate.focus();
+    }, 0);
+}
+
+/////////// UP ///////////
+/**
+ * Handle the up arrow navigation through dates
+ * @param  {HTMLElement} target   The target of the keyboard event (day)
+ * @param  {HTMLElement} cont     The calendar container
+ * @param  {HTMLElement} prevLink Link to navigate to previous month
+ */
+function upHandler(target, cont, prevLink) {
+    prevLink = $('.ui-datepicker-prev')[0];
+    var rowContext = $(target).closest('tr');
+    if (!rowContext) {
+        return;
+    }
+    var rowTds = $('td', rowContext),
+        rowLinks = $('a.ui-state-default', rowContext),
+        targetIndex = $.inArray(target, rowLinks),
+        prevRow = $(rowContext).prev(),
+        prevRowTds = $('td', prevRow),
+        parallel = prevRowTds[targetIndex],
+        linkCheck = $('a.ui-state-default', parallel)[0];
+
+    if (prevRow && parallel && linkCheck) {
+        // there is a previous row, a td at the same index
+        // of the target AND theres a link in that td
+        setHighlightState(linkCheck, cont);
+        linkCheck.focus();
+    } else {
+        // we're either on the first row of a month, or we're on the
+        // second and there is not a date link directly above the target
+        prevLink.click();
+        setTimeout(function () {
+            // updating the cached header elements
+            updateHeaderElements();
+            var newRows = $('tr', cont),
+                lastRow = newRows[newRows.length - 1],
+                lastRowTds = $('td', lastRow),
+                tdParallelIndex = $.inArray(target.parentNode, rowTds),
+                newParallel = lastRowTds[tdParallelIndex],
+                newCheck = $('a.ui-state-default', newParallel)[0];
+
+            if (lastRow && newParallel && newCheck) {
+                setHighlightState(newCheck, cont);
+                newCheck.focus();
+            } else {
+                // theres no date link on the last week (row) of the new month
+                // meaning its an empty cell, so we'll try the 2nd to last week
+                var secondLastRow = newRows[newRows.length - 2],
+                    secondTds = $('td', secondLastRow),
+                    targetTd = secondTds[tdParallelIndex],
+                    linkCheck = $('a.ui-state-default', targetTd)[0];
+
+                if (linkCheck) {
+                    setHighlightState(linkCheck, cont);
+                    linkCheck.focus();
+                }
+
+            }
+        }, 0);
+    }
+}
+
+//////////////// DOWN ////////////////
+/**
+ * Handles down arrow navigation through dates in calendar
+ * @param  {HTMLElement} target   The target of the keyboard event (day)
+ * @param  {HTMLElement} cont     The calendar container
+ * @param  {HTMLElement} nextLink Link to navigate to next month
+ */
+function downHandler(target, cont, nextLink) {
+    nextLink = $('.ui-datepicker-next')[0];
+    var targetRow = $(target).closest('tr');
+    if (!targetRow) {
+        return;
+    }
+    var targetCells = $('td', targetRow),
+        cellIndex = $.inArray(target.parentNode, targetCells), // the td (parent of target) index
+        nextRow = $(targetRow).next(),
+        nextRowCells = $('td', nextRow),
+        nextWeekTd = nextRowCells[cellIndex],
+        nextWeekCheck = $('a.ui-state-default', nextWeekTd)[0];
+
+    if (nextRow && nextWeekTd && nextWeekCheck) {
+        // theres a next row, a TD at the same index of `target`,
+        // and theres an anchor within that td
+        setHighlightState(nextWeekCheck, cont);
+        nextWeekCheck.focus();
+    } else {
+        nextLink.click();
+
+        setTimeout(function () {
+            // updating the cached header elements
+            updateHeaderElements();
+
+            var nextMonthTrs = $('tbody tr', cont),
+                firstTds = $('td', nextMonthTrs[0]),
+                firstParallel = firstTds[cellIndex],
+                firstCheck = $('a.ui-state-default', firstParallel)[0];
+
+            if (firstParallel && firstCheck) {
+                setHighlightState(firstCheck, cont);
+                firstCheck.focus();
+            } else {
+                // lets try the second row b/c we didnt find a
+                // date link in the first row at the target's index
+                var secondRow = nextMonthTrs[1],
+                    secondTds = $('td', secondRow),
+                    secondRowTd = secondTds[cellIndex],
+                    secondCheck = $('a.ui-state-default', secondRowTd)[0];
+
+                if (secondRow && secondCheck) {
+                    setHighlightState(secondCheck, cont);
+                    secondCheck.focus();
+                }
+            }
+        }, 0);
+    }
+}
+
+// add an aria-label to the date link indicating the currently focused date
+// (formatted identically to the required format: mm/dd/yyyy)
+function monthDayYearText() {
+    var cleanUps = $('.amaze-date');
+
+    $(cleanUps).each(function (clean) {
+        // each(cleanUps, function (clean) {
+        clean.parentNode.removeChild(clean);
+    });
+
+    var datePickDiv = document.getElementById('ui-datepicker-div');
+    // in case we find no datepick div
+    if (!datePickDiv) {
+        return;
+    }
+
+    var dates = $('a.ui-state-default', datePickDiv);
+    $(dates).attr('role', 'button').on('keydown', function (e) {
+        if (e.which === 32) {
+            e.preventDefault();
+            e.target.click();
+            setTimeout(function () {
+                closeCalendar();
+            }, 100);
+        }
+    });
+    $(dates).each(function (index, date) {
+        var currentRow = $(date).closest('tr'),
+            currentTds = $('td', currentRow),
+            currentIndex = $.inArray(date.parentNode, currentTds),
+            headThs = $('thead tr th', datePickDiv),
+            dayIndex = headThs[currentIndex],
+            daySpan = $('span', dayIndex)[0],
+            monthName = $('.ui-datepicker-month', datePickDiv)[0].innerHTML,
+            year = $('.ui-datepicker-year', datePickDiv)[0].innerHTML,
+            number = date.innerHTML;
+
+        if (!daySpan || !monthName || !number || !year) {
+            return;
+        }
+
+        // AT Reads: {month} {date} {year} {day}
+        // "December 18 2014 Thursday"
+        var dateText = date.innerHTML + ' ' + monthName + ' ' + year + ' ' + daySpan.title;
+        // AT Reads: {date(number)} {name of day} {name of month} {year(number)}
+        // var dateText = date.innerHTML + ' ' + daySpan.title + ' ' + monthName + ' ' + year;
+        // add an aria-label to the date link reading out the currently focused date
+        date.setAttribute('aria-label', dateText);
+    });
+}
+
+
+
+// update the cached header elements because we're in a new month or year
+function updateHeaderElements() {
+    var context = document.getElementById('ui-datepicker-div');
+    if (!context) {
+        return;
+    }
+
+    //  $(context).find('table').first().attr('role', 'grid');
+
+    prev = $('.ui-datepicker-prev', context)[0];
+    next = $('.ui-datepicker-next', context)[0];
+
+    //make them click/focus - able
+    //next.href = 'javascript:;';
+    //prev.href = 'javascript:;';
+
+    //next.setAttribute('role', 'button');
+    //prev.setAttribute('role', 'button');
+    appendOffscreenMonthText(next);
+    appendOffscreenMonthText(prev);
+
+    //$(next).on('click', handleNextClicks);
+    //$(prev).on('click', handlePrevClicks);
+
+    // add month day year text
+    monthDayYearText();
+}
+
+
+function prepHighlightState() {
+    var highlight;
+    var cage = document.getElementById('ui-datepicker-div');
+    highlight = $('.ui-state-highlight', cage)[0] ||
+        $('.ui-state-default', cage)[0];
+    if (highlight && cage) {
+        setHighlightState(highlight, cage);
+    }
+}
+
+// Set the highlighted class to date elements, when focus is received
+function setHighlightState(newHighlight, container) {
+    var prevHighlight = getCurrentDate(container);
+    // remove the highlight state from previously
+    // highlighted date and add it to our newly active date
+    $(prevHighlight).removeClass('ui-state-highlight');
+    $(newHighlight).addClass('ui-state-highlight');
+}
+
+
+// grabs the current date based on the highlight class
+function getCurrentDate(container) {
+    var currentDate = $('.ui-state-highlight', container)[0];
+    return currentDate;
+}
+
+/**
+ * Appends logical next/prev month text to the buttons
+ * - ex: Next Month, January 2015
+ *       Previous Month, November 2014
+ */
+function appendOffscreenMonthText(button) {
+    var buttonText;
+    var isNext = $(button).hasClass('ui-datepicker-next');
+    var months = [
+        'january', 'february',
+        'march', 'april',
+        'may', 'june', 'july',
+        'august', 'september',
+        'october',
+        'november', 'december'
+    ];
+
+    var currentMonth = $('.ui-datepicker-title .ui-datepicker-month').text().toLowerCase();
+    var monthIndex = $.inArray(currentMonth.toLowerCase(), months);
+    var currentYear = $('.ui-datepicker-title .ui-datepicker-year').text().toLowerCase();
+    var adjacentIndex = (isNext) ? monthIndex + 1 : monthIndex - 1;
+
+    if (isNext && currentMonth === 'december') {
+        currentYear = parseInt(currentYear, 10) + 1;
+        adjacentIndex = 0;
+    } else if (!isNext && currentMonth === 'january') {
+        currentYear = parseInt(currentYear, 10) - 1;
+        adjacentIndex = months.length - 1;
+    }
+
+    buttonText = (isNext)
+        ? 'Next Month, ' + firstToCap(months[adjacentIndex]) + ' ' + currentYear
+        : 'Previous Month, ' + firstToCap(months[adjacentIndex]) + ' ' + currentYear;
+
+    $(button).find('.ui-icon').html(buttonText);
+
+}
+
+// Returns the string with the first letter capitalized
+function firstToCap(s) {
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+
+(function($) {	
+	$.datepicker.setDefaults({
+		showOn: "",
+		onClose: function(date, input) {
+			console.log(input);
+			$(input).focus();
+			currentDateInput = undefined;
+		}
+	});
+
+	var oldDatepicker = $.fn.datepicker;
+	 $.fn.datepicker = function()
+    {
+        var ret = oldDatepicker.apply(this, arguments);
+
+        this.focusin(function(ev) {
+			if (currentDateInput != ev.target) {
+				if (!datePickerMadeAccessible) {
+					accessibilityMagic();
+					datePickerMadeAccessible = true;
+				}
+				
+				$(ev.target).datepicker('show');
+				
+				currentDateInput = ev.target;
+				var today = $('.ui-datepicker-today a')[0];
+
+				if (!today) {
+					today = $('.ui-state-active')[0] ||
+						$('.ui-state-default')[0];
+				}
+				if (today) { today.focus(); }
+			}
+		});
+
+        return ret;
+    };
+})(jQuery);
+
+//
+// ACCESSIBILITY tools
+// move accessibility.js under script.js
+// the modal functions will be in scripts.js
+// may need document-ready around associated code blocks that call these
+//
+
+function isAccessibilityEnabled() {
+    // return typeof __isAccessibilityEnabled !== 'undefined' && __isAccessibilityEnabled === true;
+
+	// we've removed "Accessibility Mode" from the skip links and my profile Accessibility modal; we'll default to true for now (may revert to false if there are concerns)
+	return true; 
+}
+
+function getElapsedMillis(epochStart) {
+	if (isEmpty(epochStart)) {
+		console.error('epochStart is empty');
+		return;
+	}
+	return Date.now() - epochStart;
+}
+
+function getElapsedSeconds(epochStart) {
+	if (isEmpty(epochStart)) {
+		console.error('epochStart is empty');
+		return;
+	}
+	return (Date.now() - epochStart) / 1000.0;
+}
+
+// --------------------------------------------------------------------------------
+// recursively get all nodes beneath a given node including the node itself)
+// --------------------------------------------------------------------------------
+function getAllNodesInTree(node, nodes) {
+    if (isEmpty(node)) {
+        console.error('node is empty');
+        return;
+    }
+
+    if (isEmpty(nodes)) {
+        console.error('nodes is empty');
+        return;
+    }
+
+    var children = node.childNodes;
+    if (isEmpty(children) || children.length === 0) {
+        return;
+    }
+
+    for (var i = 0; i < children.length; i++) {
+        var childNode = children[i];
+        if (!isEmpty(childNode)) {
+            nodes[nodes.length] = childNode;
+            getAllNodesInTree(childNode, nodes);
+        }
+    }
+}
+
+function getAllNodesInTreeExcludingNodeID(node, nodes, excludeNodeIdAndSubNodes) {
+
+    if (isEmpty(node)) {
+        console.error('node is empty');
+        return;
+    }
+
+    if (isEmpty(nodes)) {
+        console.error('nodes is empty');
+        return;
+    }
+
+    if (isEmpty(excludeNodeIdAndSubNodes)) {
+		if (isAccessibilityJSVerbose) {
+			console.warn('> getAllNodesInTreeExcludingNodeID() excludeNodeIdAndSubNodes is empty, returning getAllNodesInTree(node, nodes) instead.');
+		}
+        return getAllNodesInTree(node, nodes);
+    }
+
+    var children = node.children;
+    if (isEmpty(children) || children.length === 0) {
+        return;
+    }
+
+    for (var i = 0; i < children.length; i++) {
+        var childNode = children[i];
+        if (childNode.id !== excludeNodeIdAndSubNodes) {
+            nodes[nodes.length] = childNode;
+            getAllNodesInTreeExcludingNodeID(childNode, nodes, excludeNodeIdAndSubNodes);
+        }
+    }
+}
+
+// --------------------------------------------------------------------------------
+// Get all body elements for a given document (doc may reference window.document from a different window)
+// --------------------------------------------------------------------------------
+function getAllBodyElements(doc) {
+
+    var epochStart = Date.now();
+
+    if (isEmpty(doc)) {
+        console.error('doc is empty');
+    }
+
+    var elems = [];
+    var nodes = [];
+    getAllNodesInTree(doc.body, nodes);
+    for (var i = 0; i < nodes.length; i++) {
+        var elem = nodes[i];
+        if (!isEmpty(elem)) {
+            if (elem.nodeType === 1) {
+                // We only want standard HTML elements ex. A, DIV, etc. (but not element attributes, scripts, etc.)
+                // console.log('> getAllBodyElements() ELEM i=' + i + ', elem=' + getElementPath(elem));
+                elems[elems.length] = elem;
+            } else if (elem.nodeType === 2) {
+                // console.log('> getAllBodyElements() ATTR i=' + i + ', attribute=' + getElementPath(elem));
+            } else if (elem.nodeType === 3) {
+                // var text = elem.nodeValue;
+                // if (isEmpty(text)) {
+                //     text = '';
+                // }
+                // console.log('> getAllBodyElements() TEXT i=' + i + ', text=' + text);
+            } else if (elem.nodeType === 8) {
+                // console.log('> getAllBodyElements() CMMT i=' + i + ', comment=' + elem.textContent);
+            } else {
+                // console.log('> getAllBodyElements() ???? i=' + i + ', elem.noteType=' + elem.noteType);
+            }
+        }
+    }
+
+    var epochStop = Date.now();
+    var epochDelta = epochStop - epochStart;
+    console.log('> getAllBodyElements() elems.length=' + elems.length + ', epochDelta=' + epochDelta);
+
+    return elems;
+}
+
+// --------------------------------------------------------------------------------
+// get all elements that are not beneath a node (and exclude the node iteslf)
+// - used to get all elements that require tabIndex reduction to trap keyboard navigation
+// --------------------------------------------------------------------------------
+function getAllBodyElementsNotInsideNode(doc, notInsideNodeId) {
+
+    var epochStart = Date.now();
+
+    if (isEmpty(doc)) {
+        console.error('doc is empty');
+        return;
+    }
+
+    if (isEmpty(notInsideNodeId)) {
+        console.error('notInsideNodeId is empty');
+        return;
+	}
+
+    var elems = [];
+    var nodes = [];
+
+    var epochCallDelta = 0;
+
+    var epochCall = Date.now();
+    getAllNodesInTreeExcludingNodeID(doc.body, nodes, notInsideNodeId);
+    var epochCallDelta = Date.now() - epochCall;
+    // console.log('> getAllBodyElementsNotInsideNode() > getAllNodesInTreeExcludingNodeID() epochCallDelta=' + epochCallDelta + ', nodes.length=' + nodes.length);
+
+    for (var i = 0; i < nodes.length; i++) {
+        var elem = nodes[i];
+        if (!isEmpty(elem)) {
+            if (elem.nodeType === 1) {
+                // We only want standard HTML elements ex. A, DIV, etc. (but not element attributes, scripts, etc.)
+                elems[elems.length] = elem;
+            } else {
+                // console.log('> elem.nodeType=' + elem.nodeType);
+			}
+        }
+    }
+
+    var epochStop = Date.now();
+    var epochDelta = epochStop - epochStart;
+    var epochLocalWork = epochDelta - epochCallDelta;
+    var epochExternalWork = epochDelta - epochLocalWork;
+    // console.log('> getAllBodyElementsNotInsideNode() elems.length=' + elems.length + ', epochDelta=' + epochDelta + ', epochLocalWork=' + epochLocalWork + ', epochExternalWork=' + epochExternalWork);
+
+    return elems;
+}
+
+// --------------------------------------------------------------------------------
+// RESTORE tabIndex values of parent window when child window is closed
+// ... for restoring tab (screen reader) navigation to parent window after trapping inside child window
+// --------------------------------------------------------------------------------
+
+// 
+// min chrome/firefox/safari/ie supported value for tabIndex=-32767
+//
+// unusual to find anything outside range +/- 100, this should generically work for our platform
+//
+// we're going to drop all tabIndex values by 1000 for elements outside the popup/modal/iFrame (to trap focus inside)
+// ... then increment by 1000 to restore the original tabIndex of all elements when the popup/modal/iFrame is closed
+// ... (to restore keyboard navigation to the backsheet when it takes over again)
+//
+const cgTrapKeyboardNavTabIndexReduction = 1000;
+function restoreParentWindowTabFunctionality() {
+
+	if (isAccessibilityJSVerbose) {
+	    console.log('restoreParentWindowTabFunctionality() begins...');
+	}
+    var epochStart = Date.now();
+
+    var parentWindow = window.parent;
+
+    var tbOverlayId = 'TB_overlay';
+    var tbWindowId = 'TB_window';
+    var tbIFrameContentId = 'TB_iframeContent';
+
+    var targetElements = getAllBodyElementsNotInsideNode(parentWindow.document, 'div-help-container');
+    for (var i = 0; i < targetElements.length; i++) {
+
+        var elem = targetElements[i];
+
+        var alterTabindex = true;
+        if (elem.id === tbIFrameContentId || elem.id === tbOverlayId || elem.id === tbWindowId) {
+            alterTabindex = false;
+        }
+
+        if (!isTabIndexReductionRequiredOnKeyboardTrap(elem)) {
+            alterTabindex = false;
+        }
+
+        if (alterTabindex) {
+            var elemTabIndex = elem.tabIndex;
+            if (isNumber(elemTabIndex)) {
+                var newTabIndex = elemTabIndex + cgTrapKeyboardNavTabIndexReduction;
+                if (newTabIndex < 100) {
+                    elem.tabIndex = newTabIndex;
+                } else {
+					if (isAccessibilityJSVerbose) {
+	                    console.warn('OUT OF RANGE newTabIndex=' + newTabIndex + ' for elem=' + getElementPath(elem));
+					}
+				}
+            } else {
+				if (isAccessibilityJSVerbose) {
+	                console.error('elemTabIndex is not a number for elem=' + getElementPath(elem));
+				}
+			}
+        }
+    }
+
+	if (typeof modalPageTitleHistory !== 'undefined' && modalPageTitleHistory.length > 0) {
+		if (isAccessibilityJSVerbose) {
+			console.log('> restoreParentWindowTabFunctionality() document.title set.');
+		}
+		document.title = modalPageTitleHistory.pop();
+	}
+
+	if (isAccessibilityJSVerbose) {
+		var epochEnd = Date.now();
+		var epochDelta = epochEnd - epochStart;
+		console.log('> restoreParentWindowTabFunctionality() epochDelta=' + epochDelta);
+	}
+}
+
+// --------------------------------------------------------------------------------
+// REDUCE tabIndex values of parent window (all below zero - so -1 or less) when a child window takes control of the keyboard navigation
+// ... used to remove tab (screen reader) navigation from the parent window of an iFrame or child window while the child window has control
+// --------------------------------------------------------------------------------
+function removeParentWindowTabFunctionality() {
+
+	if (isAccessibilityJSVerbose) {	
+		console.log('removeParentWindowTabFunctionality() begins...');
+	}
+    var epochStart = Date.now();
+
+    // add event listener to the new popup/modal/iFrame to restore the parent window's tabIndex values when closed
+    window.addEventListener("unload", restoreParentWindowTabFunctionality);
+
+    var parentWindow = window.parent;
+    var targetElements = getAllBodyElementsNotInsideNode(parentWindow.document, 'div-help-container');
+    if (isEmpty(targetElements)) {
+        console.error('targetElements is empty');
+        return;
+    } else if (targetElements.length < 1) {
+        console.error('targetElements.length is zero');
+        return;
+    }
+
+    var tbOverlayId = 'TB_overlay';
+    var tbWindowId = 'TB_window';
+    var tbIFrameContentId = 'TB_iframeContent';
+
+    for (var i = 0; i < targetElements.length; i++) {
+
+        var elem = targetElements[i];
+
+        var alterTabindex = true;
+        if (elem.id === tbIFrameContentId || elem.id === tbOverlayId || elem.id === tbWindowId) {
+            alterTabindex = false;
+        }
+
+        if (!isTabIndexReductionRequiredOnKeyboardTrap(elem)) {
+            alterTabindex = false;
+        }
+
+        if (alterTabindex) {
+            elem.tabIndex = elem.tabIndex - cgTrapKeyboardNavTabIndexReduction;
+        }
+    }
+
+	if (isAccessibilityJSVerbose) {
+	    var epochEnd = Date.now();
+		var epochDelta = epochEnd - epochStart;
+		console.log('removeParentWindowTabFunctionality() epochDelta=' + epochDelta);
+	}
+}
+
+// --------------------------------------------------------------------------------
+// RESTORE tabIndex values of the elements outside a modal or other container inside the current window
+// ... for restoring tab (screen reader) navigation to other elements after the focua modal/etc. closes
+// --------------------------------------------------------------------------------
+function waitAndRestoreOutsideContainerTabFunctionality(topInsideElemId, targetElements) {
+
+	if (isAccessibilityJSVerbose) {
+		console.log('> waitAndRestoreOutsideContainerTabFunctionality() topInsideElemId=' + getDescription(topInsideElemId));
+	}
+
+    if (isEmpty(topInsideElemId)) {
+        console.error('topInsideElemId is empty');
+        return;
+    } else if (!isString(topInsideElemId)) {
+        console.error('topInsideElemId is not a string');
+        return;
+    }
+
+    if (isEmpty(targetElements)) {
+        console.error('targetElements is empty');
+        return;
+    }
+
+    var waitSeconds = 30;
+	var epochStart = Date.now();
+	var intervalId = setInterval(function () {
+
+	    var topInsideElem = document.getElementById(topInsideElemId);
+		if (!isEmpty(topInsideElem)) {
+			
+			clearInterval(intervalId);
+
+			for (var i = 0; i < targetElements.length; i++) {
+				var elem = $(targetElements[i]).get(0);
+				if (!isEmpty(elem)) {
+					if (isTabIndexReductionRequiredOnKeyboardTrap(elem)) {
+						var elemTabIndex = elem.tabIndex;
+						if (isNumber(elemTabIndex)) {
+							var newTabIndex = elemTabIndex + cgTrapKeyboardNavTabIndexReduction;
+							if (newTabIndex < 100) {
+								elem.tabIndex = newTabIndex;
+							} else {
+								if (isAccessibilityJSVerbose) {
+									console.warn('OUT OF RANGE newTabIndex=' + newTabIndex + ' for elem=' + getElementPath(elem));
+								}
+							}
+						} else {
+							if (isAccessibilityJSVerbose) {
+								console.error('elemTabIndex is not a number for elem=' + getElementPath(elem));
+							}
+						}
+					}
+				}
+			}
+	
+			if (typeof modalPageTitleHistory !== 'undefined' && modalPageTitleHistory.length > 0) {
+				if (isAccessibilityJSVerbose) {
+					console.log('> waitAndRestoreOutsideContainerTabFunctionality() document.title restored.');
+				}
+				document.title = modalPageTitleHistory.pop();
+			}
+
+			if (isAccessibilityJSVerbose) {
+				console.log('> waitAndRestoreOutsideContainerTabFunctionality() topInsideElemId=' + getDescription(topInsideElemId) + ', done.');
+			}
+
+			return;
+		}
+
+		var deltaSeconds = getElapsedSeconds(epochStart);
+		if (deltaSeconds > waitSeconds) {
+			console.log('> TIMEOUT waitAndSetFocus()');
+			clearInterval(intervalId);
+		}
+
+	}, 333);
+}
+
+//
+// LIST of nodeName values representing elements that take keyboard focus by default (without assigning tabindex=0)
+// these types of elements will have tabindex reduced (if in the backsheet) when a modal opens
+//
+var defaultFocusNodeNames = [];
+defaultFocusNodeNames[defaultFocusNodeNames.length] = 'A';
+defaultFocusNodeNames[defaultFocusNodeNames.length] = 'BUTTON';
+defaultFocusNodeNames[defaultFocusNodeNames.length] = 'INPUT';
+defaultFocusNodeNames[defaultFocusNodeNames.length] = 'SELECT';
+defaultFocusNodeNames[defaultFocusNodeNames.length] = 'TEXTAREA';
+
+//
+// return true if this element requires a modification to tabindex when a modal takes over
+// and the element will be in the backsheet of the modal (and should not support keyboard navigation while modal has focus)
+//
+function isNativeFocusElement(elem) {
+    if (isEmpty(elem)) {
+        console.error('elem is empty');
+        return;
+    }
+
+    if (isEmpty(elem.nodeName)) {
+        console.error('elem.nodeName is empty');
+        return;
+	}
+
+    if (defaultFocusNodeNames.includes(elem.nodeName)) {
+        // console.log('> FOCUS BY DEFAULT for elem.nodeName=' + elem.nodeName);
+        return true;
+    }
+
+    return false;
+}
+
+function isTabIndexSpecified(elem) {
+    if (isEmpty(elem)) {
+        console.error('elem is empty');
+        return;
+    }
+
+    if (isEmpty(elem.getAttributeNode)) {
+        return false;
+    }
+
+    if (isEmpty(elem.getAttributeNode("tabIndex"))) {
+        return false;
+    }
+
+    if (isEmpty(elem.getAttributeNode("tabIndex").specified)) {
+        return false;
+    }
+
+    return elem.getAttributeNode("tabIndex").specified;
+}
+
+function isTabIndexReductionRequiredOnKeyboardTrap(elem) {
+    if (isEmpty(elem)) {
+        console.error('elem is empty');
+        return;
+    }
+
+    if (isNativeFocusElement(elem)) {
+        return true;
+	}
+    return isTabIndexSpecified(elem);
+}
+
+function removeOutsideContainerTabFunctionaltiy(topInsideElemId) {
+
+	if (isAccessibilityJSVerbose) {
+	    console.log('> removeOutsideContainerTabFunctionaltiy() topInsideElemId=' + getDescription(topInsideElemId));
+	}
+    if (isEmpty(topInsideElemId)) {
+        console.error('topInsideElemId is empty');
+        return;
+    } else if (!isString(topInsideElemId)) {
+        console.error('topInsideElemId is not a string');
+        return;
+    }
+
+    var countTabindexChanges = 0;
+
+	var waitSeconds = 30;
+    var epochStart = Date.now();
+	var intervalId = setInterval(function () {
+
+		var topInsideElem = document.getElementById(topInsideElemId);
+		if (!isEmpty(topInsideElem)) {
+
+			clearInterval(intervalId);
+
+			var tbOverlayId = 'TB_overlay';
+			var tbWindowId = 'TB_window';
+			var tbIFrameContentId = 'TB_iframeContent';
+
+			// get all elements outside the modal (everything ot inside the modal)
+			var epochCallStart = Date.now();
+			var targetElements = getAllBodyElementsNotInsideNode(window.document, topInsideElemId);
+			var epochCallDelta = Date.now() - epochCallStart;
+			for (var i = 0; i < targetElements.length; i++) {
+
+				var elem = targetElements[i];
+
+				var alterTabindex = true;
+				if (!isEmpty(elem.id)) {
+					if (elem.id === tbIFrameContentId || elem.id === tbOverlayId || elem.id === tbWindowId) {
+						alterTabindex = false;
+					}
+				}
+				if (!isTabIndexReductionRequiredOnKeyboardTrap(elem)) {
+					alterTabindex = false;
+				}
+
+				if (alterTabindex) {
+					// drop tabIndex well below zero to remove from keyboard navigation while the modal is open
+					// console.log('> NOTE altering tabIndex on elem=' + getElementPath(elem));
+					elem.tabIndex = elem.tabIndex - cgTrapKeyboardNavTabIndexReduction;
+					countTabindexChanges++;
+				}
+			}
+
+			if (isAccessibilityJSVerbose) {
+				var epochDelta = Date.now() - epochStart;
+				// var epochLocalWork = epochDelta - epochCallDelta;
+				// var epochExternalWork = epochDelta - epochLocalWork;
+				// console.log('> removeOutsideContainerTabFunctionaltiy() topInsideElemId=' + getDescription(topInsideElemId) + ', totalMillis=' + epochDelta + ', tabIndexChanges=[' + countTabindexChanges + ' of ' + targetElements.length + ']');
+				console.log('> removeOutsideContainerTabFunctionaltiy() topInsideElemId=' + getDescription(topInsideElemId) + ', done.');
+			}
+		}
+
+		var deltaSeconds = getElapsedSeconds(epochStart);
+		if (deltaSeconds > waitSeconds) {
+			console.log('> TIMEOUT removeOutsideContainerTabFunctionaltiy()');
+			clearInterval(intervalId);
+		}
+
+	}, 100);
+}
+
+var restoreOutsideContainerTabFunctionaltiyCallEpochs = {};
+function restoreOutsideContainerTabFunctionaltiy(topInsideElemId) {
+
+	if (isAccessibilityJSVerbose) {
+	    console.log('> restoreOutsideContainerTabFunctionaltiy() topInsideElemId=' + getDescription(topInsideElemId));
+	}
+
+    var epochStart = Date.now();
+    var countTabindexChanges = 0;
+	var countElementsOutsideRange = 0;
+	var countElementsWithoutTabIndex = 0;
+
+    if (isEmpty(topInsideElemId)) {
+        console.error('topInsideElemId is empty');
+        return;
+    } else if (!isString(topInsideElemId)) {
+        console.error('topInsideElemId is not a string');
+        return;
+    }
+
+    var epochNow = (new Date()).getTime();
+    if (!isEmpty(restoreOutsideContainerTabFunctionaltiyCallEpochs[topInsideElemId])) {
+        var epochLastCall = restoreOutsideContainerTabFunctionaltiyCallEpochs[topInsideElemId];
+        var epochDelta = epochNow - epochLastCall;
+        if (epochDelta < 1000) {
+			if (isAccessibilityJSVerbose) {
+				console.warn('> NOTE restoreOutsideContainerTabFunctionaltiy() received multiple calls on save/close modal {' + topInsideElemId + '}');
+			}
+            return;
+		}
+    }
+    restoreOutsideContainerTabFunctionaltiyCallEpochs[topInsideElemId] = epochNow;
+
+    var waitSeconds = 30;
+	var epochStart = Date.now();
+	var intervalId = setInterval(function () {
+
+		var topInsideElem = document.getElementById(topInsideElemId);
+		if (!isEmpty(topInsideElem)) {
+
+			clearInterval(intervalId);
+
+			var tbOverlayId = 'TB_overlay';
+			var tbWindowId = 'TB_window';
+			var tbIFrameContentId = 'TB_iframeContent';
+
+			// get all elements outside the modal (everything ot inside the modal)
+			var epochCallStart = Date.now();
+			var targetElements = getAllBodyElementsNotInsideNode(window.document, topInsideElemId);
+			var epochCallDelta = Date.now() - epochCallStart;
+			for (var i = 0; i < targetElements.length; i++) {
+
+				var elem = targetElements[i];
+
+				var alterTabindex = true;
+				if (elem.id === tbIFrameContentId || elem.id === tbOverlayId || elem.id === tbWindowId) {
+					alterTabindex = false;
+				}
+
+				if (!isTabIndexReductionRequiredOnKeyboardTrap(elem)) {
+					alterTabindex = false;
+				}
+
+				if (alterTabindex) {
+					var elemTabIndex = elem.tabIndex;
+					if (isNumber(elemTabIndex)) {
+						var newTabIndex = elemTabIndex + cgTrapKeyboardNavTabIndexReduction;
+						if (newTabIndex < 100) {
+							elem.tabIndex = newTabIndex;
+							countTabindexChanges++;
+						} else {
+							countElementsOutsideRange++;
+							// console.warn('OUT OF RANGE newTabIndex=' + newTabIndex + ' for elem=' + getElementPath(elem));
+						}
+					} else {
+						countElementsWithoutTabIndex++;
+						// console.error('elemTabIndex is not a number for elem=' + getElementPath(elem));
+					}
+				}
+			}
+
+			resetPageTitleOnModalClose();
+
+			if (isAccessibilityJSVerbose) {
+				var epochDelta = Date.now() - epochStart;
+				// var epochLocalWork = epochDelta - epochCallDelta;
+				// console.log('> restoreOutsideContainerTabFunctionaltiy() topInsideElemId=' + getDescription(topInsideElemId) + ', totalMillis=' + epochDelta + ', tabIndexChanges=[' + countTabindexChanges + ' of ' + targetElements.length + '] countElementsOutsideRange=' + countElementsOutsideRange + ', countElementsWithoutTabIndex=' + countElementsWithoutTabIndex);
+				console.log('> restoreOutsideContainerTabFunctionaltiy() topInsideElemId=' + getDescription(topInsideElemId) + ', done.');
+			}
+
+			return;
+		}
+
+		var deltaSeconds = getElapsedSeconds(epochStart);
+		if (deltaSeconds > waitSeconds) {
+			console.log('> TIMEOUT waitAndSetFocus()');
+			clearInterval(intervalId);
+		}
+	}, 100);
+}
+
+var resetPageTitleOnModalCloseCallEpoch = null;
+function resetPageTitleOnModalClose() {
+
+	if (isAccessibilityJSVerbose) {
+		console.log('> resetPageTitleOnModalClose() begins...');
+	}
+	
+	var waitSeconds = 5;
+	var callEpoch = Date.now();
+	resetPageTitleOnModalCloseCallEpoch = callEpoch;
+
+	if (typeof modalPageTitleHistory !== 'undefined' && modalPageTitleHistory.length > 0) {
+		var restoredTitle = modalPageTitleHistory.pop();
+		document.title = restoredTitle;
+		if (isAccessibilityJSVerbose) {
+			console.log('> resetPageTitleOnModalClose() restoredTitle=' + restoredTitle);
+		}
+
+		var intervalId = setInterval(function () {
+			if (callEpoch != resetPageTitleOnModalCloseCallEpoch) {
+				// this modal has closed
+				if (isAccessibilityJSVerbose) {
+					console.log('> resetPageTitleOnModalClose() modal closed (exiting now)');
+				}
+				clearInterval(intervalId);
+				return;
+			}
+			if (document.title != restoredTitle) {
+				if (isAccessibilityJSVerbose) {
+					console.log('> resetPageTitleOnModalClose() title restored (exiting now)');
+				}
+				document.title = restoredTitle;
+				clearInterval(intervalId);
+				return;
+			}
+
+			var deltaSeconds = getElapsedSeconds(epochStart);
+			// console.log('> deltaSeconds=' + deltaSeconds);
+			if (deltaSeconds > waitSeconds) {
+				clearInterval(intervalId);
+				console.log('> TIMEOUT resetPageTitleOnModalClose()');
+			}
+		}, 100);
+	}
+
+	resetPageTitleOnModalCloseCallEpoch = null;
+
+	if (isAccessibilityJSVerbose) {
+		console.log('> resetPageTitleOnModalClose() done.');
+	}
+}
+
+// --------------------------------------------------------------------------------
+// REDUCE tabIndex values of the elements outside a modal or other container inside the current window
+// ... used to remove tab (screen reader) navigation to other elements after the focua modal/etc. closes
+// --------------------------------------------------------------------------------
+function removeOutsideContainerTabFunctionaltiyAndWaitForModalToClose(topInsideElemId) {
+
+    if (isEmpty(topInsideElemId)) {
+        console.error('topInsideElemId is empty');
+        return;
+    } else if (!isString(topInsideElemId)) {
+        console.error('topInsideElemId is not a string');
+        return;
+    }
+
+	var waitSeconds = 30;
+	var epochStart = Date.now();
+	var intervalId = setInterval(function() {
+
+	    var topInsideElem = document.getElementById(topInsideElemId);
+	    if (!isEmpty(topInsideElem)) {
+
+			clearInterval(intervalId);
+
+			var tbOverlayId = 'TB_overlay';
+			var tbWindowId = 'TB_window';
+			var tbIFrameContentId = 'TB_iframeContent';
+
+			// get all elements outside the modal (everything ot inside the modal)
+			var targetElements = getAllBodyElementsNotInsideNode(window.document, topInsideElemId);
+			for (var i = 0; i < targetElements.length; i++) {
+
+				var elem = targetElements[i];
+
+				var alterTabindex = true;
+				if (elem.id === tbIFrameContentId || elem.id === tbOverlayId || elem.id === tbWindowId) {
+					alterTabindex = false;
+				}
+
+				if (!isTabIndexReductionRequiredOnKeyboardTrap(elem)) {
+					alterTabindex = false;
+				}
+
+				if (alterTabindex) {
+					// drop tabIndex well below zero to remove from keyboard navigation while the modal is open
+					elem.tabIndex = elem.tabIndex - cgTrapKeyboardNavTabIndexReduction;
+				}
+			}
+
+			waitAndRestoreOutsideContainerTabFunctionality(topInsideElemId, targetElements);
+		}
+
+		var deltaSeconds = getElapsedSeconds(epochStart);
+		if (deltaSeconds > waitSeconds) {
+			console.log('> TIMEOUT removeOutsideContainerTabFunctionaltiyAndWaitForModalToClose()');
+			clearInterval(intervalId);
+		}
+	}, 100);
+}
+
+// ----------------------------------------------------------------------------------
+// wait for element to be visible then set focus
+// ----------------------------------------------------------------------------------
+function waitAndSetFocus(elemId) {
+    if (isEmpty(elemId)) {
+        console.error('elemId is empty');
+        return;
+    } else if (!isString(elemId)) {
+        console.error('elemId is not a string');
+        return;
+    }
+
+	console.log('> waitAndSetFocus() begins...');
+
+    var waitSeconds = 30;
+	var epochStart = Date.now();
+	var intervalId = setInterval(function () {
+	    var elem = document.getElementById(elemId);
+		if (!isEmpty(elem)) {
+			clearInterval(intervalId);
+			elem.focus();
+		}
+
+		var deltaSeconds = getElapsedSeconds(epochStart);
+		if (deltaSeconds > waitSeconds) {
+			console.log('> TIMEOUT waitAndSetFocus()');
+			clearInterval(intervalId);
+		}
+	}, 100);
+}
+
+// ==================================================================================
+// ARIA functions
+// ==================================================================================
+
+// ----------------------------------------------------------------------------------
+// display aria-state of an element on the console (for debug purposes)
+// ----------------------------------------------------------------------------------
+function displayAriaState(x) {
+    if (isEmpty(x)) {
+        console.error('x is empty');
+        return;
+    }
+    if (isJQueryElement(x)) {
+        x = $(x).get(0);
+    }
+    console.warn('> displayAriaState(x) begins...');
+    console.log('> x.id=' + getDescription(x.id));
+    console.log('> x.nodeType=' + getDescription(x.nodeType));
+    console.log('> x.nodeName=' + getDescription(x.nodeName));
+    console.log('> x.aria-label=' + getDescription(x.getAttribute('aria-label')));
+    console.log('> x.data-aria-label-collapsed=' + getDescription(x.getAttribute('data-aria-label-collapsed')));
+    console.log('> x.data-aria-label-expanded=' + getDescription(x.getAttribute('data-aria-label-expanded')));
+    console.log('> x.aria-expanded=' + getDescription(x.getAttribute('aria-expanded')));
+    console.log('> x.domPath=' + getDescription(getElementPath(x)));
+}
+
+// --------------------------------------------------------------------------------
+// Search for an element in the current window or parent window(s) recursively
+// ... returns undefined if not found.
+// --------------------------------------------------------------------------------
+function findElementInCurrentWindowOrParentWindows(elemId) {
+    if (isEmpty(elemId)) {
+        console.error('elemId is empty');
+        return;
+    } else if (!isString(elemId)) {
+        console.error('elemid is not a string');
+        return;
+    }
+
+    var elem = null;
+    var parentWindow = window;
+    while (!isEmpty(parentWindow) && isEmpty(elem)) {
+        var elem = parentWindow.document.getElementById(elemId);
+        if (!isEmpty(elem)) {
+            // FOUND it!
+            return elem;
+        }
+        parentWindow = parentWindow.parent;
+    }
+}
+
+// --------------------------------------------------------------------------------
+// Set the title of an iFrame based on the iFrame element's ID
+// --------------------------------------------------------------------------------
+function setIFrameTitle(iFrameId, titleText) {
+    if (isEmpty(iFrameId)) {
+        console.error('iFrameId is empty');
+        return;
+    } else if (!isString(iFrameId)) {
+        console.error('iFrameId is not a string');
+        return;
+    }
+
+    if (isEmpty(titleText)) {
+        console.error('titleText is empty');
+        return;
+    } else if (!isString(titleText)) {
+        console.error('titleText is not a string');
+        return;
+    }
+
+    var waitSeconds = 30;
+	var epochStart = Date.now();
+	var intervalId = setInterval(function () {
+	    var elem = findElementInCurrentWindowOrParentWindows(iFrameId);
+		if (!isEmpty(elem)) {
+			clearInterval(intervalId);
+
+		    // console.log('FOUND iFrameId=' + iFrameId);
+		    elem.title = titleText;
+		}
+
+		var deltaSeconds = getElapsedSeconds(epochStart);
+		if (deltaSeconds > waitSeconds) {
+			console.log('> TIMEOUT setIFrameTitle()');
+			clearInterval(intervalId);
+		}
+	}, 100);
+}
+
+// --------------------------------------------------------------------------------
+// WAIT for the inner page body to load then set keyboard focus target element
+//
+// jqSelector 
+// - any valid jQuery selector string such as "#id" or ".class" or ".class h2" etc.
+// - in many/most cases the following (default) selector will work
+//      '.page__header--title h2'
+// - you can leave jqSelector empty/undefined (don't bother passing it) if the default selector works for the associated page
+//
+// --------------------------------------------------------------------------------
+function setTabindexOnPageBodyFocusElement(jqSelector) {
+
+    const defaultSelector = '.page__header--title h2';
+
+    if (isEmpty(jqSelector)) {
+        // we'll use the default jQuery selector
+        jqSelector = defaultSelector;
+    } else if (!isString(jqSelector)) {
+        console.error('jqSelector is not a string');
+        return;
+    }
+
+    // console.log('waitForInnerPageBodyAndFocus() begins...');
+    // console.log('jqSelector=' + getDescription(jqSelector));
+
+    // wait 1/2 second for old inner body to be removed (emperical/not perfect)
+	setTimeout(function () {
+
+		var waitSeconds = 300;
+		var epochStart = Date.now();
+		var intervalId = setInterval(function () {
+
+			var focusElems = $(jqSelector);
+			if (!isEmpty(focusElems) && focusElems.length > 0) {
+
+				clearInterval(intervalId);
+
+				if (focusElems.length > 1) {
+					console.error('focusElems.length=' + focusElems.length + ', multiple elements found (expected single element)');
+					return;
+				}
+
+				// console.log('FOUND focus element');
+
+				var focusElem = $(focusElems[0]).get(0); // convert to DOM object
+
+				if (isAccessibilityJSVerbose) {
+					// DEBUG purposes only - remove this block once code is stable
+					var focusElemPath = getElementPath(focusElem);
+					console.log('focusElemPath=' + getDescription(focusElemPath));
+				}
+  
+				// force tabIndex=0 on focus element to make sure keyboard navigation will land on the element
+				// ... this helps NVDA/VoiceOver provide appropriate notification/context to the user
+				focusElem.tabIndex = 0;
+			}
+
+			var deltaSeconds = getElapsedSeconds(epochStart);
+			if (deltaSeconds > waitSeconds) {
+				console.log('> TIMEOUT waitAndSetFocus()');
+				clearInterval(intervalId);
+			}
+		}, 100);
+	}, 500);
+
+    var monitorActiveElementsForDebugPurposes = false;
+    if (monitorActiveElementsForDebugPurposes) {
+        // DEBUG purposes only
+        // remove this block after new accessibility functions are stable
+        // ... in the meantime, turn this block on to display the active element on the console every second
+        monitorActiveElement();
+	}
+}
+
+function waitForInnerPageBodyAndFocus(jqSelector) {
+
+    const defaultSelector = '.page__header--title h2';
+
+    if (isEmpty(jqSelector)) {
+        // we'll use the default jQuery selector
+        jqSelector = defaultSelector;
+    } else if (!isString(jqSelector)) {
+        console.error('jqSelector is not a string');
+        return;
+    }
+
+    // console.log('waitForInnerPageBodyAndFocus() begins...');
+    // console.log('jqSelector=' + getDescription(jqSelector));
+
+    // wait 1/2 second for old inner body to be removed (emperical/not perfect)
+	setTimeout(function () {
+
+		var waitSeconds = 300; // some pages such as users directory can take quite a while to load
+		var epochStart = Date.now();
+		var intervalId = setInterval(function () {
+
+			var focusElems = $(jqSelector);
+			if (!isEmpty(focusElems) && focusElems.length > 0) {
+				clearInterval(intervalId);
+
+				if (focusElems.length > 1) {
+					console.error('focusElems.length=' + focusElems.length + ', multiple elements found (expected single element)');
+					return;
+				}
+
+				// console.log('FOUND focus element');
+
+				var focusElem = $(focusElems[0]).get(0); // convert to DOM object
+				// console.log('> focusElem=' + getElementPath(focusElem));
+
+				if (isAccessibilityJSVerbose) {
+					// DEBUG purposes only - remove this block once code is stable
+					var focusElemPath = getElementPath(focusElem);
+					console.log('focusElemPath=' + getDescription(focusElemPath));
+				}
+  
+				// force tabIndex=0 on focus element to make sure keyboard navigation will land on the element
+				// ... this helps NVDA/VoiceOver provide appropriate notification/context to the user
+				if (isAccessibilityEnabled()) {
+					focusElem.tabIndex = 0;
+				} else {
+					// if we're using keyboard navigation we want the H2 or equivalent at the top of the main page content to be outlined (visibly selected)
+					// ... but if we're not using accessibility mode, we don't want this outlined - doesn't look right outside accessibility context (but outline is required for keyboard navigation)
+					focusElem.classList.add('noOutlineOnFocus');
+				}
+				focusElem.focus();
+				// console.log('FOCUS SET!');
+			}
+
+			var deltaSeconds = getElapsedSeconds(epochStart);
+			if (deltaSeconds > waitSeconds) {
+				console.log('> TIMEOUT waitForInnerPageBodyAndFocus()');
+				clearInterval(intervalId);
+			}
+		}, 50);
+
+	}, 500);
+
+    var monitorActiveElementsForDebugPurposes = false;
+    if (monitorActiveElementsForDebugPurposes) {
+        // DEBUG purposes only
+        // remove this block after new accessibility functions are stable
+        // ... in the meantime, turn this block on to display the active element on the console every second
+        monitorActiveElement();
+	}
+}
+
+function waitForModalAndFocus(jqSelectors) {
+
+    if (isEmpty(jqSelectors)) {
+        console.error('jqSelectors is empty');
+        return;
+    } else if (isEmpty(jqSelectors.length) || jqSelectors.length < 1) {
+        console.error('jqSelector has no items');
+        return;
+    }
+
+    // wait 1/2 second for the modal to load
+    // await cgSleep(500);
+	setTimeout(function () {
+
+		var focusElems = null;
+
+		var sleepMillis = 50; // 50;
+		var waitSeconds = 300; // some pages such as users directory can take quite a while to load
+
+		var epochStart = Date.now();
+		var intervalId = setInterval(function () {
+
+			var i = 0;
+			while (i < jqSelectors.length && (isEmpty(focusElems) || focusElems.length === 0)) {
+				focusElems = $(jqSelectors[i]);
+				// console.log('> LOOK FOR jqSelector=' + jqSelectors[i] + ', focusElems.length=' + focusElems.length);
+				i++;
+			}
+
+			if (!isEmpty(focusElems) && focusElems.length > 0) {
+				//
+				// we've found the focus element
+				//
+
+				clearInterval(intervalId);
+
+				if (focusElems.length > 1) {
+					console.error('focusElems.length=' + focusElems.length + ', multiple elements found (expected single element)');
+					return;
+				}
+
+				// console.log('> FOUND focus element');
+				// console.log('> isAccessibilityEnabled()=' + isAccessibilityEnabled());
+
+				var focusElem = $(focusElems[0]).get(0); // convert to DOM object
+				if (isEmpty(focusElem)) {
+					console.error('focusElem is empty');
+					return;
+				}
+
+				if (isAccessibilityJSVerbose) {
+					// DEBUG purposes only - remove this block once code is stable
+					var focusElemPath = getElementPath(focusElem);
+					console.log('focusElemPath=' + getDescription(focusElemPath));
+				}
+
+				// force tabIndex=0 on focus element to make sure keyboard navigation will land on the element
+				// ... this helps NVDA/VoiceOver provide appropriate notification/context to the user
+				focusElem.tabIndex = 0;
+				if (!isAccessibilityEnabled()) {
+					// if we're using keyboard navigation we want the H2 or equivalent at the top of the main page content to be outlined (visibly selected)
+					// ... but if we're not using accessibility mode, we don't want this outlined - doesn't look right outside accessibility context (but outline is required for keyboard navigation)
+					focusElem.classList.add('noOutlineOnFocus');
+				}
+				focusElem.focus();
+				// console.log('FOCUS SET!');
+
+				return;
+			}
+
+			var deltaSeconds = getElapsedSeconds(epochStart);
+			if (deltaSeconds > waitSeconds) {
+				console.log('> TIMEOUT waitForModalAndFocus()');
+				clearInterval(intervalId);
+			}
+
+		}, sleepMillis);
+
+	}, 500);
+
+	var monitorActiveElementsForDebugPurposes = false;
+	if (monitorActiveElementsForDebugPurposes) {
+		// DEBUG purposes only
+		// remove this block after new accessibility functions are stable
+		// ... in the meantime, turn this block on to display the active element on the console every second
+		monitorActiveElement();
+	}
+}
+
+// --------------------------------------------------------------------------------
+// FOR DEBUG PURPOSES monitor the active element on the page and report to console
+// --------------------------------------------------------------------------------
+var isMonitoringActiveElements = false;
+function monitorActiveElement() {
+    if (isMonitoringActiveElements) {
+        return;
+    }
+    isMonitoringActiveElements = true;
+
+    console.log('> monitorActiveElement() begins...');
+
+	var seconds = 0;
+    var intervalId = setInterval(function() {
+		seconds++;
+        var activeElement = document.activeElement;
+        var activeElementPath = getElementPath(activeElement);
+        var activeElementId = activeElement.id;
+        var activeElementTagName = activeElement.tagName;
+		var activeElementClass = activeElement.classList;
+		var activeElementAriaLabel = activeElement.getAttribute('aria-label');
+		// var activeElementText = activeElement.textContent;
+        console.log('---');
+        console.log('monitorActiveElement() seconds=' + seconds);
+        console.log('activeElementPath=' + getDescription(activeElementPath));
+        console.log('activeElementId=' + getDescription(activeElementId));
+        console.log('activeElementTagName=' + getDescription(activeElementTagName));
+		console.log('activeElementClass=' + getDescription(activeElementClass));
+		console.log('activeElementAriaLabel=' + getDescription(activeElementAriaLabel));
+		// console.log('activeElementText=' + getDescription(activeElementText));
+        if (activeElementTagName === 'A') {
+            var activeElementHref = activeElement.href;
+            console.log('href=' + getDescription(activeElementHref));
+        }
+	}, 10000);
+
+	console.log('> monitorActiveElement() intervalId=' + intervalId);
+}
+var runMonitorActiveElements = false;
+if (runMonitorActiveElements) {
+    monitorActiveElement();
+}
+
+function setFocusToMainContent(anchorId) {
+	// console.log('> setFocusToMainContent() anchorId=' + anchorId);
+
+	if (isAccessibilityJSVerbose) {
+		console.log('> setFocusToMainContent() begins...');
+		console.log('> anchorId=' + getDescription(anchorId));
+	}
+
+    if (isEmpty(anchorId)) {
+        anchorId = 'span-top-of-main-content';
+    } else if (!isString(anchorId)) {
+        console.error('anchorId is not a string');
+        return;
+    }
+
+    var waitSeconds = 60;
+	var epochStart = Date.now();
+	var intervalId = setInterval(function () {
+
+		var elem = document.getElementById(anchorId);
+		if (!isEmpty(elem)) {
+
+			clearInterval(intervalId);
+
+			if (isAccessibilityJSVerbose) {
+				console.log('> SKIP-TO-MAIN-CONTENT set focus to anchorid=' + anchorId);
+			}
+
+			elem.focus();
+			if(!isAccessibilityEnabled()) {
+				elem.style.outline = 'none';
+			}
+
+			return;
+		}
+
+		var deltaSeconds = getElapsedSeconds(epochStart);
+		if (deltaSeconds > waitSeconds) {
+			console.log('> TIMEOUT setFocusToMainContent()');
+			clearInterval(intervalId);
+		}
+	}, 100);
+}
+
+function setupSkipToLeftNavigation() {
+	// console.log('> setupSkipToLeftNavigation() begins...');
+
+	setTimeout(function () {
+		var spanSkip = document.getElementById('span-skip-to-left-navigation');
+		if (isEmpty(spanSkip)) {
+			console.log('> setupSkipToLeftNavigation() spanSkip not found.');
+			return;
+		}
+
+		var elem = $('ul#side-menu li.menu-title:first');
+		if (isEmpty(elem) || elem.length === 0) {
+			// HIDDEN skip-to-left-navigation
+			spanSkip.style.display = 'none';
+		} else {
+			// VISIBLE skip-to-left-navigation
+			spanSkip.style.display = '';
+		}
+	}, 10);
+
+	// console.log('> setupSkipToLeftNavigation() ends!');
+    return false;
+}
+
+function setFocusToLeftNavigation() {
+    // console.log('> setFocusToLeftNavigation() begins...');
+
+	setTimeout(function () {
+		var selector = '#a-left-nav-marker';
+		var elem = $(selector);
+		if (isEmpty(elem) || elem.length === 0) {
+			selector = 'ul#side-menu li:nth-child(2) a';
+			elem = $(selector);
+			if (isEmpty(elem) || elem.length === 0) {
+				console.error('> setFocusToLeftNavigation() selector[' + selector + '] not found, unable to skip to left navigation.');
+				return;
+			}
+		}
+
+		var focusElem = elem.get(0);
+		// console.log('> setFocusToLeftNavigation() selector=[' + selector + '] focusElem=' + getElementPath(focusElem));
+		focusElem.focus();
+	}, 10);
+
+    // console.log('> setFocusToLeftNavigation() ends!');
+    return false;
+}
+
+// --------------------------------------------------------------------------------
+// Back-Navigation from Keyboard
+// --------------------------------------------------------------------------------
+function isShiftTabKey(e) {
+    if (isEmpty(e)) {
+        console.error('e is empty');
+        return;
+    } else if (isEmpty(e.which)) {
+        console.error('e.which is empty');
+        return;
+    }
+    return e.which === 9 && e.shiftKey && !e.altKey && !e.ctrlKey;
+}
+
+function isKeyboardBackNavigation(e) {
+    if (isEmpty(e)) {
+        console.error('e is empty');
+        return;
+    } else if (isEmpty(e.which)) {
+        console.error('e.which is empty');
+        return;
+    }
+
+    var isDebug = false;
+    if (isDebug) {
+        // 9 - tab
+        // 37 - left arrow
+        // 38 - up arrow
+        // 39 - right arrow
+        // 40 - down arrow
+        // 68 - d
+        // 72 - h
+        // 
+
+        var showKeys = false;
+        if (showKeys) {
+            for (var k in e) {
+                console.log('> e.k=' + k);
+            }
+		}
+
+        console.log('e.altKey=' + e.altKey);
+        console.log('e.ctrlKey=' + e.ctrlKey);
+        console.log('e.shiftKey=' + e.shiftKey);
+        console.log('e.which=' + e.which);
+    }
+
+    // we may add additional back-keyboard keys in the future (ex. up arrow or back arrow)
+    return isShiftTabKey(e);
+}
+
+
+// --------------------------------------------------------------------------------
+//
+// BACK-NAVIGATION management V1 (see V2 below)
+//
+// configure specific elements for re-focus on keyboard back navigation
+// - typically menu items or top main-content elements
+// 
+// backKeyNavigationTargets[sourceElementId] = targetElementId;
+//
+// FUTURE
+//
+// - when we have no left menu we may want to find the active menu and back-tab to there
+// - something to think about
+// - automate this somewhat by finding the active left nav using li.active or li.active a.active
+// - when no left menu, follow similar pattern to find target in top menu
+// --------------------------------------------------------------------------------
+var backKeyNavigationTargets = {};
+backKeyNavigationTargets['a-left-nav-home'] = 'a-top-nav-home';
+backKeyNavigationTargets['a-left-nav-admin-settings'] = 'a-top-nav-admin';
+backKeyNavigationTargets['a-events-section-create-event-button'] = 'a-top-nav-events-section';
+
+// --------------------------------------------------------------------------------
+// check if an event occured on an element that supports forced keyboard-back re-focus management
+// --------------------------------------------------------------------------------
+function getElementID_IF_EventOnMonitoredBackNavigationElement(e) {
+
+	if (isAccessibilityJSVerbose) {
+		// console.log('getElementID_IF_EventOnMonitoredBackNavigationElement() begins...');
+	}
+
+    if (isEmpty(e)) {
+        console.error('e is empty');
+        return;
+    } else if (isEmpty(e.target)) {
+        console.error('e.target is empty');
+        return;
+    } else if (isEmpty(e.target.id)) {
+        console.error('e.target.id is empty');
+        return;
+	}
+
+    if (isEmpty(backKeyNavigationTargets[e.target.id])) {
+        console.error('> e.target.id=' + e.target.id + ' is not supported');
+        return false;
+    }
+
+    // console.log('> e.target.id=' + e.target.id);
+    return e.target.id;
+}
+
+//
+// when a keydown event occurs representing a back-navigation of interest
+// we flag using backKeyNavigationsPendingRefocus[sourceElementId] = true
+//
+var backKeyNavigationsPendingRefocus = {};
+function onBackKeyNavigationEvent(e) {
+    // console.log('> onBackKeyNavigationEvent() begins...');
+
+    if (isEmpty(e)) {
+        console.error('e is empty');
+        return;
+	}
+
+    if (isKeyboardBackNavigation(e)) {
+        // console.log('> onBackKeyNavigationEvent() BACK detected');
+        var elemId = getElementID_IF_EventOnMonitoredBackNavigationElement(e);
+        if (isEmpty(elemId)) {
+            console.error('elemId is empty');
+            return;
+		}
+        if (!isEmpty(backKeyNavigationsPendingRefocus[elemId])) {
+            // we've already handld this event
+            return;
+        }
+        backKeyNavigationsPendingRefocus[elemId] = 'true';
+	}
+
+    // console.log('> onBackKeyNavigationEvent() ends!');
+}
+
+function onBackKeyFocusoutEvent(e) {
+    // console.log('onBackKeyFocusoutEvent() begins...');
+
+    var elemId = getElementID_IF_EventOnMonitoredBackNavigationElement(e);
+    if (isEmpty(elemId)) {
+        console.error('elemId is empty');
+        return;
+    }
+    var elem = document.getElementById(elemId);
+    if (isEmpty(elem)) {
+        console.error('elem is empty');
+        return;
+    }
+
+    if (isEmpty(backKeyNavigationsPendingRefocus[elemId])) {
+        // already handled or nothing to handle
+        return;
+    }
+
+    var backNavTargetElemId = backKeyNavigationTargets[elemId];
+    // console.log(' backNavTargetElemId=' + backNavTargetElemId);
+    var backNavTargetElem = document.getElementById(backNavTargetElemId);
+    if (isEmpty(backNavTargetElem)) {
+        console.error('backNavTargetElem is empty.');
+        return;
+    }
+    backNavTargetElem.focus();
+
+    delete backKeyNavigationsPendingRefocus[elemId];
+}
+
+function monitorBackKeyHandlers() {
+	// UNUSED this is the V1 version - see monitorBackKeyHandlersV2()
+    var activeSourceElements = {};
+	var intervalId = setInterval(function () {
+        // console.log('> monitorBackKeyHandlers() epochNow=' + Date.now());
+        for (var sourceId in backKeyNavigationTargets) {
+	        // console.log('> sourceId=' + sourceId);
+            var sourceElem = document.getElementById(sourceId);
+            if (sourceElem !== undefined && sourceElem !== null) {
+                // console.log('> FOUND sourceId=' + sourceId);
+                if (isEmpty(activeSourceElements[sourceId])) {
+                    sourceElem.removeEventListener('keydown', onBackKeyNavigationEvent);
+                    sourceElem.removeEventListener('focusout', onBackKeyFocusoutEvent);
+                    sourceElem.addEventListener('keydown', onBackKeyNavigationEvent);
+                    sourceElem.addEventListener('focusout', onBackKeyFocusoutEvent);
+                    // console.log('A> CONFIGURE keyup listener on sourceId=' + sourceId + ', activeSourceElements[sourceId]=' + activeSourceElements[sourceId]);
+                    activeSourceElements[sourceId] = true;
+                    // console.log('B> CONFIGURE keyup listener on sourceId=' + sourceId + ', activeSourceElements[sourceId]=' + activeSourceElements[sourceId]);
+                }
+            } else if (!isEmpty(activeSourceElements[sourceId])) {
+                delete activeSourceElements[sourceId];
+                // console.log('Z> DELETE keyup listener on sourceId=' + sourceId + ', activeSourceElements[sourceId]=' + activeSourceElements[sourceId]);
+            }
+        }
+	}, 1000); // runs perpetually
+}
+
+// --------------------------------------------------------------------------------
+//
+// BACK-NAVIGATION management V2 (a more global solution)
+//
+// configure top of main content and top left-nav elements for keyboard back-navigation
+// 
+// --------------------------------------------------------------------------------
+
+//
+// BACK-NAVIGATION from top of main content
+//
+var isMainContentBackKeyNavigationPending = false;
+function onMainContentBackKeyKeydownEvent(e) {
+    // console.log('> onMainContentBackKeyKeydownEvent() begins...');
+
+    if (isEmpty(e)) {
+        console.error('e is empty');
+        return;
+    }
+
+    if (isKeyboardBackNavigation(e)) {
+        // console.log('> onMainContentBackKeyKeydownEvent() BACK detected');
+        if (isMainContentBackKeyNavigationPending) {
+            // we've already handld this event
+            return;
+        }
+        isMainContentBackKeyNavigationPending = true;
+    }
+
+    // console.log('> onMainContentBackKeyKeydownEvent() ends!');
+}
+
+function onMainContentBackKeyFocusoutEvent(e) {
+    // console.log('onMainContentBackKeyFocusoutEvent() begins...');
+
+    if (!isMainContentBackKeyNavigationPending) {
+        // already handled or nothing to handle
+        return;
+    }
+
+    var backNavTargetElem = getTheActiveMainContentBackNavigationMenuItemElement();
+    if (isEmpty(backNavTargetElem)) {
+        console.log('> note: backNavTargetElem is empty.');
+        return;
+    }
+    backNavTargetElem.focus();
+
+    isMainContentBackKeyNavigationPending = false;
+    // console.log('onMainContentBackKeyFocusoutEvent() ends!');
+}
+
+//
+// BACK-NAVIGATION from top of left navigation menu
+//
+var isLeftNavBackKeyNavigationPending = false;
+function onLeftNavBackKeyKeydownEvent(e) {
+    // console.log('> onLeftNavBackKeyKeydownEvent() begins...');
+
+    if (isEmpty(e)) {
+        console.error('e is empty');
+        return;
+    }
+
+    if (isKeyboardBackNavigation(e)) {
+        // console.log('> onLeftNavBackKeyKeydownEvent() BACK detected');
+        if (isLeftNavBackKeyNavigationPending) {
+            // we've already handld this event
+            return;
+        }
+        isLeftNavBackKeyNavigationPending = true;
+    }
+
+    // console.log('> onLeftNavBackKeyKeydownEvent() ends!');
+}
+
+function onLeftNavBackKeyFocusoutEvent(e) {
+    // console.log('onLeftNavBackKeyFocusoutEvent() begins...');
+
+    if (!isLeftNavBackKeyNavigationPending) {
+        // already handled or nothing to handle
+        return;
+    }
+
+    var backNavTargetElem = getActiveTopNavigationMenuItemElement();
+    if (isEmpty(backNavTargetElem)) {
+        console.error('backNavTargetElem is empty.');
+        return;
+    }
+    backNavTargetElem.focus();
+
+    isLeftNavBackKeyNavigationPending = false;
+    // console.log('onLeftNavBackKeyFocusoutEvent() ends!');
+}
+
+//
+// BACK-NAVIGATION monitor page changes and hook-in as necessary (top of main content and top of left-nav if present)
+//
+function monitorBackKeyHandlersV2() {
+	var intervalId = setInterval(function () {
+        // console.log('> monitorBackKeyHandlersV2() intervalId=' + intervalId + ', epochNow=' + (new Date()).getTime());
+
+        var topOfMainContentElem = getTopMainContentElement();
+        if (!isEmpty(topOfMainContentElem) && isEmpty(topOfMainContentElem.getAttribute('data-backnav'))) {
+            topOfMainContentElem.removeEventListener('keydown', onMainContentBackKeyKeydownEvent);
+            topOfMainContentElem.removeEventListener('focusout', onMainContentBackKeyFocusoutEvent);
+            topOfMainContentElem.addEventListener('keydown', onMainContentBackKeyKeydownEvent);
+            topOfMainContentElem.addEventListener('focusout', onMainContentBackKeyFocusoutEvent);
+            topOfMainContentElem.setAttribute('data-backnav', 'true');
+	        // console.log('> BACK-NAV back-navigation handler set on top of main content ' + getElementPath(topOfMainContentElem));
+        } else if (isEmpty(topOfMainContentElem)) {
+            // console.warn('> BACK-NAV top of main content NOT FOUND!')
+		}
+
+        var topLeftNavMenuItemElement = getTopLeftNavigationMenuItemElement();
+        if (!isEmpty(topLeftNavMenuItemElement) && isEmpty(topLeftNavMenuItemElement.getAttribute('data-backnav'))) {
+            topLeftNavMenuItemElement.removeEventListener('keydown', onLeftNavBackKeyKeydownEvent);
+            topLeftNavMenuItemElement.removeEventListener('focusout', onLeftNavBackKeyFocusoutEvent);
+            topLeftNavMenuItemElement.addEventListener('keydown', onLeftNavBackKeyKeydownEvent);
+            topLeftNavMenuItemElement.addEventListener('focusout', onLeftNavBackKeyFocusoutEvent);
+            topLeftNavMenuItemElement.setAttribute('data-backnav', 'true');
+			// console.log('> BACK-NAV back-navigation handler set on top left-nav item ' + getElementPath(topLeftNavMenuItemElement));
+        } else if (isEmpty(topLeftNavMenuItemElement)) {
+            // console.log('> BACK-NAV top of left-nav NOT FOUND!')
+		}
+	}, 1000);
+	// console.log('> monitorBackKeyHandlersV2() SETUP intervalId=' + intervalId);
+}
+
+function monitorMainContent() {
+	// console.log('> monitorMainContent() begins...');
+	var dataAttributeName = 'data-focusable';
+	var intervalId = setInterval(function() {
+		var selector = 'div#page-cont h2'
+		var elem = $(selector);
+		if (!isEmpty(elem) && elem.length > 0 && isEmpty(elem.attr(dataAttributeName))) {
+			// console.log('> FOUND seletor=' + selector);
+			elem.attr('tabindex', '0');
+			elem.attr(dataAttributeName, 'true');
+			// console.log('> monitorMainContent() set tabindex="0" on selector=' + selector)
+		}
+	}, 1000);
+}
+
+function convertToTitleCase(text) {
+	if (isEmpty(text)) {
+		console.error('text is empty');
+		return '';
+	}
+	if (text.length === 0) {
+		return '';
+	}
+	var parts = text.split(' ');
+	for (var i=0; i<parts.length; i++) {
+		if (parts[i].length < 2) {
+			parts[i] = parts[i].toUpperCase();
+        } else {
+            var firstChar = parts[i].charAt(0);
+            if (firstChar === "'" || firstChar === '"' || firstChar === '(' || firstChar === '[' || firstChar === '{' || firstChar === '<' || firstChar === '$') {
+                if (parts[i].length < 3) {
+                    parts[i] = firstChar + parts[i].charAt(1).toUpperCase();
+                } else {
+                    parts[i] = firstChar + parts[i].charAt(1).toUpperCase() + parts[i].substring(2);
+				}
+            } else {
+                parts[i] = parts[i].charAt(0).toUpperCase() + parts[i].substring(1);
+			}
+		}		
+	}
+	return parts.join(' ');
+}
+
+function setPageTitle() {
+
+	if (isAccessibilityJSVerbose) {
+		console.log('> setPageTitle() begins...');
+	}
+
+	if (typeof resetPageTitleOnModalCloseCallEpoch !== 'undefined') {
+		resetPageTitleOnModalCloseCallEpoch = null;
+	}
+
+	if (typeof isPageTitleSet !== 'undefined' && isPageTitleSet === true) {
+		if (isAccessibilityJSVerbose) {
+			console.log('> setPageTitle() title is already set (no action taken)');
+		}
+		document.title = convertToTitleCase(document.title);
+		return;
+	}
+
+	var mainContentTitleElem = $('h2.modal-title'); // try this first
+	if (isEmpty(mainContentTitleElem) || mainContentTitleElem.length < 1) {
+        mainContentTitleElem = $('div.page__header--title h2'); // try this second
+		if (isEmpty(mainContentTitleElem) || mainContentTitleElem.length < 1) {
+            if (isAccessibilityJSVerbose) {
+                // we couldn't find a suitable title, do nothing.
+				console.warn('UNABLE to set page title (H2 element not found)');
+			}
+			return;
+		}
+	}
+
+    var pageTitle = null;
+    var mainContentTitle = mainContentTitleElem.get(0).textContent;
+	if (!isEmpty(mainContentTitle)) {
+		pageTitle = mainContentTitle;
+	}
+
+	if (!isEmpty(pageTitle)) {
+        document.title = convertToTitleCase(pageTitle);
+		isPageTitleSet = true;
+		if (isAccessibilityJSVerbose) {
+			console.log('> setPageTitle() pageTitle=' + pageTitle);
+		}
+		return;
+	}
+
+	if (isAccessibilityJSVerbose) {
+		console.log('> setPageTitle() failed.');
+	}
+}
+
+var setFocusOnTopMessagesEpoch = null;
+function setFocusOnTopMessages(strTypeMsg) {
+    console.log('> setFocusOnTopMessages() begins...');
+    if (isEmpty(strTypeMsg)) {
+        console.error('strTypeMsg is empty');
+        return;
+    } else if (!isString(strTypeMsg)) {
+        console.error('strTypeMsg is not a string');
+        return;
+	}
+
+    console.log('> setFocusOnTopMessages() strTypeMsg=' + strTypeMsg);
+
+    var epochDelta = null;
+    if (setFocusOnTopMessagesEpoch !== null) {
+        epochDelta = Date.now - setFocusOnTopMessagesEpoch;
+    }
+    if (epochDelta !== null && epochDelta < 1000) {
+        console.log('> setFocusOnTopMessages() is already being handled (returning).');
+        return;
+	}
+    setFocusOnTopMessagesEpoch = Date.now;
+
+    var topMessageIds = [];
+    topMessageIds[topMessageIds.length] = 'div-top-error-msg';
+    topMessageIds[topMessageIds.length] = 'div-top-warning-msg';
+    topMessageIds[topMessageIds.length] = 'div-top-ok-msg';
+    topMessageIds[topMessageIds.length] = 'div-top-info-msg';
+
+    if (topMessageIds.length <= 0) {
+        console.log('> setFocusOnTopMessages() no div ID values defined (returning).');
+        return;
+	}
+
+    var index = 0;
+    var focusDiv = null;
+    var focusDivId = null;
+    while (focusDiv === null && index < topMessageIds.length) {
+        focusDiv = document.getElementById(topMessageIds[index]);
+        if (!isEmpty(focusDiv)) {
+            focusDivId = topMessageIds[index];
+		}
+        index++;
+    }
+
+    if (focusDiv === null) {
+        console.log('> setFocusOnTopMessages() focusDiv is empty');
+        return;
+	}
+
+    var focusElemSelector = '#' + focusDivId + ' span';
+    var focusElem = $(focusElemSelector);
+    if (isEmpty(focusElem)) {
+        console.error('focusElem is empty.');
+        return;
+    }
+    if (focusElem.length === 0) {
+        console.error('focusElem not found');
+        return;
+    }
+
+	setTimeout(function() {
+	    focusElem[0].focus();
+	    console.log('> FOCUS set to ' + focusElemSelector);
+	}, 100);
+}
+
+$(window).on('load', function () {
+
+	if (isAccessibilityJSVerbose) {
+		if (typeof modalPageTitleHistory !== 'undefined') {
+			console.log('> modalPageTitleHistory[] length=' + modalPageTitleHistory.length);
+			for (var i=0; i<modalPageTitleHistory.length; i++) {
+				console.log('> modalPageTitleHistory[' + i + ']=' + modalPageTitleHistory[i]);
+			}
+		}
+	}
+
+	// console.log('> CONFIGURE keyboard back-navigation handlers');
+    // this.monitorBackKeyHandlers();
+    this.monitorBackKeyHandlersV2();
+	this.setupSkipToLeftNavigation();
+	this.monitorMainContent();
+	this.setPageTitle();
+
+	if (typeof isEmbeddedModal !== 'undefined' && isEmbeddedModal === true) {
+		if (isAccessibilityJSVerbose) {
+			console.log('NOTE embedded modal detected.');
+		}
+		removeParentWindowTabFunctionality();
+    }
+
+	addAriaLabelsToOrderingSelectOptions();
+});
+
+//
+// BACK-NAVIGATION find required elements for setup and/or re-focus on back-navigation event
+//
+function getTopMainContentElement() {
+    // var topOfMainContentElem = document.getElementById('span-top-of-main-content');
+    var topOfMainContentElems = $("#wrapper #span-top-of-main-content")
+    if (isEmpty(topOfMainContentElems) || topOfMainContentElems.length < 1) {
+        // console.error('topOfMainContentElems is empty');
+        return;
+    } else if (topOfMainContentElems.length < 1) {
+        // console.error('topOfMainContentElems is no items');
+        return;
+    } else if (topOfMainContentElems.length > 1) {
+        // console.error('topOfMainContentElems multiple matching items found');
+        return;
+    }
+    return $(topOfMainContentElems).get(0);
+}
+
+function getTopLeftNavigationMenuItemElement() {
+    var jqActiveLeftNavElems = $("#header__left-menu #sidebar-menu ul li a");
+    if (isEmpty(jqActiveLeftNavElems) || jqActiveLeftNavElems.length < 1) {
+        // console.log('> LEFT-NAV no active left navigation item - jqActiveLeftNavElems is empty');
+        return;
+    }
+    return $(jqActiveLeftNavElems).get(0);
+}
+
+// --------------------------------------------------------------------------------
+// FIND the currently active left navigation or top navigation menu item
+// - returns a DOM element if a single matching active left navigation menu item is found
+// - returns undefined if zero or multiple matching left navigation menu items are found
+// --------------------------------------------------------------------------------
+function getActiveLeftNavigationSubMenuItemElement() {
+    var jqActiveLeftSubNavElems = $("#header__left-menu li.active li.active a.active");
+    if (isEmpty(jqActiveLeftSubNavElems) || jqActiveLeftSubNavElems.length < 1) {
+        // console.log('> LEFT-SUB-NAV no active left sub navigation item - jqActiveLeftSubNavElems is empty');
+        return;
+    } else if (jqActiveLeftSubNavElems.length > 1) {
+		if (isAccessibilityJSVerbose) {
+	        console.warn('> LEFT-SUB-NAV multiple matching active left sub navigation items - jqActiveLeftSubNavElems.length=' + jqActiveLeftSubNavElems.length);
+		}
+        var isDebug = false;
+        if (isDebug) {
+            for (var i = 0; i < jqActiveLeftSubNavElems.length; i++) {
+                var jqActiveLeftSubNavElem = jqActiveLeftSubNavElems[i];
+                // console.log('> jqActiveLeftSubNavElems[' + i + ']=' + getElementPath(jqActiveLeftSubNavElem));
+			}
+		}
+        return;
+    }
+    return $(jqActiveLeftSubNavElems).get(0);
+}
+
+function getActiveLeftNavigationMenuItemElement() {
+    var jqActiveLeftNavElems = $("#header__left-menu li.active a.active");
+    if (isEmpty(jqActiveLeftNavElems) || jqActiveLeftNavElems.length < 1) {
+        // console.log('> LEFT-NAV no active left navigation item - jqActiveLeftNavElems is empty');
+        return;
+    } else if (jqActiveLeftNavElems.length > 1) {
+        if (isAccessibilityJSVerbose) {
+			console.warn('> LEFT-NAV multiple matching active left navigation items - jqActiveLeftNavElems.length=' + jqActiveLeftNavElems.length);
+		}
+        var isDebug = false;
+        if (isDebug) {
+            for (var i = 0; i < jqActiveLeftNavElems.length; i++) {
+                var jqActiveLeftNavElem = jqActiveLeftNavElems[i];
+                console.log('> jqActiveLeftNavElems[' + i + ']=' + getElementPath(jqActiveLeftNavElem));
+            }
+        }
+        return;
+	}
+    return $(jqActiveLeftNavElems).get(0);
+}
+
+function getActiveTopNavigationMenuItemElement() {
+    var activeTopNavMenuElem = null;
+    var jqActiveTopNavElems = $("#main-navbar li.active a");
+    if (isEmpty(jqActiveTopNavElems) || jqActiveTopNavElems.length < 1) {
+        // console.log('> TOP-NAV no active top navigation item - jqActiveTopNavElems is empty');
+        return;
+    } else if (jqActiveTopNavElems.length > 1) {
+        // console.warn('> TOP-NAV multiple matching active top navigation items - jqActiveTopNavElems.length=' + jqActiveTopNavElems.length);
+        for (var i = 0; i < jqActiveTopNavElems.length; i++) {
+            var elem = $(jqActiveTopNavElems).get(i);
+            if (!isEmpty(elem.id)) {
+                if (elem.id === 'header__group-icon') {
+                    activeTopNavMenuElem = elem;
+                    break;
+                }
+            }
+        }
+    } else {
+        activeTopNavMenuElem = $(jqActiveTopNavElems).get(0);
+    }
+
+	if (isAccessibilityJSVerbose) {
+		if (!isEmpty(activeTopNavMenuElem)) {
+			console.log('> TOP-NAV active element=' + getElementPath(activeTopNavMenuElem));
+		}
+	}
+    return activeTopNavMenuElem;
+}
+
+function getTheActiveMainContentBackNavigationMenuItemElement() {
+
+    var theActiveMenuItem = null;
+
+    var activeLeftSubNavItem = getActiveLeftNavigationSubMenuItemElement();
+    if (isEmpty(activeLeftSubNavItem)) {
+        // console.log("> EMPTY activeLeftSubNavItem={undefined}");
+    } else {
+        // console.log("> activeLeftSubNavItem=" + getElementPath(activeLeftSubNavItem));
+        theActiveMenuItem = activeLeftSubNavItem;
+        // console.log('> SET theActiveMenuItem=' + getElementPath(theActiveMenuItem));
+    }
+
+    var activeLeftNavItem = getActiveLeftNavigationMenuItemElement();
+    if (isEmpty(activeLeftNavItem)) {
+        // console.log("> EMPTY activeLeftNavItem={undefined}");
+    } else {
+        // console.log("> activeLeftNavItem=" + getElementPath(activeLeftNavItem));
+        if (isEmpty(theActiveMenuItem)) {
+            theActiveMenuItem = activeLeftNavItem;
+            // console.log('> SET theActiveMenuItem=' + getElementPath(theActiveMenuItem));
+        }
+    }
+
+    var activeTopNavItem = getActiveTopNavigationMenuItemElement();
+    if (isEmpty(activeTopNavItem)) {
+        // console.log("> EMPTY activeTopNavItem={undefined}");
+    } else {
+        // console.log("> activeTopNavItem=" + getElementPath(activeTopNavItem));
+        if (isEmpty(theActiveMenuItem)) {
+            theActiveMenuItem = activeTopNavItem;
+            // console.log('> SET theActiveMenuItem=' + getElementPath(theActiveMenuItem));
+        }
+    }
+
+    if (isEmpty(theActiveMenuItem)) {
+		if (isAccessibilityJSVerbose) {
+			console.warn('> theActiveMenuItem is empty');
+		}
+        theActiveMenuItem = document.getElementById('button-menu-mobile');
+        if (isEmpty(theActiveMenuItem)) {
+			if (isAccessibilityJSVerbose) {
+				console.error('theActiveMenuItem can not be set');
+			}
+            theActiveMenuItem = null;
+		}
+    }
+
+    return theActiveMenuItem;
+}
+
+//
+// DEBUG purposes only (turn this on to monitor active top-bar and left-nav menu items)
+//
+function monitorActiveMenuItems() {
+	var intervalId = setInterval(function () {
+        var theActiveMenuItem = getTheActiveMainContentBackNavigationMenuItemElement();
+
+        console.log('---');
+        if (isEmpty(theActiveMenuItem)) {
+            console.log('> *** EMPTY ACTIVE-MENU theActiveMenuItem={undefined}');
+        } else {
+            console.log('> *** FOUND ACTIVE-MENU theActiveMenuItem=' + getElementPath(theActiveMenuItem));
+            theActiveMenuItem.style.background = "#ff0000";
+			setTimeout(function () {
+	            theActiveMenuItem.style.background = "";
+			}, 500);
+		}
+        console.log('---');
+	}, 5000);
+}
+// monitorActiveMenuItems();
+
+// ----------------------------------------------------------------------------------------------------
+// SAVE FORM Errors - handle errors on 'Save' form (for forms built in table_bootstrap__.inc)
+// ----------------------------------------------------------------------------------------------------
+var saveFormErrorCount = 0;
+var saveFormErrorMessages = {};
+
+function hasSaveFormErrors() {
+	return (saveFormErrorCount > 0) ? true : false;
+}
+
+function clearSaveFormErrors() {
+	// console.log('> clearSaveFormErrors() begins...');
+	saveFormErrorCount = 0;
+	saveFormErrorMessages = {};
+}
+
+function addSaveFormError(obj, message) {
+
+	if (isEmpty(obj)) {
+		console.error('obj is empty');
+		return;
+	}
+
+	if (isEmpty(message)) {
+		console.error('message is empty');
+		return;
+	} else if (!isString(message)) {
+		console.error('message is not a string');
+		return;
+	}
+
+	saveFormErrorCount++;
+
+	var labelText = getLabelTextForElementWithoutAsterix(obj);
+	if (isEmpty(labelText)) {
+		console.error('labelText is empty');
+		return;
+	}
+
+	if (!isEmpty(saveFormErrorMessages[labelText])) {
+		// console.error('> addSaveFormError() labelText=' + labelText + ' already exists');
+		saveFormErrorCount--;
+		return;
+	}
+
+	saveFormErrorMessages[labelText] = message;
+}
+
+// ========================================================
+// ******        ACCESSIBILITY-LIGHT BEGINS          ******
+// ========================================================
+
+var numberNames = [];
+numberNames[0] = 'zero';
+numberNames[1] = 'one';
+numberNames[2] = 'two';
+numberNames[3] = 'three';
+numberNames[4] = 'four';
+numberNames[5] = 'five';
+numberNames[6] = 'six';
+numberNames[7] = 'seven';
+numberNames[8] = 'eight';
+numberNames[9] = 'nine';
+numberNames[10] = 'ten';
+numberNames[11] = 'eleven';
+numberNames[12] = 'twelve';
+numberNames[13] = 'thirteen';
+numberNames[14] = 'fourteen';
+numberNames[15] = 'fifteen';
+numberNames[16] = 'sixteen';
+numberNames[17] = 'seventeen';
+numberNames[18] = 'eighteen';
+numberNames[19] = 'nineteen';
+
+var tensNames = [];
+tensNames[0] = '';
+tensNames[1] = '';
+tensNames[2] = 'twenty';
+tensNames[3] = 'thirty';
+tensNames[4] = 'fourty';
+tensNames[5] = 'fifty';
+tensNames[6] = 'sixty';
+tensNames[7] = 'seventy';
+tensNames[8] = 'eighty';
+tensNames[9] = 'ninety';
+
+function getAriaNumberName(n) {
+	if (isEmpty(n)) {
+		console.error('n is empty');
+		return '';
+	} else if (!isNumber(n)) {
+		console.error('n is not a number');
+		return '';
+	}
+
+	var numberName = '';
+	if (n < 0) {
+		numberName += 'minus ';
+		n = - n;
+	}
+
+	n = Math.floor(n);
+	if (n < 20) {
+		numberName += numberNames[n];
+	} else if (n < 100) {
+		var tens = Math.floor(n / 10);
+		var ones = Math.floor(n % 10);
+		numberName += tensNames[tens];
+		if (ones > 0) {
+			numberName += ' ' + numberNames[ones];
+		}
+	} else {
+		numberName += n;
+	}
+
+	return numberName;
+}
+
+// --------------------------------------------------------------------------------
+// find blocks of text surrounded by (x,y)
+// --------------------------------------------------------------------------------
+function findFirstTextBlockInsideXY(text, x, y) {
+	if (text === undefined || text === null) {
+		console.error('text is null or undefined');
+		return '';
+	}
+	if (x === undefined || x === null) {
+		console.error('x is null or undefined');
+		return '';
+	}
+	if (y === undefined || y === null) {
+		console.error('y is null or undefined');
+		return '';
+	}
+
+	var sx = text.indexOf(x);
+	if (sx < 0) {
+		return; // can't find the opening of the block
+	}
+
+	var ex = text.indexOf(y, sx + 1);
+	if (ex < 0) {
+		return;	// can't find closure to the block
+	}
+	ex += y.length;
+
+	return text.substring(sx, ex);
+}
+
+
+// --------------------------------------------------------------------------------
+// replace all occurances of 'x' with 'y' in a string
+// --------------------------------------------------------------------------------
+function replaceAll(text, x, y) {
+	if (text === undefined || text === null) {
+		console.error('text is null or undefined');
+		return '';
+	}
+	if (x === undefined || x === null) {
+		console.error('x is null or undefined');
+		return '';
+	}
+	if (y === undefined || y === null) {
+		console.error('y is null or undefined');
+		return '';
+	}
+
+	if (!text.includes(x)) {
+		return text; // nothing to do
+	}
+
+	var intermediate = 'ξπθ';
+	if (x.includes(intermediate) || y.includes(intermediate)) {
+		intermediate = 'ΨΦΔ';
+	}
+
+	text = text.replace(x, intermediate);
+	while (text.includes(x)) {
+		text = text.replace(x, intermediate);
+	}
+
+	text = text.replace(intermediate, y);
+	while (text.includes(intermediate)) {
+		text = text.replace(intermediate, y);
+	}
+
+	return text;
+}
+
+function getEncodedHtmlContent(text) {
+	if (isEmpty(text)) {
+		return '';
+	}
+
+	var elem = document.createElement('span');
+	elem.textContent = text;
+
+	var encodedHtml = elem.innerHTML;
+	if (isEmpty(encodedHtml)) {
+		encodedHtml = '';
+	}
+
+	return encodedHtml;
+}
+
+function extractPureTextContentFromHtml(htmlContent) {
+	if (isEmpty(htmlContent)) {
+		return '';
+	}
+	
+	var scriptContent = findFirstTextBlockInsideXY(htmlContent, '<script>', '</script>');
+	while (!isEmpty(scriptContent)) {
+		htmlContent = htmlContent.replace(scriptContent, ' ');
+		scriptContent = findFirstTextBlockInsideXY(htmlContent, '<script>', '</script>');
+	}
+
+	var styleContent = findFirstTextBlockInsideXY(htmlContent, '<style>', '</style>');
+	while (!isEmpty(styleContent)) {
+		htmlContent = htmlContent.replace(styleContent, ' ');
+		styleContent = findFirstTextBlockInsideXY(htmlContent, '<style>', '</style>');
+	}
+
+	// BREATHER (space) around HTML content to leave something readable by screen reader
+	htmlContent = replaceAll(htmlContent, '<br>', ' <br>');
+	htmlContent = replaceAll(htmlContent, '<br/>', ' <br/>');
+	htmlContent = replaceAll(htmlContent, '<p>', ' <p>');
+	htmlContent = replaceAll(htmlContent, '</p>', ' </p>');
+	htmlContent = replaceAll(htmlContent, '<span>', ' <span>');
+	htmlContent = replaceAll(htmlContent, '</span>', ' </span>');
+	htmlContent = replaceAll(htmlContent, '<div>', ' <div>');
+	htmlContent = replaceAll(htmlContent, '</div>', ' </div>');
+	htmlContent = replaceAll(htmlContent, '<script>', ' <script>');
+	htmlContent = replaceAll(htmlContent, '</script>', ' </script>');
+	htmlContent = replaceAll(htmlContent, '<style>', ' <style>');
+	htmlContent = replaceAll(htmlContent, '</style>', ' </style>');
+
+	// CLEANUP all the extra spaces that may have been injected or been present to begin with
+	htmlContent = replaceAll(htmlContent, '	', ' '); // replace TAB with SPACE
+	htmlContent = replaceAll(htmlContent, '  ', ' '); // replace DOUBLE-SPACE with SINGLE-SPACE 1st time
+	htmlContent = replaceAll(htmlContent, '  ', ' '); // replace DOUBLE-SPACE with SINGLE-SPACE 2nd time
+	htmlContent = replaceAll(htmlContent, '  ', ' '); // replace DOUBLE-SPACE with SINGLE-SPACE 3rd time
+
+	var elem = document.createElement('span');
+	elem.innerHTML = htmlContent;
+
+	var text = elem.textContent;
+	if (isEmpty(text)) {
+		return '';
+	}
+
+	return text.trim();
+}
+
+function setupKeyboardSupportForClickableElement(elemId) {
+	if (isEmpty(elemId)) {
+		console.error('elemId is empty');
+		return;
+	} else if (!isString(elemId)) {
+		console.error('elemId is not a string');
+		return;
+	}
+
+	if (!elemId.startsWith('#')) {
+		elemId ='#' + elemId;
+	}
+
+	// console.log('> setupKeyboardSupportForClickableElement() elemId=' + elemId);
+
+	setTimeout(function () {
+		$(elemId).attr('data-z', elemId);
+		$(elemId).keyup(function (event) {
+			if (event.which === 13 || event.which === 32) {
+				$(elemId).click();
+			}
+		});
+	}, 500);
+}
+
+function addAriaLabelPunctuation(text, punctuationChar) {
+	var tailPadding = ' ';
+	if (isEmpty(text)) {
+		return tailPadding;
+	}
+
+	text = text.trim();
+	var hasPunctuation = text.endsWith('.') || text.endsWith('!') || text.endsWith('?') || text.endsWith(':') || text.endsWith(';') || text.endsWith('-') || text.endsWith(',');
+
+	if (isEmpty(punctuationChar)) {
+		// Don't force the punctuation - just use a '.' if there is no punctuation present
+		if (hasPunctuation) {
+			return text + tailPadding;
+		} else {
+			return text + '.' + tailPadding;
+		}
+	} else {
+		// Force punctuation to {punctuationChar} value; will replace existing punctuation if present
+		if (text.endsWith(punctuationChar)) {
+			return text + tailPadding;
+		} else {
+			if (hasPunctuation) {
+				if (text.length <= 1) {
+					// text is a single-character punctuation mark to begin with - equivalent to an empty string
+					return tailPadding;
+				} else {
+					return text.substring(0, text.length - 1) + punctuationChar + tailPadding;
+				}
+			} else {
+				return text + punctuationChar + tailPadding;
+			}
+		}
+	}
+
+	return text; // default - do nothing
+}
+
+function getSafeAriaLabelText(textContent) {
+	// console.log('> [accessibility.js] getSafeAriaLabelText() {a} textContent=' + textContent);
+	if (isEmpty(textContent)) {
+		return ' ';
+	}
+	var safeAttributeText = extractPureTextContentFromHtml(textContent);
+	safeAttributeText = replaceAll(safeAttributeText, '"', '“');
+	safeAttributeText = replaceAll(safeAttributeText, "'", "’");
+	// console.log('> [accessibility.js] getSafeAriaLabelText() {b} safeAttributeText=' + safeAttributeText);
+	return safeAttributeText;
+}
+
+function getSafeAriaLabelTextTrim(textContent) {
+	return getSafeAriaLabelText(textContent).trim();
+}
+
+// --------------------------------------------------------------------------------
+// SELECTIZE management
+// - help with aria-label on the base input when typing and navigating result list
+// - jQuery is OK in the following selectize functions
+// --------------------------------------------------------------------------------
+var selectizeResultCount = {};	// count of the actual number of list items added (html) to the result list during build; incremented during loop/build
+var selectizeResultLength = {};	// the length of the result list used to build the (html) results; set once when we receive the results
+function setupSelectizeInput(wrapperId, selectizeInputAriaLabel, isSelectizeInputRequired) {
+	console.log('> setupSelectizeInput() begins...');
+
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	if (isEmpty(selectizeInputAriaLabel)) {
+		selectizeInputAriaLabel = '';
+	}
+	if (isEmpty(isSelectizeInputRequired)) {
+		isSelectizeInputRequired = false;
+	}
+
+	var selectizeInputId = '#' + wrapperId + ' input';
+	var selectizeInput = $(selectizeInputId);
+	if (isEmpty(selectizeInput)) {
+		console.error('selectizeInput is empty');
+		return;
+	}
+
+	var dataOriginalAriaLabel = addAriaLabelPunctuation(selectizeInputAriaLabel);
+	if (isSelectizeInputRequired === true) {
+		dataOriginalAriaLabel += ' Required.';
+	}
+	dataOriginalAriaLabel = getSafeAriaLabelTextTrim(dataOriginalAriaLabel);
+
+	selectizeInputAriaLabel = dataOriginalAriaLabel;
+	selectizeInputAriaLabel += ' Start typing and wait for suggestions.';
+
+	console.log('> setupSelectizeInput() selectizeInputAriaLabel=' + selectizeInputAriaLabel);
+	selectizeInput.attr('data-original-aria-label', dataOriginalAriaLabel);
+	selectizeInput.attr('aria-label', selectizeInputAriaLabel);
+	selectizeInput.attr('tabindex', '0');
+
+	selectizeInput.keyup(function (event) {
+		console.log('> KEYUP event.which=' + event.which);
+		if (event.which == 38 || event.which == 40) {
+			// up/down arrows
+			setAriaLabelForSelectize(wrapperId);
+		}
+	});
+
+	console.log('> wrapperId=' + wrapperId + ', selectizeInputAriaLabel=' + selectizeInputAriaLabel);
+	console.log('> setupSelectizeInput() wrapperId=' + wrapperId + ', complete!');
+}
+function clearSelectizeResults(wrapperId) {
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	// console.log('> clearSelectizeResults() wrapperId=' + wrapperId);
+	if (!isEmpty(selectizeResultCount[wrapperId])) {
+		delete selectizeResultCount[wrapperId];
+	}
+	if (!isEmpty(selectizeResultLength[wrapperId])) {
+		delete selectizeResultLength[wrapperId];
+	}
+}
+function incrementAndGetSelectizeResultCount(wrapperId) {	
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	if (isEmpty(selectizeResultCount[wrapperId])) {
+		selectizeResultCount[wrapperId] = 0;
+	}
+	selectizeResultCount[wrapperId] = selectizeResultCount[wrapperId] + 1;
+	return selectizeResultCount[wrapperId];
+}
+function setSelectizeResultLength(wrapperId, count) {
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	if (isEmpty(count)) {
+		console.error('count is empty');
+		return;
+	}
+	selectizeResultLength[wrapperId] = count;
+	// console.log('> setSelectizeResultLength() wrapperId=' + wrapperId + ', count=' + count);
+}
+function getSelectizeResultLength(wrapperId) {
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	if (isEmpty(selectizeResultLength[wrapperId])) {
+		return 0;
+	}
+	// console.log('> getSelectizeResultLength() wrapperId=' + wrapperId + ', selectizeResultLength[wrapperId]=' + selectizeResultLength[wrapperId]);
+	return selectizeResultLength[wrapperId];
+}
+function getSelectizeResultCount(wrapperId) {
+	var listItemsSelector = '#' + wrapperId + ' div.selectize-dropdown-content div';
+	var listItems = $(listItemsSelector);
+	return (listItems === undefined || listItems === null) ? 0 : listItems.length / 2;
+}
+function setAriaLabelForSelectize(wrapperId, inputLabelText, includeResultCount) {
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return;
+	}
+	if (isEmpty(inputLabelText)) {
+		inputLabelText = '';
+	}
+	if (isEmpty(includeResultCount)) {
+		includeResultCount = false;
+	}
+	console.log('> setAriaLabelForSelectize() wrapperId=' + wrapperId);
+	var activeItemSelector = '#' + wrapperId + ' div.selectize-dropdown-content div.active';
+	// activeItemSelector = 'div.selectize-dropdown-content div.active'
+	var activeItem = $(activeItemSelector);
+	if (activeItem !== undefined && activeItem !== null && activeItem.length == 1) {
+		var dataValue = activeItem.attr('data-value');
+		var listItemAriaLabel = activeItem.attr('aria-label');
+		console.log('> KEYUP activeItem.dataValue=' + dataValue + ', activeItem.aria-label=' + listItemAriaLabel);
+		if (!isEmpty(listItemAriaLabel)) {
+			var originalInputAriaLabel = $('#' + wrapperId + ' input').attr('data-original-aria-label');
+			if (isEmpty(originalInputAriaLabel)) {
+				console.error('> NOTE setAriaLabelForSelectize() originalInputAriaLabel is empty');
+				originalInputAriaLabel = inputLabelText;
+			}
+			var inputAriaLabel = '';
+			if (includeResultCount === true) {
+				inputAriaLabel = inputAriaLabel + getSelectizeResultCount(wrapperId) + ' Results. ';
+			}
+			inputAriaLabel = inputAriaLabel + ' ' + listItemAriaLabel + ' ';
+			if (!isEmpty(originalInputAriaLabel)) {
+				inputAriaLabel = inputAriaLabel + addAriaLabelPunctuation(originalInputAriaLabel);
+			}
+			inputAriaLabel = inputAriaLabel + ' Use up and down arrows to navigate list results.';
+			inputAriaLabel = getSafeAriaLabelTextTrim(inputAriaLabel);
+			console.log('> KEYUP inputAriaLabel=' + inputAriaLabel);
+			$('#' + wrapperId + ' input').attr('aria-label', inputAriaLabel);
+		}
+	}
+}
+function setAriaLabelForSelectizeDelayed(waitMillis, wrapperId, inputLabelText, includeResultCount) {
+	if (isEmpty(waitMillis)) {
+		console.error('waitMillis is empty');
+		return;
+	}
+	setTimeout(function () {
+		setAriaLabelForSelectize(wrapperId, inputLabelText, includeResultCount);
+	}, waitMillis);
+}
+
+function getAriaLabelForSelectizeStudents(wrapperId, full_name, email, student_type, student_yog) {
+	console.log('> getAriaLabelForSelectizeStudents() begins...');
+
+	if (isEmpty(wrapperId)) {
+		console.error('wrapperId is empty');
+		return '';
+	}
+
+	if (isEmpty(full_name)) {
+		console.error('full_name is empty');
+		return '';
+	}
+
+	var resultCount = incrementAndGetSelectizeResultCount(wrapperId);
+	var resultsLength = getSelectizeResultLength(wrapperId);
+	if (resultsLength < 1) {
+		console.log('> NOTE getAriaLabelForSelectizeStudents() resultsLength < 1');
+	}
+
+	var listItemAriaLabel = '';
+	// listItemAriaLabel = listItemAriaLabel + 'Option ' + resultCount + ' of ' + resultsLength + '. ';
+
+	listItemAriaLabel += getSafeAriaLabelTextTrim(full_name);
+	if (!isEmpty(email)) {
+		listItemAriaLabel += ', email ' + getSafeAriaLabelTextTrim(email);
+	}
+	var studentDetails = '';
+	if (!isEmpty(student_type)) {
+		studentDetails += getSafeAriaLabelTextTrim(student_type) + ' ';
+	}
+	if (!isEmpty(student_yog)) {
+		studentDetails += 'graduating ' + getSafeAriaLabelTextTrim(student_yog);
+	}
+	if (!isEmpty(studentDetails)) {
+		listItemAriaLabel += ', ' + getSafeAriaLabelTextTrim(studentDetails);
+	}
+	listItemAriaLabel = addAriaLabelPunctuation(listItemAriaLabel);
+
+	return getSafeAriaLabelTextTrim(listItemAriaLabel);
+}
+
+// --------------------------------------------------------------------------------
+// Group acronym feedback helper
+// --------------------------------------------------------------------------------
+function setAriaLabelForGroupAcronymInput() {
+	// console.log('> setAriaLabelForGroupAcronymInput() begins...');
+
+	var inputElem = $("#login");
+	if (isEmpty(inputElem) || inputElem.length !== 1) {
+		console.error('inputElem is empty');
+		return;
+	}
+
+	var dataOriginalAriaLabel = inputElem.attr('data-original-aria-label');
+	if (isEmpty(dataOriginalAriaLabel)) {
+		console.error('dataOriginalAriaLabel is empty');
+		dataOriginalAriaLabel = '';
+	}
+	dataOriginalAriaLabel = dataOriginalAriaLabel.trim();
+
+	// console.log('> login.aria-label=' + $("#login").attr('aria-label'));
+	// console.log('> dataOriginalAriaLabel=' + dataOriginalAriaLabel);
+
+	var loginHelpblock = $("#login_helpblock");
+	if (isEmpty(loginHelpblock) || loginHelpblock.length !== 1) {
+		console.error('loginHelpblock is empty');
+		return;
+	}
+	var loginHelpblockTextContent = loginHelpblock.text();
+	if (!isEmpty(loginHelpblockTextContent)) {
+		dataOriginalAriaLabel = loginHelpblockTextContent + ' ' + dataOriginalAriaLabel;
+	}
+
+	dataOriginalAriaLabel = getSafeAriaLabelTextTrim(dataOriginalAriaLabel);
+
+	setTimeout(function () {
+		inputElem.attr('aria-label', dataOriginalAriaLabel);
+		// console.log('> setAriaLabelForGroupAcronymInput() dataOriginalAriaLabel=' + dataOriginalAriaLabel);
+	}, 250);
+}
+
+// --------------------------------------------------------------------------------
+// Keyboard input manager for dropdown/select inputs (custom BuildSelect using checkbox options inside select)
+// --------------------------------------------------------------------------------
+function getCharFromKeyup(which, isShiftKey) {
+	if (isEmpty(which)) {
+		console.error('which is empty');
+		return;
+	} else if (!isNumber(which)) {
+		console.error('which is not a number');
+		return;
+	}
+
+	if (isEmpty(isShiftKey)) {
+		console.error('isShiftKey is empty');
+		return;
+	} else if (!isBoolean(isShiftKey)) {
+		console.error('isShiftKey is not a boolean');
+		return;
+	}
+
+	var block186LowerCase = ';=,-./`';
+	var block186UpperCase = ':+<_>?~';
+	var block219LowerCase = "[\\]'";
+	var block219UpperCase = '{|}"';
+	var lettersLowerCase = 'abcdefghijklmnopqrstuvwxyz';
+	var lettersUpperCase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+	var numbersLowerCase = '0123456789';
+	var numbersUpperCase = ')!@#$%^&*(';
+	var numpadChars = '*+ -./'
+
+	console.log('> getCharFromKeyup() isShiftKey=' + isShiftKey + ', which=' + which);
+
+	var charValue = null;
+	if (isShiftKey) {
+		if (which >= 48 && which <= 57) {
+			charValue = numbersUpperCase[which - 48];
+		} else if (which >= 65 && which <= 90) {
+			charValue = lettersUpperCase[which - 65];
+		} else if (which >= 96 && which <= 105) {
+			charValue = numbersLowerCase[which - 96];
+		} else if (which >= 106 && which <= 111) {
+			charValue = numpadChars[which - 106];
+		} else if (which >= 186 && which <= 192) {
+			charValue = block186UpperCase[which - 186];
+		} else if (which >= 219 && which <= 222) {
+			charValue = block219UpperCase[which - 219];
+		}
+	} else {
+		if (which >= 48 && which <= 57) {
+			charValue = numbersLowerCase[which - 48];
+		} else if (which >= 65 && which <= 90) {
+			charValue = lettersLowerCase[which - 65];
+		} else if (which >= 96 && which <= 105) {
+			charValue = numbersLowerCase[which - 96];
+		} else if (which >= 106 && which <= 111) {
+			charValue = numpadChars[which - 106];
+		} else if (which >= 186 && which <= 192) {
+			charValue = block186LowerCase[which - 186];
+		} else if (which >= 219 && which <= 222) {
+			charValue = block219LowerCase[which - 219];
+		}
+	}
+
+	console.log('> charValue=' + charValue);
+
+	if (isEmpty(charValue)) {
+		charValue = null;
+	}
+
+	return charValue;
+}
+
+function setActiveOptionAriaLabelForSelectMultipleNewWithClass(aOption) {
+	var aOptionParent = $(aOption).parent();
+	if ($(aOptionParent).is('li')) {
+		var isChecked = false;
+		if (aOptionParent.hasClass('active')) {
+			isChecked = true;
+			if (isAccessibilityJSVerbose) {
+				console.log('> aOptionParent is ACTIVE');
+			}
+		}
+		var aOptionLabel = $(aOption).find('div label');
+		if (!isEmpty(aOptionLabel) && aOptionLabel.length === 1) {
+			var labelText = aOptionLabel.text();
+			var labelAriaLabel = addAriaLabelPunctuation(labelText);
+			if (isChecked) {
+				labelAriaLabel += ' Checked.'
+			}
+			labelAriaLabel = getSafeAriaLabelTextTrim(labelAriaLabel);
+			if (isAccessibilityJSVerbose) {
+				console.log('> aOptionentLabel=' + labelText);
+				console.log('> labelAriaLabel=' + labelAriaLabel);
+			}
+			$(aOptionLabel).attr('aria-label', labelAriaLabel);
+			$(aOption).attr('aria-label', labelAriaLabel);
+			if (isChecked) {
+				$(aOption).attr('checked', '');
+			} else {
+				$(aOption).removeAttr('checked');
+			}
+		}
+		var aOptionInput = $(aOption).find('div input');
+		if (!isEmpty(aOptionInput) && aOptionInput.length === 1) {
+			if (isChecked) {
+				$(aOptionInput).attr('checked', '');
+			} else {
+				$(aOptionInput).removeAttr('checked');
+			}
+		}
+	}
+}
+
+function setOptionLinkRolesForSelectMultipleNewWithClass(selectId) {
+
+	if (isEmpty(selectId)) {
+		console.error('selectId is empty');
+		return;
+	} else if (!isString(selectId)) {
+		console.error('selectId is not a string');
+		return;
+	}
+	if (selectId.startsWith('#')) {
+		selectId = selectId.substring(1);
+	}
+
+	var optionLinks = $('#' + selectId).next().find('ul li a');
+	console.log('> optionLinks.length=' + optionLinks.length);
+	for (var i=0; i<optionLinks.length; i++) {
+		var optionLink = $(optionLinks.get(i));
+		$(optionLink).attr('role', 'checkbox');
+
+		if ($(optionLink).parent().hasClass('active')) {
+			$(optionLink).attr('checked', '');
+			$(optionLink).find('div input').attr('checked', '');
+		} else {
+			$(optionLink).removeAttr('checked');
+			$(optionLink).find('div input').removeAttr('checked');
+		}
+	}
+}
+
+function manageKeyboardForSelectMultipleNewWithClass(selectId, optionCount) {
+	console.log('> manageKeyboardForSelectMultipleNewWithClass(b) selectId=' + selectId + ', optionCount=' + optionCount);
+
+	if (isEmpty(selectId)) {
+		console.error('selectId is empty');
+		return;
+	} else if (!isString(selectId)) {
+		console.error('selectId is not a string');
+		return;
+	}
+	if (selectId.startsWith('#')) {
+		selectId = selectId.substring(1);
+	}
+
+	if (isEmpty(optionCount)) {
+		optionCount = 0;
+	}
+
+	var useApplicationMode = false;
+	if (optionCount >= 15) {
+		useApplicationMode = true;
+	}
+
+	var chars = '';
+	var sortOrder = 0; // -1 descending : +1 ascending : 0 not sorted
+
+	setOptionLinkRolesForSelectMultipleNewWithClass(selectId);
+
+	if (useApplicationMode) {
+		// flag this area as an application to prevent NVDA/etc. from handling keyboard input
+		$('#' + selectId).parent().attr('role', 'application');
+
+		setTimeout(function () {
+			sortOrder = getDropdownSortOrder(selectId);
+			// console.log('> sortOrder=' + sortOrder);
+		}, 100);
+	}
+
+	var selectButton = $('#' + selectId).next().find('button');
+	if (!isEmpty(selectButton) && selectButton.length === 1) {
+		var originalAriaLabel = $(selectButton).attr('aria-label');
+		$(selectButton).attr('data-original-aria-label', originalAriaLabel);
+
+		if (useApplicationMode) {
+			var newAriaLabel = addAriaLabelPunctuation(originalAriaLabel).trim() + ' Enter or arrow down to expand the list. Start typing to navigate to the nearest option. Backspace or delete to empty typing buffer.'
+			$(selectButton).attr('aria-label', newAriaLabel);
+		}
+	}
+
+	$('#' + selectId).next().keyup(function (event) {
+		console.log('> SELECT keyup selectId=' + selectId + ', sortOrder=' + sortOrder);
+
+		if (isAccessibilityJSVerbose) {
+			console.log('keyup');
+		}
+		if (event.which === 27) {
+			// escape key
+			if (isAccessibilityJSVerbose) {
+				console.log('> keyup event.which=' + event.which + ' *** ESC escape key pressed!');
+			}
+			$('#' + selectId).next().removeClass('open');
+			selectButton.focus();
+		}
+		
+		if (useApplicationMode) {
+			if (event.which === 8 || event.which === 46) {
+				// backspace and delete
+				if (isAccessibilityJSVerbose) {
+					console.log('> keyup event.which=' + event.which);
+				}
+				chars = '';
+			} else if (event.which === 13 || event.which === 32) {
+				// enter or space bar
+				var activeElem = document.activeElement;
+				setActiveOptionAriaLabelForSelectMultipleNewWithClass(activeElem);
+			} else {
+				// all other keys
+				if (isAccessibilityJSVerbose) {
+					console.log('> keyup event.which=' + event.which);
+				}
+
+				var char = getCharFromKeyup(event.which, event.shiftKey);
+				if (!isEmpty(char)) {
+					char = char.toLowerCase();
+					console.log('> char=' + char);
+					chars += char;
+					console.log('> chars=' + chars);
+
+					var hasFocused = false;
+					var optionLabels = $('#' + selectId).next().find('ul li a div label');
+					console.log('> optionLabels.length=' + optionLabels.length);
+					for (var i=0; i<optionLabels.length; i++) {
+						var optionLabel = $(optionLabels.get(i));
+						var title = $(optionLabel).attr('title');
+						if (!hasFocused && !isEmpty(title)) {
+							title = title.trim().toLowerCase();
+							console.log('> title=' + title);
+							if (!isEmpty(chars)) {
+								var takeFocus = false;
+								if (title.startsWith(chars)) {
+									console.log('> *** FOCUS{a} on=' + title);
+									takeFocus = true;
+								} else {
+									if (sortOrder > 0 && title.localeCompare(chars) > 0) {
+										console.log('> *** FOCUS{ascending} on=' + title);
+										takeFocus = true;
+									} else if (sortOrder < 0 && title.localeCompare(chars) < 0) {
+										console.log('> *** FOCUS{descending} on' + title);
+										takeFocus = true;
+									}
+								}
+							}
+
+							if (takeFocus) {
+								hasFocused = true;
+								var option = $(optionLabel).parent().parent();
+								setActiveOptionAriaLabelForSelectMultipleNewWithClass(option);
+								option.focus();
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+}
+
+function getDropdownSortOrder(selectId) {
+	if (isEmpty(selectId)) {
+		console.error('selectId is empty');
+		return 0;
+	} else if (!isString(selectId)) {
+		console.error('selectId is not a string');
+		return 0;
+	}
+
+	if (selectId.startsWith('#')) {
+		selectId = selectId.substring(1);
+	}
+
+	var optionLabels = $('#' + selectId).next().find('ul li a div label');
+	console.log('> optionLabels.length=' + optionLabels.length);
+	var prevTitle = null;
+	var isAscending = true;
+	var isDescending = true;
+	for (var i=0; i<optionLabels.length; i++) {
+		var optionLabel = $(optionLabels.get(i));
+		var title = $(optionLabel).attr('title').trim().toLowerCase();
+		if (prevTitle === null) {
+			prevTitle = title;
+		} else {
+			if (title.localeCompare(prevTitle) >= 0) {
+				isDescending = false;
+			} else if (title.localeCompare(prevTitle) <= 0) {
+				isAscending = false;
+			}
+		}
+	}
+
+	if (isAscending) {
+		return +1;
+	} else if (isDescending) {
+		return -1;
+	}
+
+	return 0;
+}
+
+// --------------------------------------------------------------------------------
+// Manage keyboard navigation for event carousel/slideshow
+// --------------------------------------------------------------------------------
+
+function previousEventCarouselButtonOnClick(divWrapperId, h2SlideshowPreviousId) {
+	// console.log('> previousEventCarouselButtonOnClick() begins...');
+
+	if (isEmpty(divWrapperId)) {
+		console.error('divWrapperId is empty');
+		return;
+	} else if (!isString(divWrapperId)) {
+		console.error('divWrapperId is not a string');
+		return;
+	}
+
+	if (!divWrapperId.startsWith('#')) {
+		divWrapperId = '#' + divWrapperId;
+	}
+
+	if (isEmpty(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is empty');
+		return;
+	} else if (!isString(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is not a string');
+		return;
+	}
+
+	if (!h2SlideshowPreviousId.startsWith('#')) {
+		h2SlideshowPreviousId = '#' + h2SlideshowPreviousId;
+	}
+
+	var waitMillis = 250;
+	var slickActiveSlides = $(divWrapperId + ' div.slick-track div.slick-active');
+	if (!isEmpty(slickActiveSlides) && slickActiveSlides.length > 0) {
+		var focusCard = slickActiveSlides.get(0);
+		var cgCardNumber = $(focusCard).attr('data-cg-card-number');
+		if (cgCardNumber === '1') {
+			waitMillis = 750;
+		}
+	}
+
+	// $(h2SlideshowPreviousId).click();
+	// $('.event_slider').slick('slickPrev');
+	$(divWrapperId + ' .event_slider').slick('slickPrev');
+
+	setTimeout(function () {
+		setFocusOnEventsCarouselPreviousSlideButtonClick(divWrapperId, h2SlideshowPreviousId);
+	}, waitMillis);
+}
+
+function nextEventCarouselButtonOnClick(divWrapperId, h2SlideshowNextId) {
+	if (isEmpty(divWrapperId)) {
+		console.error('divWrapperId is empty');
+		return;
+	} else if (!isString(divWrapperId)) {
+		console.error('divWrapperId is not a string');
+		return;
+	}
+
+	if (!divWrapperId.startsWith('#')) {
+		divWrapperId = '#' + divWrapperId;
+	}
+
+	if (isEmpty(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is empty');
+		return;
+	} else if (!isString(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is not a string');
+		return;
+	}
+
+	if (!h2SlideshowNextId.startsWith('#')) {
+		h2SlideshowNextId = '#' + h2SlideshowNextId;
+	}
+
+	// $(h2SlideshowNextId).click();
+	// $('.event_slider').slick('slickNext');
+	$(divWrapperId + ' .event_slider').slick('slickNext');
+
+	setTimeout(function () {
+		setFocusOnEventsCarouselNextSlideButtonClick(divWrapperId, h2SlideshowNextId);
+	}, 250);	
+}
+
+function setupKeyboardNavigationForEventCarouselSlideshow(divWrapperId, h2SlideshowPreviousId, h2SlideshowNextId, spanSlideshowPreviousId, spanSlideshowNextId) {
+
+	// console.log('> setupKeyboardNavigationForEventCarouselSlideshow() begins...');
+
+	if (isEmpty(divWrapperId)) {
+		console.error('divWrapperId is empty');
+		return;
+	} else if (!isString(divWrapperId)) {
+		console.error('divWrapperId is not a string');
+		return;
+	}
+
+	if (isEmpty(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is empty');
+		return;
+	} else if (!isString(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is not a string');
+		return;
+	}
+
+	if (isEmpty(spanSlideshowPreviousId)) {
+		console.error('spanSlideshowPreviousId is empty');
+		return;
+	} else if (!isString(spanSlideshowPreviousId)) {
+		console.error('spanSlideshowPreviousId is not a string');
+		return;
+	}
+
+	if (isEmpty(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is empty');
+		return;
+	} else if (!isString(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is not a string');
+		return;
+	}
+
+	if (isEmpty(spanSlideshowNextId)) {
+		console.error('spanSlideshowNextId is empty');
+		return;
+	} else if (!isString(spanSlideshowNextId)) {
+		console.error('spanSlideshowNextId is not a string');
+		return;
+	}
+
+	if (!divWrapperId.startsWith('#')) {
+		divWrapperId = '#' + divWrapperId;
+	}
+
+	if (!h2SlideshowPreviousId.startsWith('#')) {
+		h2SlideshowPreviousId = '#' + h2SlideshowPreviousId;
+	}
+
+	if (!spanSlideshowPreviousId.startsWith('#')) {
+		spanSlideshowPreviousId = '#' + spanSlideshowPreviousId;
+	}
+
+	if (!h2SlideshowNextId.startsWith('#')) {
+		h2SlideshowNextId = '#' + h2SlideshowNextId;
+	}
+
+	if (!spanSlideshowNextId.startsWith('#')) {
+		spanSlideshowNextId = '#' + spanSlideshowNextId;
+	}
+
+	$(h2SlideshowPreviousId).keyup(function (event) {
+		if (isAccessibilityJSVerbose) {
+			// console.log('> KEYUP previous event slide, event.which=' + event.which);
+		}
+		var useNumbersTwoToNine = false;
+		if (event.which == 13) {
+			var useThis101 = false;
+			if (useThis101) {
+				var waitMillis = 100;
+				var slickActiveSlides = $(divWrapperId + ' div.slick-track div.slick-active');
+				if (!isEmpty(slickActiveSlides) && slickActiveSlides.length > 0) {
+					var focusCard = slickActiveSlides.get(0);
+					var cgCardNumber = $(focusCard).attr('data-cg-card-number');
+					if (cgCardNumber === '1') {
+						waitMillis = 650;
+					}
+				}
+				$(h2SlideshowPreviousId).click();
+				setTimeout(function () {
+					setFocusOnEventsCarouselPreviousSlideButtonClick(divWrapperId, h2SlideshowPreviousId);
+				}, waitMillis);
+			}
+			previousEventCarouselButtonOnClick(divWrapperId, h2SlideshowPreviousId);
+		} else if (useNumbersTwoToNine && event.which >= 50 && event.which <= 57) {
+			var maxIntervals = event.which - 48;
+			var intervalId = setInterval(function () {
+				$(h2SlideshowPreviousId).click();
+
+				maxIntervals--;
+				if (isAccessibilityJSVerbose) {
+					console.log('> maxIntervals=' + maxIntervals);
+				}
+				if (maxIntervals <= 0) {
+					clearInterval(intervalId);
+					setFocusOnEventsCarouselPreviousSlideButtonClick(divWrapperId, h2SlideshowPreviousId);
+				}
+			}, 1250);
+		}
+	});
+
+	$(h2SlideshowNextId).keyup(function (event) {
+		if (isAccessibilityJSVerbose) {
+			console.log('> KEYUP next event slide, event.which=' + event.which);
+		}
+		if (event.which == 13) {
+			$(h2SlideshowNextId).click();
+			setFocusOnEventsCarouselNextSlideButtonClick(divWrapperId, h2SlideshowNextId);
+		} else if (event.which >= 50 && event.which <= 57) {
+			var maxIntervals = event.which - 48;
+			var intervalId = setInterval(function () {
+				$(h2SlideshowNextId).click();
+
+				maxIntervals--;
+				if (isAccessibilityJSVerbose) {
+					console.log('> maxIntervals=' + maxIntervals);
+				}
+				if (maxIntervals <= 0) {
+					clearInterval(intervalId);
+					setFocusOnEventsCarouselNextSlideButtonClick(divWrapperId, h2SlideshowNextId);
+				}
+			}, 1250);
+		}
+	});
+
+	$(h2SlideshowPreviousId).focus(function () {
+		if (isAccessibilityJSVerbose) {
+			console.log('> #h2-slideshow-previous-00.focus()');
+		}
+		$(spanSlideshowPreviousId).removeClass('mdi-chevron-left');
+		$(spanSlideshowPreviousId).addClass('mdi-chevron-left-box');
+	});
+
+	$(h2SlideshowNextId).focus(function () {
+		if (isAccessibilityJSVerbose) {
+			console.log('> #h2-slideshow-next-00.focus()');
+		}
+		$(spanSlideshowNextId).removeClass('mdi-chevron-right');
+		$(spanSlideshowNextId).addClass('mdi-chevron-right-box');
+	});
+
+	$(h2SlideshowPreviousId).blur(function () {
+		if (isAccessibilityJSVerbose) {
+			console.log('> #h2-slideshow-previous-00.blur()');
+		}
+		$(spanSlideshowPreviousId).removeClass('mdi-chevron-left-box');
+		$(spanSlideshowPreviousId).addClass('mdi-chevron-left');
+		// $(h2SlideshowPreviousId).attr('aria-label', 'Previous Event Slide');
+	});
+
+	$(h2SlideshowNextId).blur(function () {
+		if (isAccessibilityJSVerbose) {
+			console.log('> #h2-slideshow-next-00.blur()');
+		}
+		$(spanSlideshowNextId).removeClass('mdi-chevron-right-box');
+		$(spanSlideshowNextId).addClass('mdi-chevron-right');
+		// $(h2SlideshowNextId).attr('aria-label', 'Next Event Slide');
+	});
+
+	var doThis = true;
+	if (doThis)
+	{
+		var intervalId = setInterval(function () {
+			var slickDots = $(divWrapperId + ' ul.slick-dots li button');
+			// console.log('> slickDots.length=' + slickDots.length);
+			if (!isEmpty(slickDots) && slickDots.length > 0) {
+				var slickDotsContainer = $(divWrapperId + ' div.slick-dotted ul.slick-dots');
+				if (!isEmpty(slickDotsContainer) && slickDotsContainer.length > 0) {
+					$(slickDotsContainer.get(0)).attr('aria-label', 'Event slideshow dots. Navigate the slideshow using these dots. This control does not work as expected using screen reader software, however, we are working to improve it.');
+				}
+				for (var i=0; i<slickDots.length; i++) {
+					var slickDot = slickDots.get(i);
+					var dotId = slickDot.id;
+					var cardId = dotId.replace('-control', '');
+					// console.log('> dotId=' + dotId);
+					// console.log('> cardId=' + cardId);
+					var cardAriaLabel = $('#' + cardId).attr('aria-label');
+					if (!isEmpty(cardAriaLabel)) {
+						// console.log('> cardAriaLabel=' + cardAriaLabel);
+						var dotAriaLabel = cardAriaLabel.replace('Event slide ', 'Event slide control ');
+						$(slickDot).attr('aria-label', dotAriaLabel);
+					}
+				}
+				clearInterval(intervalId);
+			}
+		}, 250);
+	}
+}
+
+function setFocusOnEventsCarouselPreviousSlideButtonClick(divWrapperId, h2SlideshowPreviousId) {
+
+	if (isAccessibilityJSVerbose) {
+		console.log('> setFocusOnEventsCarouselPreviousSlideButtonClick() begins...');
+	}
+
+	if (isEmpty(divWrapperId)) {
+		console.error('divWrapperId is empty');
+		return;
+	} else if (!isString(divWrapperId)) {
+		console.error('divWrapperId is not a string');
+		return;
+	}
+
+	if (isEmpty(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is empty');
+		return;
+	} else if (!isString(h2SlideshowPreviousId)) {
+		console.error('h2SlideshowPreviousId is not a string');
+		return;
+	}
+
+	if (!divWrapperId.startsWith('#')) {
+		divWrapperId = '#' + divWrapperId;
+	}
+
+	if (!h2SlideshowPreviousId.startsWith('#')) {
+		h2SlideshowPreviousId = '#' + h2SlideshowPreviousId;
+	}
+
+	setTimeout(function () {
+		var slickActiveSlides = $(divWrapperId + ' div.slick-track div.slick-active');
+		if (!isEmpty(slickActiveSlides) && slickActiveSlides.length > 0) {
+			var focusCard = slickActiveSlides.get(0);
+			if (isAccessibilityJSVerbose) {
+				console.log('> focusCard=' + getElementPath(focusCard));
+			}
+			$(focusCard).focus();
+		}
+	}, 100);
+}
+
+function setFocusOnEventsCarouselNextSlideButtonClick(divWrapperId, h2SlideshowNextId) {
+	if (isAccessibilityJSVerbose) {
+		console.log('> setFocusOnEventsCarouselNextSlideButtonClick() begins...');
+	}
+
+	if (isEmpty(divWrapperId)) {
+		console.error('divWrapperId is empty');
+		return;
+	} else if (!isString(divWrapperId)) {
+		console.error('divWrapperId is not a string');
+		return;
+	}
+
+	if (isEmpty(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is empty');
+		return;
+	} else if (!isString(h2SlideshowNextId)) {
+		console.error('h2SlideshowNextId is not a string');
+		return;
+	}
+
+	if (!divWrapperId.startsWith('#')) {
+		divWrapperId = '#' + divWrapperId;
+	}
+
+	if (!h2SlideshowNextId.startsWith('#')) {
+		h2SlideshowNextId = '#' + h2SlideshowNextId;
+	}
+
+	setTimeout(function () {
+		var slickActiveSlides = $(divWrapperId + ' div.slick-track div.slick-active');
+		if (!isEmpty(slickActiveSlides) && slickActiveSlides.length > 0) {
+			var focusCard = slickActiveSlides.get(slickActiveSlides.length - 1);
+			if (isAccessibilityJSVerbose) {
+				console.log('> focusCard=' + getElementPath(focusCard));
+			}
+			$(focusCard).focus();
+		}
+	}, 100);
+}
+
+// --------------------------------------------------------------------------------
+// Manage keyboard navigation on website slideshow
+// --------------------------------------------------------------------------------
+
+// ========================================================
+// ******         ACCESSIBILITY-LIGHT ENDS           ******
+// ========================================================
+
+function extractVisibleLabel(textContent) {
+	if (isEmpty(textContent)) {
+		console.warn('textContent is empty');
+		return '';
+	}
+
+	var ex = textContent.indexOf('.');
+	if (ex > 0)
+	{
+		textContent = textContent.substring(0, ex);
+	}
+	textContent = textContent.replace("Select ", "");
+
+	return textContent.trim();
+}
+
+function extractVisibleLabelFromAriaLabel(elem) {
+
+	if (isEmpty(elem)) {
+		console.error('elem is empty.');
+		return '';
+	}
+
+	var ariaLabel = elem.getAttribute('aria-label');
+	if (isEmpty(ariaLabel)) {
+		return '';
+	}
+
+	return extractVisibleLabel(ariaLabel);
+}
+
+function extractVisibleLabelFromLabelTextContent(labelElem) {
+
+	if (isEmpty(labelElem)) {
+		console.error('labelElem is empty.');
+		return '';
+	}
+
+	if (isEmpty(labelElem.innerHTML)) {
+		return '';
+	}
+
+	//
+	// we don't want to use the textContent of the label if it includes any functional code
+	// i.e. anything other than pure label content and associated standard formatting
+	// <span> is OK for formatting for example
+	//
+	if (labelElem.innerHTML.includes('<script') || labelElem.innerHTML.includes('<style') || labelElem.innerHTML.includes('$(')) {
+		console.error('> extractVisibleLabelFromLabelTextContent() unusable content.');
+		return ''; 		
+	}
+
+	return extractVisibleLabel(labelElem.textContent);
+}
+
+function extractVisibleLabelFromLabel(labelElem)
+{
+	if (isEmpty(labelElem)) {
+		console.error('labelElem is empty.');
+		return '';
+	}
+
+	var labelText = extractVisibleLabelFromAriaLabel(labelElem);
+	if (isEmpty(labelText)) {
+		labelText = extractVisibleLabelFromLabelTextContent(labelElem);
+		if (isEmpty(labelText)) {
+			labelText = '';
+		}
+	}
+
+	labelText = labelText.trim().replace('<', '&lt;');
+	// console.log('> labelText=' + labelText);
+
+	return labelText;
+}
+
+// RETURNS a DOM element
+function getLabelForElement(elemId)
+{
+	if (isEmpty(elemId)) {
+		console.error('elemId is empty');
+		return;
+	}
+
+	var elemLabelId = 'label-for-' + elemId;
+	return document.getElementById(elemLabelId);
+}
+
+// RETURNS text content
+function getLabelTextForElement(elem) {
+
+	// console.log('> getLabelTextForElement() begins...');
+
+	if (isEmpty(elem)) {
+		console.error('elem is empty');
+		return '';
+	}
+
+	// console.log('> getLabelTextForElement() checkpoint{q01}');
+
+	var labelText = '';
+	if (!isEmpty(elem.id)) {
+		var labelElem = getLabelForElement(elem.id);
+		if (!isEmpty(labelElem)) {
+			labelText = extractVisibleLabelFromLabel(labelElem);
+			// console.log('> getLabelTextForElement(a) labelText=' + labelText);
+		}
+	}
+
+	// console.log('> getLabelTextForElement() checkpoint{q02}');
+
+	if (isEmpty(labelText)) {
+		labelText = extractVisibleLabelFromAriaLabel(elem);
+		// console.log('> getLabelTextForElement(b) labelText=' + labelText);
+	}
+
+	// console.log('> getLabelTextForElement() checkpoint{q03}');
+
+	return labelText;
+}
+
+function getLabelTextForElementWithoutAsterix(elem) {
+	var labelText = getLabelTextForElement(elem);
+	if (isEmpty(labelText)) {
+		labelText = '';
+	} else {
+		if (labelText.startsWith('*')) {
+			labelText = labelText.substring(1).trim();
+		}
+	}
+	return labelText;
+}
+
+function getSaveFormErrorFieldDescription(labelText, isLast) {
+
+	if (isEmpty(labelText)) {
+		console.error('labelText is empty');
+		return '';
+	}
+
+	if (isEmpty(isLast)) {
+		console.error('isLast is empty');
+		return '';
+	}	
+
+	if (isLast) {
+		labelText += '.';
+	} else {
+		labelText += ',';
+	}
+
+	if (labelText.startsWith('*')) {
+		labelText = labelText.substring(1).trim();
+	}
+	labelText += ' ';
+
+	return labelText;
+}
+
+function displaySaveFormErrors() {
+	// console.log('> displaySaveFormErrors() begins...');
+
+	var topFormErrorMessageDiv = document.getElementById('table_form_save_errors');
+	if (isEmpty(topFormErrorMessageDiv)) {
+		console.error('topFormErrorMessageDiv is empty.');
+		return;
+	}
+
+	if (!hasSaveFormErrors()) {
+		topFormErrorMessageDiv.style.display = 'none';
+		return;
+	}
+
+	var errorHtml = '<i class="mdi mdi-block-helper"></i>';
+	if (saveFormErrorCount == 1) {
+		errorHtml += 'Save failed. The following field is empty or contains invalid data: ';
+	} else {
+		errorHtml += 'Save failed. The following ' + saveFormErrorCount + ' fields are empty or contain invalid data: ';
+	}
+
+	var count = 0;
+	var errorFieldsHtml = '';
+	for (var fieldName in saveFormErrorMessages) {
+		var isLast = false;
+		if (count >= (saveFormErrorCount - 1)) {
+			isLast = true;
+		}
+		// console.log('> fieldName=' + fieldName + ', isLast=' + isLast);
+		errorFieldsHtml += getSaveFormErrorFieldDescription(fieldName, isLast);
+		count++;
+	}
+
+	if (count < saveFormErrorCount)
+	{
+		var moreFields = null;
+		var moreFieldsCount = saveFormErrorCount - count;
+		if (moreFieldsCount === 1) {
+			moreFields = ' and 1 other field';
+		} else {
+			moreFields = ' and ' + moreFieldsCount + ' other fields';
+		}
+		errorFieldsHtml += getSaveFormErrorFieldDescription(moreFields, true);
+	}
+
+	if (isEmpty(errorFieldsHtml)) {
+		console.error('errorFieldsHtml is empty');
+		errorFieldsHtml = '';
+	}
+	errorHtml += getEncodedHtmlContent(errorFieldsHtml);
+
+	topFormErrorMessageDiv.innerHTML = errorHtml;
+	topFormErrorMessageDiv.style.display = '';
+	topFormErrorMessageDiv.focus();
+}
+
+// ----------------------------------------------------------------------------------------------------
+// DATEPICKER additional keyboard/screen support
+// ----------------------------------------------------------------------------------------------------
+
+function aboveDatePickerOnKeyDown(event, focusId) {
+
+	if (isEmpty(event)) {
+		console.error('event is empty');
+		return;
+	}
+
+	if (isEmpty(focusId)) {
+		console.error('focusId is empty');
+		return;
+	} else if (!isString(focusId)) {
+		console.error('focusId is not a string');
+		return;
+	}
+
+	if (event.which) {
+		if (event.which == 17) {
+			// CTRL key pressed
+			var focusElem = document.getElementById(focusId);
+			if (isEmpty(focusElem)) {
+				console.error('focusElem empty for focusId=' + focusId);
+			} else {
+				focusElem.focus();
+			}
+		}
+	}
+}
+
+function belowDatePickerOnKeyDown(event, focusId) {
+
+	if (isEmpty(event)) {
+		console.error('event is empty');
+		return;
+	}
+
+	if (isEmpty(focusId)) {
+		console.error('focusId is empty');
+		return;
+	} else if (!isString(focusId)) {
+		console.error('focusId is not a string');
+		return;
+	}
+
+	if (event.which) {
+		if (event.which == 17) {
+			// CTRL key pressed
+			var focusElem = document.getElementById(focusId);
+			if (isEmpty(focusElem)) {
+				console.error('focusElem empty for focusId=' + focusId);
+			} else {
+				focusElem.focus();
+			}
+		}
+	}
+}
+
+function datePickerReShow(datePickerId) {
+	if (isEmpty(datePickerId)) {
+		console.error('datePickerId is empty');
+		return;
+	}
+	$(datePickerId).datepicker('show');
+
+	// do any more work required here (nothing else required at present)
+}
+
+function datePickerRestart(datePickerId) {
+	if (isEmpty(datePickerId)) {
+		console.error('datePickerId is empty');
+		return;
+	}
+
+	// need to wait a few millis before restart (let other DOM tasks finish up)
+	setTimeout(function () {
+		$(datePickerId).on('focus', function() {
+			//
+			// need to disable the onFocus of the associated input first or it will be called continously (will be reset on datepicker exit/close)
+			//
+			$(datePickerId).off('focus');
+			datePickerReShow(datePickerId);
+		});
+	}, 250);
+}
+
+function datePickerOnClose(datePickerId, dateText, focusId) {
+
+	if (isEmpty(datePickerId)) {
+		console.error('datePickerId is empty');
+		return;
+	}
+	if (!datePickerId.startsWith('#')) {
+		datePickerId = '#' + datePickerId;
+	}
+
+	if (isEmpty(focusId)) {
+		console.error('focusId is empty');
+		return;
+	}
+	if (!focusId.startsWith('#')) {
+		focusId = '#' + focusId;
+	}
+
+	if (!isEmpty(dateText)) {
+		$(datePickerId).attr('value', dateText);
+		$(datePickerId).datepicker('setDate', dateText);
+	}
+
+	$(focusId).focus();
+	datePickerRestart(datePickerId);
+}
+
+var isMonitorDatePickerActive = false;
+function monitorDatePicker(datePickerId, initialDate) {
+
+	// console.log('> monitorDatePicker() datePickerId=' + datePickerId + ', setup begins...');
+
+	if (isMonitorDatePickerActive) {
+		console.log('> monitorDatePicker() is already active, exit!');
+		return;
+	}
+	if (isEmpty(datePickerId)) {
+		console.error('datePickerId is empty.');
+		return;
+	}
+	if (isEmpty(initialDate)) {
+		initialDate = null;
+	}
+
+	isMonitorDatePickerActive = true;
+
+    var waitSeconds = 5;
+	var epochStart = Date.now();
+	var intervalId = setInterval(function () {
+
+		if (isMonitorDatePickerActive === false) {
+			console.log('> monitorDatePicker() isMonitorDatePickerActive == false) close requested, exit!');
+			clearInterval(intervalId);
+			return;
+		}
+
+		var datePickerDivs = $('#ui-datepicker-div');
+		if (!isEmpty(datePickerDivs) && datePickerDivs.length > 0) {
+			// console.log('> monitorDatePicker() datePickerDivs.length=' + datePickerDivs.length);
+			for (var i=0; i<datePickerDivs.length; i++) {
+
+				if (datePickerDivs[i].style.display == 'none') {
+					// console.log('> *** datePicker has closed!');
+					isMonitorDatePickerActive = false;
+					clearInterval(intervalId);
+					return;
+				} else {
+
+					var isWorkRequired = true;
+					var datePickerTable = $('#ui-datepicker-div table');
+					if (datePickerTable !== undefined && datePickerTable.length > 0) {
+						if (datePickerTable[0].getAttribute('role') === 'presentation') {
+							isWorkRequired = false;
+						}
+					}
+
+					if (isWorkRequired) {
+						var focusElem = null;
+
+						// console.log('> isWorkRequired=' + isWorkRequired);
+						datePickerTable[0].setAttribute('role', 'presentation');
+
+						var datePickerTitleMonths = $('div.ui-datepicker-title span.ui-datepicker-month');
+						if (datePickerTitleMonths !== undefined && datePickerTitleMonths.length > 0) {
+							var monthName = datePickerTitleMonths[0].textContent;
+							// console.log('> monthName=' + monthName);
+						}
+
+						var datePickerTitleYears = $('div.ui-datepicker-title span.ui-datepicker-year');
+						if (datePickerTitleYears !== undefined && datePickerTitleYears.length > 0) {
+							var yearNumber = datePickerTitleYears[0].textContent;
+							// console.log('> yearNumber=' + yearNumber);
+						}
+
+						var dataPickerRows = $(datePickerTable).find('> tbody > tr');
+						if (dataPickerRows !== undefined && dataPickerRows.length > 0) {
+							for (var row=0; row<dataPickerRows.length; row++) {
+								var tds = $(dataPickerRows[row]).find('td');
+								if (tds !== undefined && tds.length > 0) {
+									for (var cell=0; cell<tds.length; cell++) {
+										var links = $(tds[cell]).find('a');
+										if (links !== undefined && links.length > 0) {
+											var dayOfWeek = daysOfWeek[cell];
+											var dayOfMonth = links[0].textContent;
+											var dayOfMonthText = '' + dayOfMonth;
+											if (dayOfMonthText.length < 2) {
+												dayOfMonthText = '0' + dayOfMonthText;
+											}
+											var ariaLabel = '' + dayOfMonth + ' ' + monthName + ' ' + yearNumber + ' ' + dayOfWeek;
+											var datePickerDateText1 = dayOfMonthText + ' ' + monthName.substring(0, 3) + ' ' + yearNumber;
+											var datePickerDateText2 = dayOfMonthText + ' ' + monthName.substring(0, 3) + ' ' + (yearNumber % 100);
+											if (!isEmpty(initialDate)) {
+												if (initialDate === datePickerDateText1) {
+													focusElem = links[0];
+													initialDate = null;
+													// console.log('> focusElem.datePickerDateText1=' + datePickerDateText1);
+												} else if (initialDate === datePickerDateText2) {
+													focusElem = links[0];
+													initialDate = null;
+													// console.log('> focusElem.datePickerDateText2=' + datePickerDateText2);
+												}
+											}
+											// console.log('> row=' + row + ', cell=' + cell + ', dayOfWeek=' + dayOfWeek + ', dayOfMonth=' + dayOfMonth + ', ariaLabel=' + ariaLabel + ', datePickerDateText=' + datePickerDateText);
+											links[0].setAttribute('aria-label', ariaLabel);
+										}
+									}
+								}
+							}
+						}
+
+						if (!isEmpty(focusElem)) {
+							focusElem.focus();
+						}
+
+					}
+				}
+			}
+		} else {
+			// datepicker element not found
+			var deltaSeconds = getElapsedSeconds(epochStart);
+			if (deltaSeconds > waitSeconds) {
+				console.log('> TIMEOUT datePickerOnClose()');
+				isMonitorDatePickerActive = false;
+				clearInterval(intervalId);
+			}
+		}
+	}, 100);
+
+	// console.log('> monitorDatePicker() datePickerId=' + datePickerId + ', setup complete!');
+}
+
+// --------------------------------------------------------------------------------
+// Analyze the heading structure of the current page
+// --------------------------------------------------------------------------------
+function analyzeHeadingStructure() {
+	console.log('> analyzeHeadingStructure() begins...');
+
+	var useStrongBorders = true;
+
+	var topHeadingIndex = 0;
+	var topHeadingElement = null;
+	var isTopHeadingFound = false;
+	while (!isTopHeadingFound && topHeadingIndex < 6) {
+		topHeadingIndex++;
+		var headingElement = 'h' + topHeadingIndex;
+		var headings = $(headingElement);
+		if (!isEmpty(headings) && headings.length > 0) {
+			isTopHeadingFound = true;
+			topHeadingElement = headingElement;
+			for (var i=0; i<headings.length; i++) {
+				if (useStrongBorders) {
+					$(headings.get(0)).css('border', '5px solid #000000');
+				}
+			}
+		}
+	}
+
+	console.log('> analyzeHeadingStructure() topHeadingElement=' + topHeadingElement);
+}
+var runAnalyzeHeadingStructure = false;
+if (runAnalyzeHeadingStructure) {
+	$(window).on('load', function () {
+		setInterval(function () {
+			analyzeHeadingStructure();
+		}, 5000);
+	});
+}
+
+// --------------------------------------------------------------------------------
+// ADD aria-label attribute to SELECT options that include the up-arrow or down-arrow representing ordering (ascending or descending)
+// --------------------------------------------------------------------------------
+function addAriaLabelsToOrderingSelectOptions() {
+	setTimeout(function () {
+		// console.log('> addAriaLabelsToOrderingSelectOptions() begins...');
+		var selectOptions = $('select#select_order option');
+		if (selectOptions && selectOptions.length) {
+			for (var index=0; index<selectOptions.length; index++) {
+				var option = selectOptions.get(index);
+				var optionText = option.textContent.trim();
+				// console.log('> index=' + index + ', optionText=' + optionText);
+				var ariaLabel = null;
+				if (optionText.endsWith('▲')) {
+					ariaLabel = optionText.substring(0, optionText.length - 1).trim() + ', Ascending A to Z';
+					// console.log('> ASCENDING optionText=' + optionText + ', ariaLabel=' + ariaLabel);
+				} else if (optionText.endsWith('▼')) {
+					ariaLabel = optionText.substring(0, optionText.length - 1).trim() + ', Descending Z to A';
+					// console.log('> DESCENDING optionText=' + optionText + ', ariaLabel=' + ariaLabel);
+				}
+				if (ariaLabel !== null) {
+					option.setAttribute('aria-label', ariaLabel);
+					// console.log('> OPTION SET aria-label=' + ariaLabel);
+				}
+			}
+		}
+	}, 100);
+}
+
+// --------------------------------------------------------------------------------
+// ADD .noOutlineOnFocus class to the document
+// --------------------------------------------------------------------------------
+function addClassNoOutlineOnFocus() {
+    var style = document.createElement('style');
+    style.type = 'text/css';
+    style.innerHTML = '.noOutlineOnFocus{outline: none;}';
+    document.getElementsByTagName('head')[0].appendChild(style);
+    // console.log('addClassNoOutlineOnFocus() added .noOutlineOnFocus class');
+}
+addClassNoOutlineOnFocus();
+
+if (isAccessibilityJSVerbose) {
+	console.log('accessibility.js is ready.');
+}
+

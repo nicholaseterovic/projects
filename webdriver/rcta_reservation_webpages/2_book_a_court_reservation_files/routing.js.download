@@ -1,0 +1,257 @@
+/* Function called to navigate within the Account Section.
+	* @param strURL     	  : The URL to go to
+*/
+	function transitionAccountNav(strURL) {
+		var actionObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+		transitionPageNav(strURL, "account", true, actionObject);
+	}
+
+/* Function called to navigate within the Admin Section.
+	* @param strURL     	  : The URL to go to
+*/
+	function transitionAdminNav(strURL) {
+		var actionObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+		transitionPageNav(strURL, "admin", true, actionObject);
+	}
+
+/* Function called to navigate within the App Section.
+	* @param strURL     	  : The URL to go to
+*/
+	function transitionAppNav(strURL) {
+		var actionObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+		transitionPageNav(strURL, "app", true, actionObject);
+	}
+
+/* Function called to navigate within the Fair Section.
+	* @param strURL     	  : The URL to go to
+*/
+	function transitionFairNav(strURL) {
+		var actionObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+		transitionPageNav(strURL, "fair", true, actionObject);
+	}
+
+/* Function called to navigate within the Groups Section.
+	* @param strURL     	  : The URL to go to
+*/
+	function transitionGroupsNav(strURL) {
+		var actionObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+		transitionPageNav(strURL, "groups", true, actionObject);
+	}
+
+/* Function called to navigate within the Groups Section.
+	* @param strURL     	  : The URL to go to
+*/
+	function transitionEventsNav(strURL) {
+		var actionObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+		transitionPageNav(strURL, "events", true, actionObject);
+	}
+
+/* Function called to navigate within the Home Section.
+	* @param strURL     	  : The URL to go to
+*/
+	function transitionHomeNav(strURL) {
+		var actionObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+		transitionPageNav(strURL, "home", true, actionObject);
+	}
+
+/* Function called to navigate within the Manage Section.
+	* @param strURL     	  : The URL to go to
+*/
+	function transitionManageNav(strURL) {
+		var actionObject = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+	  	transitionPageNav(strURL, "manage", true, actionObject);
+	}
+
+
+/* Internal function called to navigate handle AJAX calls to reload LeftMenu & Content.
+	* @param strURL     	  		: The URL to go to
+	* @param strType     	  		: The menu type
+	* @param boolPushState    		: Possible additional parameter to specify whether to push a history state or not.
+	* @param btnElement       		: Within actionObject - The button element (for collapsing current menu feature)
+	* @param targetElementSelector  : Within actionObject - The target element selector (for focusing once page is loaded)
+*/
+	function transitionPageNav(strURL, strType, boolPushState, actionObject) {
+
+		//Redirect when coming from Page where Left Menu does NOT exist.
+		if ($("#header__left-menu").length == 0) { 
+			window.location.href = strURL;
+			return;
+		}
+
+		//Action Object Properties
+		var btnElement 			  = actionObject !== null ? actionObject.btnElement : null;
+		var targetElementSelector = actionObject !== null ? actionObject.targetElementSelector : null;
+		var appId			  	  = actionObject !== null ? actionObject.appId : "";
+
+		
+		//First Condition is Regular Navigation - Second Condition is from PopState (Back & Forth buttons).
+		if ((history.state !== null && history.state.type != strType) || (typeof currentHistoryType !== "undefined" && currentHistoryType !== null && currentHistoryType.type != strType)) {
+			transitionLeftMenu(strType, appId);
+			transitionTopMenu(strType);
+
+			// Need to call again to fix bug that sometimes happens.
+			initLeftMenuCollapse();
+		}
+		transitionContent(strURL, targetElementSelector);
+		
+		//Collapse Menu
+		if (btnElement && hasActiveChild(btnElement)) {
+			$(window).trigger("hashchange", true);
+			return;
+		}
+
+		//URL Change		
+		if (boolPushState) { history.pushState({type: strType}, "", strURL); }
+		$(window).trigger("hashchange");
+		
+		return false;
+	}
+
+/* Function called to navigate within the Account Section.
+	* @param strURL     	  : The URL to go to
+*/
+	function transitionLeftMenu(strType, appId) {
+		appId = appId || "";
+		// Add Skeleton
+		var strSkeletonMenu = 	"<ul class='metisMenu nav' id='side-menu'>" + 
+									"<li style='margin-top: 15px; padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+									"<li style='padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+									"<li style='padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+									"<li style='padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+									"<li style='padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+									"<li style='padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+									"<li style='padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+									"<li style='padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+									"<li style='padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+									"<li style='padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+									"<li style='padding: 5px 15px;'><div class='skeleton' style='border-radius: 49.9%;min-height: 20px; width: 20px;margin-left: 10px;display: inline-block;'></div><div class='skeleton' style='min-height: 20px;display: inline-block;width: 145px;margin-left: 25px;'></div></li>" + 
+							  	"</ul>"
+		$("#sidebar-menu").html(strSkeletonMenu);
+
+		// Left Menu AJAX
+		$.ajax({
+				method: "GET",
+				url: "/headerLeft",
+				data: { m: strType, id: appId },
+				success: function (html) {
+					$("#header__left-menu").replaceWith(html);
+
+					//Re-Run Scroll + Collapse Init from /static/js/menu.js
+					initMetisMenu();
+					initSlimscrollMenu();
+					initLeftMenuCollapse();
+					initEnlarge();
+				}, 
+				error: function (rep) {
+					if (rep.status == 403 || rep.status == 404 || rep.status == 500) {
+						//console.log(rep.status);
+					}
+				}
+			});
+	}
+
+
+/* Function called to activate the correct Top Menu Container.
+	* @param strType     	  : The menu type
+*/
+	function transitionTopMenu(strType) {
+		$("li[id^='header__btn-cont--']").removeClass("active");
+		if (strType != "manage") {
+			$("#header__group-icon").attr("data-original-title", "Groups");
+			$("#group_name").html("");
+		}
+
+		$("#header__btn-cont--" + strType).addClass("active");
+	}
+
+var routingXHR;
+/* Function called to load content for any Navigation Type.
+	* @param strURL     	  : The URL to go to
+	* @param targetElementSelector  : The target element selector (for focusing once page is loaded)
+	** Uses the routingXHR global variable **
+*/
+	function transitionContent(strURL, targetElementSelector) {
+
+	  	if (routingXHR && routingXHR.readyState != 4) {
+			routingXHR.abort();
+		}
+		$("#page-cont").html('<div style="margin-top:300px;"></div>' + writeLoading("Loading page..."));
+
+		if (strURL.indexOf("?") == -1 ) {
+			if (strURL.indexOf("#") == -1) {
+				strURL = strURL + "?ax=1"
+			}
+			else {
+				strURL = strURL.split("#")[0] + "?ax=1" + "#" + strURL.split("#")[1]
+			}
+		}
+		else {
+			if (strURL.indexOf("#") == -1) {
+				strURL = strURL + "&ax=1"
+			}
+			else {
+				strURL = strURL.split("#")[0] + "&ax=1" + "#" + strURL.split("#")[1]
+			}
+		}
+
+		setTimeout(function () {
+			routingXHR = $.ajax({
+				url: strURL,
+				success: function (html) {
+					$("#page-cont").css({ 'opacity': 0 });
+					$("#page-cont").html(html).animate({ 'opacity': 1 }, 200);
+					if(document.getElementById('generic')) {
+						document.getElementById('generic').style.display = 'none';
+					}
+
+					//targetElementSelector function call
+					waitForInnerPageBodyAndFocus(targetElementSelector);
+
+					// Trigger window.load event manually
+					dispatchEvent(new Event('load'));
+				}, 
+				error: function (rep) {
+					if (rep.status == 403 || rep.status == 404 || rep.status == 500) {
+						//location.reload()
+					}
+				}
+			});
+		}, 250);
+	}
+
+
+var currentHistoryType;
+
+/* Initiated here and updated in the override pushSate */
+history.previousUrl = new URL(location.href);
+
+/* 
+	** Override the pushState native methode to provide a previousUrl variable.
+*/
+var oldPushState = history.pushState;
+history.pushState = function pushState(a, b, c) {
+	oldPushState.apply(history, [a, b, c]);
+	history.previousUrl = new URL(location.href);
+	currentHistoryType = a;
+}
+
+/* Listener to manage previous and forward buttons */
+window.onpopstate = function(e) {
+	if (history.previousUrl != null && history.previousUrl.pathname == new URL(location.href).pathname 
+	&& history.previousUrl.searchParams.get("show") == new URL(location.href).searchParams.get("show")
+	&& history.previousUrl.searchParams.get("mode") == new URL(location.href).searchParams.get("mode")
+	&& history.previousUrl.searchParams.get("view") == new URL(location.href).searchParams.get("view")) {
+		if (typeof setFiltersFromURLParameters == 'function') { 
+		  	setFiltersFromURLParameters(); 
+			getDataFromWebService();
+			history.previousUrl = new URL(location.href);
+			return;
+		}
+	}
+
+	var eStateType = (e.state === null) ? null : e.state.type;
+	transitionPageNav(document.location.pathname + document.location.search, eStateType, false, null);
+
+	
+	history.previousUrl = new URL(location.href);
+};

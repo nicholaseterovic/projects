@@ -1,0 +1,28 @@
+@font-face {
+  font-family: 'materialdesigniconscustom';
+  src:
+    url('../fonts/materialdesigniconscustom.ttf?rrudh1') format('truetype'),
+    url('../fonts/materialdesigniconscustom.woff?rrudh1') format('woff'),
+    url('../fonts/materialdesigniconscustom.svg?rrudh1#materialdesigniconscustom') format('svg');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+.mdic:before,
+.mdic-set {
+  display: inline-block;
+  font: normal normal normal 24px/1 "materialdesigniconscustom";
+  font-size: inherit;
+  text-rendering: auto;
+  line-height: inherit;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mdic-sustainability:before {
+  content: "\e001";
+}
+.mdic-sustainability_outline:before {
+  content: "\e002";
+}

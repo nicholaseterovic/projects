@@ -1,0 +1,1 @@
+python C:\Users\Nick\code\repo\webdriver\reserve_rcta_court.py --times=10H,11H,12H --fname=Nicholas --lname=Eterovic --email=nicholas@eterovic.com --url=https://rcta.tennisgroups.us/meetings/m813/book --driver_fpath=C:\Users\Nick\code\resources\chromedriver_win32\chromedriver.exe
