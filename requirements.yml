@@ -81,5 +81,4 @@ dependencies:
     - tifffile==2020.10.1
     - urllib3==1.25.11
     - werkzeug==1.0.1
-prefix: C:\Users\Nick\AppData\Local\conda\conda\envs\dapp
 
