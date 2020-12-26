@@ -1,9 +1,9 @@
-astroid @ file:///C:/ci/astroid_1592481955828/work
+astroid==2.4.2
 backcall==0.2.0
 Brotli==1.0.9
 certifi==2020.12.5
 click==7.1.2
-colorama @ file:///tmp/build/80754af9/colorama_1607707115595/work
+colorama==0.4.4
 cycler==0.10.0
 dash==1.16.3
 dash-bootstrap-components==0.10.7
@@ -19,31 +19,32 @@ Flask-Compress==1.7.0
 future==0.18.2
 gunicorn==20.0.4
 imageio==2.9.0
-ipykernel @ file:///C:/ci/ipykernel_1596208728219/work/dist/ipykernel-5.3.4-py3-none-any.whl
-ipython @ file:///C:/ci/ipython_1604101327119/work
-ipython-genutils @ file:///tmp/build/80754af9/ipython_genutils_1606773439826/work
-isort @ file:///tmp/build/80754af9/isort_1602603989581/work
+ipykernel==5.3.4
+ipython==7.19.0
+ipython-genutils==0.2.0
+isort==5.6.4
 itsdangerous==1.1.0
 jedi==0.17.0
 Jinja2==2.11.2
 joblib==0.17.0
-jupyter-client @ file:///tmp/build/80754af9/jupyter_client_1601311786391/work
-jupyter-core @ file:///C:/ci/jupyter_core_1606130908768/work
+jupyter-client==6.1.7
+jupyter-core==4.7.0
 kiwisolver==1.2.0
-lazy-object-proxy @ file:///C:/b/work
+lazy-object-proxy==1.4.3
 MarkupSafe==1.1.1
 matplotlib==3.3.2
 mccabe==0.6.1
 networkx==2.5
 numpy==1.19.2
 pandas==1.1.3
-parso @ file:///tmp/build/80754af9/parso_1607623074025/work
-pickleshare @ file:///tmp/build/80754af9/pickleshare_1606932040724/work
+parso==0.8.1
+pickleshare==0.7.5
 Pillow==8.0.0
+pip==20.2.3
 plotly==4.2.1
-prompt-toolkit @ file:///tmp/build/80754af9/prompt-toolkit_1602688806899/work
-Pygments @ file:///tmp/build/80754af9/pygments_1607368905949/work
-pylint @ file:///C:/ci/pylint_1598605958085/work
+prompt-toolkit==3.0.8
+Pygments==2.7.3
+pylint==2.6.0
 pyparsing==2.4.7
 python-dateutil==2.8.1
 pytz==2020.1
@@ -55,15 +56,17 @@ scikit-image==0.17.2
 scikit-learn==0.23.2
 scipy==1.5.2
 selenium==3.141.0
-six @ file:///C:/ci/six_1605205426665/work
+setuptools==50.3.0.post20201006
+six==1.15.0
 threadpoolctl==2.1.0
 tifffile==2020.10.1
-toml @ file:///tmp/build/80754af9/toml_1592853716807/work
-tornado @ file:///C:/ci/tornado_1606935947090/work
-traitlets @ file:///tmp/build/80754af9/traitlets_1602787416690/work
+toml==0.10.1
+tornado==6.1
+traitlets==5.0.5
 typed-ast==1.4.1
 urllib3==1.25.11
-wcwidth @ file:///tmp/build/80754af9/wcwidth_1593447189090/work
+wcwidth==0.2.5
 Werkzeug==1.0.1
+wheel==0.35.1
 wincertstore==0.2
 wrapt==1.11.2
