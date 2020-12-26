@@ -1,15 +1,23 @@
-# Nicholas Eterovic, 2020.
+# Nicholas Eterovic 2020Q3
+####################################################################################################
 
+# Open-source packages.
 import numpy as np
 import pandas as pd
 import itertools as it
 import plotly.offline as py
+
+####################################################################################################
 
 class RubiksCube:
     
     ###############################################################################################
     # INITIALIZATION
     
+    _axes = ['x', 'y', 'z']
+    _colors = ['yellow', 'green', 'red', 'white', 'blue', 'orange']
+    _face_axes = {'L':'x-', 'R':'x+', 'U':'y+', 'D':'y-', 'F':'z+', 'B':'z-'}
+
     def __init__(self:object, dim:int=3, state:list=None) -> object:
         '''
         ____________________________________________________________
@@ -17,9 +25,6 @@ class RubiksCube:
         ____________________________________________________________
         '''
         self.dim = dim
-        self._axes = ['x', 'y', 'z']
-        self._colors = ['yellow', 'green', 'red', 'white', 'blue', 'orange']
-        self._face_axes = {'L':'x-', 'R':'x+', 'U':'y+', 'D':'y-', 'F':'z+', 'B':'z-'}
         self._history = []
         
         if state is None:
@@ -214,7 +219,7 @@ class RubiksCube:
                 {
                     'type':'scatter3d', axis:[step for _ in zip(x, y)], var[0]:x, var[1]:y, 
                     'mode':'lines', 'line':{'color':'black', 'width':20}, 'name':'Frame',
-                    'hoverinfo':'skip', 'legendgroup':'frame', 'showlegend':i==j==0,
+                    'legendgroup':'frame', 'showlegend':i==j==0,
                 }
                 for j, step in enumerate(steps)
             ])
@@ -228,7 +233,7 @@ class RubiksCube:
         ))
         x, y, z = zip(*xyz)
         figure['data'].append({
-            'type':'mesh3d', 'x':x, 'y':y, 'z':z, 'facecolor':mesh['color'], 'hoverinfo':'skip',
+            'type':'mesh3d', 'x':x, 'y':y, 'z':z, 'facecolor':mesh['color'],
             **{
                 v:mesh[[f'{v}x', f'{v}y', f'{v}z']].apply(lambda row:xyz.index(tuple(row)), axis=1)
                 for v in ['i', 'j', 'k']
@@ -239,7 +244,7 @@ class RubiksCube:
         face = self._get_face()
         figure['data'].append({
             'type':'scatter3d', 'x':face['x'], 'y':face['y'], 'z':face['z'], 'text':face['text'],
-            'mode':'text', 'textposition':'middle center', 'hoverinfo':'skip', 'name':'Faces', 'textfont':{'size':30},
+            'mode':'text', 'textposition':'middle center', 'name':'Faces', 'textfont':{'size':30},
         })
         
         return figure
