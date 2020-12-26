@@ -43,7 +43,6 @@ prompt-toolkit==3.0.8
 Pygments==2.7.3
 pylint==2.6.0
 pyparsing==2.4.7
-pypiwin32==223
 python-dateutil==2.8.1
 pytz==2020.1
 PyWavelets==1.1.1
