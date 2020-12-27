@@ -4,6 +4,7 @@
 # Open-source packages.
 import numpy as np
 import pandas as pd
+import typing as tp
 import itertools as it
 import plotly.offline as py
 
@@ -11,14 +12,12 @@ import plotly.offline as py
 
 class RubiksCube:
     
-    ###############################################################################################
-    # INITIALIZATION
-    
+    # Class attributes.
     _axes = ['x', 'y', 'z']
     _colors = ['yellow', 'green', 'red', 'white', 'blue', 'orange']
     _face_axes = {'L':'x-', 'R':'x+', 'U':'y+', 'D':'y-', 'F':'z+', 'B':'z-'}
 
-    def __init__(self:object, dim:int=3, state:list=None) -> object:
+    def __init__(self:object, dim:int=3, state:tp.List[dict]=None) -> object:
         '''
         ____________________________________________________________
         > Instantiate a Rubik's cube.
@@ -45,18 +44,18 @@ class RubiksCube:
     def get_state(self:object) -> list:
         return self._state.to_dict(orient='records')
     
-    def set_state(self:object, state:list) -> object:
+    def set_state(self:object, state:tp.List[dict]) -> object:
         self._state = pd.DataFrame(state)
         return self
     
     ###############################################################################################
     # ATOMIC OPERATIONS
     
-    def _get_stickers(self:object, face:str, layers:int) -> pd.Series:
+    def _get_stickers(self:object, face:str, layers:int=1) -> pd.Series:
         axis, sign = self._face_axes[face]
         return self._state[axis].mul(-1 if sign=='-' else +1).between(self.dim-2*layers, self.dim)
         
-    def _get_rotation(self:object, face:str, rads:float) -> pd.DataFrame:
+    def _get_rotation(self:object, face:str, rads:float=np.pi/2) -> pd.DataFrame:
         # Unpack rotation axis and angle.
         axis, sign = self._face_axes[face]
         rads *= -1 if sign=='-' else +1
@@ -65,7 +64,8 @@ class RubiksCube:
         cos, sin = np.cos(rads), (-1 if axis=='y' else +1)*np.sin(rads)
         rotation = pd.DataFrame(data=0, index=self._axes, columns=self._axes)
         rotation.loc[axis, axis] = 1
-        rotation.loc[rotation.index.difference([axis]), rotation.columns.difference([axis])] = [
+        to_rotate = rotation.index.difference([axis])
+        rotation.loc[to_rotate, to_rotate] = [
             [+cos, -sin],
             [+sin, +cos],
         ]
@@ -88,7 +88,7 @@ class RubiksCube:
         Examples:
         operation='F' rotates the front-face by 90-degrees clockwise.
         operation='R2' rotates the right-face by 180-degrees clockwise.
-        operation='2T3' rotates the top-face top-two-layers by 90-degrees clockwise.
+        operation='2T3' rotates the top-face top-two-layers by 90-degrees anti-clockwise.
         ____________________________________________________________
         '''
         if not operation:
@@ -130,7 +130,7 @@ class RubiksCube:
     ###############################################################################################
     # COMPOSITIE OPERATIONS
     
-    def scramble(self:object, n:int=100) -> str:
+    def scramble(self:object, n:int=100, turns:bool=False, layers:bool=False) -> str:
         '''
         ____________________________________________________________
         > Performs <n> random moves on the cube.
@@ -140,9 +140,14 @@ class RubiksCube:
         ____________________________________________________________
         '''
         faces = np.random.choice(a=list(self._face_axes), size=n)
-        turns = np.random.randint(low=1, high=4, size=n)
-        layers = np.random.randint(low=1, high=self.dim+1, size=n)
-        operation = ','.join(f'{layer}{face}{turn}' for face, turn, layer in zip(faces, turns, layers))
+        if turns:
+            array = np.random.randint(low=1, high=4, size=n)
+            faces = [face+str(turn) for face, turn in zip(faces, array)]
+        if layers:
+            array = np.random.randint(low=1, high=self.dim+1, size=n)
+            faces = [str(layer)+face for layer, face in zip(array, faces)]
+
+        operation = ','.join(faces)
         self.rotate(operation=operation)
         return operation
         
@@ -166,7 +171,10 @@ class RubiksCube:
         return pd.DataFrame([
             {
                 'text':face,
-                **{axis:(self.dim+1)*(-1 if '-' in desc else +1)*int(axis in desc) for axis in self._axes},
+                **{
+                    axis:(self.dim+1)*(-1 if '-' in desc else +1)*int(axis in desc)
+                    for axis in self._axes
+                },
             }
             for face, desc in self._face_axes.items()
         ])
