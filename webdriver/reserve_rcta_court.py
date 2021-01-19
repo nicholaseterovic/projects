@@ -1,14 +1,19 @@
-# Nicholas Eterovic, 2020Q4
+# Nicholas Eterovic 2020Q3
+####################################################################################################
 
+# Open-source miscellanous packages.
 import sys as sy
 import typing as tp
 import pandas as pd
 import logging as lg
 
+# Open-source selenium packages.
 import selenium.webdriver as wd
 import selenium.webdriver.common.by as by
 import selenium.webdriver.support.ui as ui
 import selenium.webdriver.support.expected_conditions as ec
+
+####################################################################################################
 
 def reserve_rcta_court(
     chrome:wd.Chrome,
@@ -53,7 +58,6 @@ def reserve_rcta_court(
             logger.info(f'Attempting to find and click on court')
             wait.until(ec.invisibility_of_element_located((by.By.ID, 'primary-modal')))
             wait.until(ec.element_to_be_clickable((by.By.PARTIAL_LINK_TEXT, 'Court'))).click()
-            court.click()
             logger.info(f'Successfully clicked on court')
         except Exception as exception:
             logger.error(f'Failed to click on court with exception:\n{exception}')
@@ -72,7 +76,9 @@ def reserve_rcta_court(
             return False
         
     return False
-    
+
+####################################################################################################
+
 def main(**kwargs:dict) -> None:
     
     date = pd.Timestamp(kwargs.get('date', pd.Timestamp.now().normalize()+pd.Timedelta(days=1)))
@@ -102,7 +108,9 @@ def main(**kwargs:dict) -> None:
             logger=logger,
         )
     chrome.quit()
-    
+
+####################################################################################################
+
 if __name__=='__main__':
     kwargs = dict(a.lstrip('-').split(sep='=', maxsplit=1) for a in sy.argv if a.startswith('-') and '=' in a)
     main(**kwargs)
