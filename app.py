@@ -25,7 +25,7 @@ import sklearn.datasets as skd
 
 # In-house packages.
 import util.system as su
-from fractal.fractal import Fractal
+from fractals.fractal import Fractal
 from rubiks_cube.rubik import RubiksCube
 
 ####################################################################################################
