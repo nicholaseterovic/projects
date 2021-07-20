@@ -1345,9 +1345,6 @@ def set_fit_state(records:tp.List[dict], pow:int, seed:float, iter:str) -> tp.Tu
     [
         ddp.Output('store-kca-filt', 'data'),
         ddp.Output('textarea-kca-filt', 'value'),
-        ddp.Output('graph-kca-smooth', 'figure'),
-        ddp.Output('graph-kca-filter', 'figure'),
-        ddp.Output('graph-kca-pred', 'figure'),
     ],
     [ddp.Input('button-kca-filt-fit', 'n_clicks')],
     [
@@ -1356,24 +1353,19 @@ def set_fit_state(records:tp.List[dict], pow:int, seed:float, iter:str) -> tp.Tu
         ddp.State('input-kca-filt-pow', 'value'),
         ddp.State('input-kca-filt-seed', 'value'),
         ddp.State('input-kca-filt-iter', 'value'),
-        ddp.State('graph-kca-smooth', 'figure'),
-        ddp.State('graph-kca-filter', 'figure'),
-        ddp.State('graph-kca-pred', 'figure'),
     ],
 )
-def load_filt(n_clicks:int, records:tp.List[dict], time:str, pow:int, seed:float, iter:int, *figures:tp.List[dict]) -> dict:
+def fit_filt(n_clicks:int, records:tp.List[dict], time:str, pow:int, seed:float, iter:int, *figures:tp.List[dict]) -> dict:
     if not n_clicks:
         raise dex.PreventUpdate
-    for figure in figures:
-        figure.update({'data':[]})
     if not all([records, seed, iter]) or not isinstance(pow, int) or not isinstance(iter, int):
-        return ({}, '', *figures)
+        return {}, ''
     try:
         # Retrieve VWAP and VBAR data.
         bars = pd.DataFrame(data=records)
         dv = bars['SIZE_sum'].mean()
         X = bars[['VWAP']]
-        # Specific Kalman Filter model.
+        # Specify Kalman Filter model.
         states = range(pow+1)
         A = [[0 if i>j else dv**(j-i)/math.factorial(j-i) for j in states] for i in states]
         C = [[1 if i==0 else 0 for i in states]]
@@ -1391,6 +1383,42 @@ def load_filt(n_clicks:int, records:tp.List[dict], time:str, pow:int, seed:float
         )
         # Apply Expectation Maximization to estimate remaining parameters.
         kf.em(X=X, n_iter=iter, em_vars=em_vars)
+        # Extrat model specification.
+        text = json.dumps(obj=kf.__dict__, indent=4, default=lambda x:list(x) if pd.api.types.is_list_like(x) else float(x))
+        filt = json.loads(s=text)
+        return (filt, text, *figures)
+    except Exception as exception:
+        print(str(exception))
+        return {}, ''
+
+@app.callback(
+    [
+        ddp.Output('graph-kca-smooth', 'figure'),
+        ddp.Output('graph-kca-filter', 'figure'),
+        ddp.Output('graph-kca-pred', 'figure'),
+    ],
+    [ddp.Input('store-kca-filt', 'data')],
+    [
+        ddp.State('store-kca-bars', 'data'),
+        ddp.State('select-kca-bars-time', 'value'),
+        ddp.State('graph-kca-smooth', 'figure'),
+        ddp.State('graph-kca-filter', 'figure'),
+        ddp.State('graph-kca-pred', 'figure'),
+    ],
+)
+def plot_filt(cfg:dict, records:tp.List[dict], time:str, *figures:tp.List[dict]) -> dict:
+    if not cfg:
+        raise dex.PreventUpdate
+    for figure in figures:
+        figure.update({'data':[]})
+    if not all([records, time]):
+        return figures
+    try:
+        # Retrieve VWAP and VBAR data.
+        bars = pd.DataFrame(data=records)
+        X = bars[['VWAP']]
+        # Specify Kalman Filter model.
+        kf = pk.KalmanFilter(**cfg)
         # Clean figures.
         colors = pcl.DEFAULT_PLOTLY_COLORS
         for figure in figures:
@@ -1509,7 +1537,8 @@ def load_filt(n_clicks:int, records:tp.List[dict], time:str, pow:int, seed:float
                 },
             ])
         # Construct predicted state figures.
-        Z = np.array(list(map(np.array(A).dot, Z)))
+        A = np.array(kf.transition_matrices)
+        Z = np.array(list(map(A.dot, Z)))
         for i, (z, v) in enumerate(zip(Z.T, V.T)):
             color = colors[(i+1)%len(colors)]
             figures[2]['data'].extend([
@@ -1546,13 +1575,10 @@ def load_filt(n_clicks:int, records:tp.List[dict], time:str, pow:int, seed:float
                     'hoverlabel':{'namelength':-1},
                 },
             ])
-        # Extrat model specification.
-        text = json.dumps(obj=kf.__dict__, indent=4, default=lambda x:list(x) if pd.api.types.is_list_like(x) else float(x))
-        filt = json.loads(s=text)
-        return (filt, text, *figures)
+        return figures
     except Exception as exception:
         print(str(exception))
-        return ({}, '', *figures)
+        return figures
 
 @app.callback(
     [
