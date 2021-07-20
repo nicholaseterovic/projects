@@ -774,7 +774,7 @@ app.layout = dhc.Div(style={'position':'relative'}, children=[
                                         dbc.Input(
                                             id='input-kca-filt-iter',
                                             debounce=False,
-                                            value=10,
+                                            value=1,
                                             type='number',
                                             min=1,
                                             step=1,
