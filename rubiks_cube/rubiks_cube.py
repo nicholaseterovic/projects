@@ -6,7 +6,13 @@ import numpy as np
 import pandas as pd
 import typing as tp
 import itertools as it
-import plotly.offline as py
+
+# Dash imports.
+import dash
+import dash_tabulator as dtb
+import dash.dependencies as ddp
+import dash_core_components as dcc
+import dash_bootstrap_components as dbc
 
 ####################################################################################################
 
@@ -256,3 +262,215 @@ class RubiksCube:
         })
         
         return figure
+
+####################################################################################################
+# LAYOUT
+
+base_figure = {
+    'layout':{
+        'dragmode':'orbit',
+        'uirevision':'keep',
+        'margin':{'t':0,'b':0,'l':0,'r':0, 'pad':0},
+        'xaxis':{'visible':False},
+        'yaxis':{'visible':False},
+        'showlegend':False,
+        'annotations':[
+            {
+                'text':'<b>Select a Cube Size and Load</b>',
+                'xref':'paper',
+                'yref':'paper',
+                'x':0.5,
+                'y':0.5,
+                'showarrow':False,
+                'font':{'size':30},
+            },
+            *[
+                {'text':text, 'xref':'paper', 'yref':'paper', 'x':x, 'y':y, 'showarrow':False}
+                for x, y, text in [
+                    (0.1, 0.9, '<b>Mouse-wheel</b><br>to zoom in and out'),
+                    (0.9, 0.9, '<b>Left-click and drag</b><br>(outside the cube)<br>to rotate the cube'),
+                    (0.1, 0.1, '<b>Left-click on a cube face</b><br>to rotate by 90º clockwise'),
+                    (0.9, 0.1, '<b>Right-click and drag</b><br>(outside the cube)<br>to reposition the cube'),
+                ]
+            ],
+        ],
+    },
+}
+
+app_layout = [
+    dcc.Store(id='rubik-store-state', data=None),
+    dbc.Card([
+        dbc.CardHeader([
+            dbc.InputGroup(
+                size='sm',
+                children=[
+                    dbc.InputGroupAddon(addon_type='prepend', children=[
+                        dbc.Button(
+                            id='rubik-button-load',
+                            children='Load',
+                            n_clicks=0,
+                            color='primary',
+                            disabled=False,
+                        ),
+                    ]),
+                    dbc.Select(
+                        id='rubik-select-dim',
+                        value=3,
+                        options=[
+                            {'label':f'{n}x{n} Cube', 'value':n}
+                            for n in range(1, 6)
+                        ],
+                    ),
+                    dbc.InputGroupAddon(addon_type='prepend', children=[
+                        dbc.Button(
+                            id='rubik-button-scramble',
+                            children='Scramble',
+                            n_clicks=0,
+                            color='primary',
+                            disabled=True,
+                        ),
+                    ]),
+                    dbc.Select(
+                        id='rubik-select-scramble',
+                        value=10,
+                        options=[
+                            {'label':f'{n} moves', 'value':n}
+                            for n in [5, 10, 20, 30, 50, 100]
+                        ],
+                    ),
+                    dbc.InputGroupAddon(addon_type='append', children=[
+                        dbc.Button(
+                            id='rubik-button-clear',
+                            children='Clear',
+                            n_clicks=0,
+                            color='primary',
+                            disabled=False,
+                        ),
+                    ]),
+                ],
+            ),
+        ]),
+        dbc.CardBody([
+            dbc.Row([
+                dbc.Col(width=10, children=[
+                    dcc.Graph(
+                        id='rubik-graph-state',
+                        style={'height':'100vh', 'border':'1px black solid'},
+                        config={'scrollZoom':True, 'displayModeBar':False, 'displaylogo':False},
+                        figure=base_figure,
+                    ),
+                ]),
+                dbc.Col(width=2, children=[
+                    dtb.DashTabulator(
+                        id='rubik-table-history',
+                        data=[],
+                        columns=[{
+                            'title':'Move History',
+                            'field':'move',
+                            'hozAlign':'center',
+                            'headerSort':False,
+                            'headerSortStartingDir':'desc',
+                        }],
+                        options={
+                            'placeholder':'None',
+                            'layout':'fitDataStretch',
+                            'height':'100vw',
+                            'minHeight':'100vh',
+                            'maxHeight':'100vh',
+                            'selectable':'false',
+                        },
+                    ),
+                ]),
+            ]),
+        ]),
+    ]),
+]
+
+####################################################################################################
+# CALLBACKS
+
+def register_app_callbacks(app:dash.Dash) -> None:
+
+    @app.callback(
+        [
+            ddp.Output('rubik-store-state', 'data'),
+            ddp.Output('rubik-table-history', 'data'),
+        ],
+        [
+            ddp.Input('rubik-button-clear', 'n_clicks'),
+            ddp.Input('rubik-button-load', 'n_clicks'),
+            ddp.Input('rubik-button-scramble', 'n_clicks'),
+            ddp.Input('rubik-graph-state', 'clickData'),
+        ],
+        [
+            ddp.State('rubik-select-dim', 'value'),
+            ddp.State('rubik-select-scramble', 'value'),
+            ddp.State('rubik-store-state', 'data'),
+            ddp.State('rubik-table-history', 'data'),
+        ],
+    )
+    def set_cube_state(*args:list) -> tp.List[dict]:
+        trigger = dash.callback_context.triggered[0]
+        if not trigger['value'] or trigger['prop_id'].endswith('clear.n_clicks'):
+            return [], []
+
+        *_, dim, scramble, state, history = args
+        cube = RubiksCube(dim=int(dim), state=state)
+        if trigger['prop_id'].endswith('load.n_clicks'):
+            cube = RubiksCube(dim=int(dim), state=None)
+            return cube.get_state(), []
+
+        if trigger['prop_id'].endswith('scramble.n_clicks'):
+            operation = cube.scramble(n=int(scramble))
+            history.extend({'move':move} for move in operation.split(','))
+            return cube.get_state(), history
+
+        if trigger['prop_id'].endswith('state.clickData'):
+            faces, axes = zip(*RubiksCube._face_axes.items())
+            point = trigger['value']['points'][0]
+            coord = {axis:point[axis] for axis in ['x', 'y', 'z']}
+            axis = max(coord.keys(), key=lambda axis:abs(coord[axis]))
+            axis += '+' if coord[axis]>0 else '-'
+            face = list(faces)[list(axes).index(axis)]
+            cube.rotate(operation=face)
+            history.append({'move':face})
+            return cube.get_state(), history
+
+        return cube.get_state(), history
+        
+    @app.callback(
+        [
+            ddp.Output('rubik-graph-state', 'figure'),
+            ddp.Output('rubik-graph-state', 'clickData'),
+        ],
+        [ddp.Input('rubik-store-state', 'data')],
+        [ddp.State('rubik-select-dim', 'value'),]
+    )
+    def graph_cube_state(state:list, dim:int) -> dict:
+        if not state:
+            return base_figure, None
+        figure = RubiksCube(dim=int(dim), state=state).get_figure()
+        for trace in figure['data']:
+            trace.update({
+                'hoverinfo':'none' if trace['type']=='mesh3d' else 'skip',
+                'hovertemplate':'',
+                'name':None,
+            })
+        figure['layout'].update({
+            **base_figure['layout'],
+            'annotations':base_figure['layout']['annotations'][1:],
+        })
+        return figure, None
+
+    @app.callback(
+        ddp.Output('rubik-button-scramble', 'disabled'),
+        [
+            ddp.Input('rubik-select-dim', 'value'),
+            ddp.Input('rubik-graph-state', 'figure'),
+        ],
+    )
+    def enable_scramble_button(dim:int, figure:dict) -> bool:
+        trigger = dash.callback_context.triggered[0]
+        if trigger['prop_id'].endswith('dim.value'):
+            return True
+        return not trigger['value'].get('data', [])
