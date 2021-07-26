@@ -124,9 +124,7 @@ class GameOfLife(object):
 # Default widget parameters. 
 default_rows = 50
 default_cols = 75
-default_tdur = 500
-
-
+default_tdur = 1000
 
 # Heatmap visualizing the game of life.
 pause_info = 'Click to Flip Cell State'
@@ -291,8 +289,6 @@ def register_app_callbacks(app:dash.Dash) -> None:
         if not all(values):
             return 'fa fa-times', 'Check Parameters', 'primary', True, True
         trigger = dash.callback_context.triggered[0]
-        if trigger['prop_id'].startswith('select'):
-            raise dex.PreventUpdate
         if tab=='gol' and state=='Play' and trigger['prop_id'].endswith('n_clicks'):
             return 'fa fa-cog fa-spin', 'Pause', 'warning', False, False
         return 'fa fa-cog', 'Play', 'primary', False, True
