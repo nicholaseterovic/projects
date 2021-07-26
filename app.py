@@ -35,8 +35,9 @@ import bug_and_lizard.bug_and_lizard as bug_and_lizard
 app = dash.Dash(
     name=__name__,
     title='Nicholas Eterovic',
+    #update_title='Nicholas Eterovic',
+    assets_folder='assets',
     prevent_initial_callbacks=True,
-    suppress_callback_exceptions=False,
     external_stylesheets=[
         dbc.themes.BOOTSTRAP,
         'https://use.fontawesome.com/releases/v5.15.0/css/all.css',
@@ -52,10 +53,10 @@ projects = {
     'home':{'label':'Home', 'icon':'fas fa-home', 'module':home},
     'cube':{'label':'Rubik\'s Cube', 'icon':'fas fa-cube', 'module':rubiks_cube},
     'pivot':{'label':'Pivot Table', 'icon':'fas fa-border-all', 'module':pivot_table},
-    'fractal':{'label':'Fractal Generator', 'icon':'fas fa-snowflake', 'module':fractal},
+    'fractal':{'label':'Fractal Generator', 'icon':'fas fa-wave-square', 'module':fractal},
     'bal':{'label':'The Bug and the Lizard', 'icon':'fas fa-bug', 'module':bug_and_lizard},
     'kca':{'label':'Kinetic Component Analysis', 'icon':'fas fa-chart-line', 'module':kca},
-    'gol':{'label':'Conways\'s Game of Life', 'icon':'fas fa-braille', 'module':game_of_life},
+    'gol':{'label':'Conway\'s Game of Life', 'icon':'fas fa-heart', 'module':game_of_life},
 }
 
 links = {
