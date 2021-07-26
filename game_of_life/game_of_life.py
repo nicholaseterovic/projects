@@ -122,8 +122,8 @@ class GameOfLife(object):
 # LAYOUT
 
 # Default widget parameters. 
-default_rows = 50
-default_cols = 75
+default_rows = 25
+default_cols = 25
 default_tdur = 1000
 
 # Heatmap visualizing the game of life.
@@ -289,7 +289,9 @@ def register_app_callbacks(app:dash.Dash) -> None:
         if not all(values):
             return 'fa fa-times', 'Check Parameters', 'primary', True, True
         trigger = dash.callback_context.triggered[0]
-        if tab=='gol' and state=='Play' and trigger['prop_id'].endswith('n_clicks'):
+        if trigger['prop_id'].startswith('select'):
+            raise dex.PreventUpdate
+        if trigger['prop_id'].endswith('n_clicks') and state=='Play' and tab=='gol':
             return 'fa fa-cog fa-spin', 'Pause', 'warning', False, False
         return 'fa fa-cog', 'Play', 'primary', False, True
         
@@ -330,7 +332,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
         loading_state:bool,
     ) -> tp.Tuple[dict, dict]:
         trigger = dash.callback_context.triggered[0]
-        
+
         if trigger['prop_id'].endswith('n_intervals'):
             # Throttle interval updates.
             tdur = int(tdur)
@@ -338,7 +340,10 @@ def register_app_callbacks(app:dash.Dash) -> None:
             if (100*n_intervals)%tdur:
                 raise dex.PreventUpdate
 
+        cols = int(cols)
+        rows = int(rows)
         datum = figure['data'][0]
+
         if state=='Play':
             figure['layout']['title'] = pause_title
             datum['name'] = pause_info
@@ -355,22 +360,22 @@ def register_app_callbacks(app:dash.Dash) -> None:
                 i = rows*point['x'] + point['y']
                 datum['z'][i] = 1 - datum['z'][i]
             return figure, config
+        
         if trigger['prop_id'].endswith('clear.n_clicks'):
             # Clear cells.
-            state = []
+            cells = []
         else:
             # Extract live cells.
-            state = [(x, y) for x, y, z in zip(datum['x'], datum['y'], datum['z']) if z]
+            cells = [(x, y) for x, y, z in zip(datum['x'], datum['y'], datum['z']) if z]
             if trigger['prop_id'].endswith('n_intervals'):
-                gol = GameOfLife(state=state)
-                state = next(gol)
+                gol = GameOfLife(state=cells)
+                cells = next(gol)
 
-        cols = int(cols)
-        rows = int(rows)
-        cells = dict(zip(
+        
+        xyzd = dict(zip(
             ['x', 'y', 'z'],
-            zip(*[(*xy, int(xy in state)) for xy in it.product(range(cols), range(rows))]),
+            zip(*[(*xy, int(xy in cells)) for xy in it.product(range(cols), range(rows))]),
         ))
-        datum.update(cells)
+        datum.update(xyzd)
         return figure, config
         
