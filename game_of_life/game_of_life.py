@@ -7,6 +7,7 @@ import itertools as it
 
 # Dash imports.
 import dash
+import dash.exceptions as dex
 import dash.dependencies as ddp
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
@@ -21,20 +22,20 @@ class GameOfLife(object):
     _max_neighbors:int = 3 # Maximum # neighhors allowed for a live cell to live on.
     _pop_neighbors:int = 3 # Required # neighhors required for a dead cell to populate.
 
-    def __init__(self, state:tp.List[tp.Tuple[int, int]]=[], maxstep:int=100) -> object:
+    def __init__(self, state:tp.List[tp.Tuple[int, int]]=[], stop:int=100) -> object:
         '''
         > Initialize an iterator that yields state evolutions from John Conway's game of life. 
         
         Arguments:
             state: List-of-pairs [(x, y), ...], coordinates of initial live cells.
-            maxstep: Maximum number of allowed state evolutions.
+            stop: Maximum number of allowed state evolutions.
 
         Returns:
             Iterable yielding state evolutions.
         '''
         # Check types.
-        if not isinstance(maxstep, int) or maxstep<0:
-            raise ValueError(f'Max step must be a positive integer: {maxstep}') 
+        if not isinstance(stop, int) or stop<0:
+            raise ValueError(f'Max step must be a positive integer: {stop}')
         if not isinstance(state, list):
             raise ValueError(f'State must be list: {state}')
         for xy in state:
@@ -47,8 +48,8 @@ class GameOfLife(object):
                 raise ValueError(f'State elements must be integer 2-tuples {state}')
         # Set attributes.
         self.state = state
-        self.maxstep = maxstep
-        self._step = 0
+        self.stop = stop
+        self._i = 0
 
     def __iter__(self) -> object:
         return self
@@ -63,11 +64,11 @@ class GameOfLife(object):
         Returns:
             List-of-pairs [(x, y), ...] coordinates of next live cells. 
         '''
-        if self._step>self.maxstep:
-            raise StopIteration        
+        if self._i>=self.stop:
+            raise StopIteration
         state = GameOfLife._get_next_state(state=self.state)
         self.state = state
-        self._step += 1
+        self._i += 1
         return state
 
     @staticmethod
@@ -120,92 +121,145 @@ class GameOfLife(object):
 ####################################################################################################
 # LAYOUT
 
+# Default widget parameters. 
+default_rows = 50
+default_cols = 75
+default_tdur = 500
+
+
+
+# Heatmap visualizing the game of life.
+pause_info = 'Click to Flip Cell State'
+pause_title = '<br>'.join([
+    '<i>In Pause Mode</i>',
+    '<b>Click Cells</b> to Edit and <b>Click Play</b> to Simulate',
+])
+play_title = '<br>'.join([
+    '<i>In Play Mode</i>',
+    '<b>Click Pause</b> to Edit Cells',
+])
+default_figure = {
+    'layout':{
+        'title':pause_title,
+        'margin':{'l':0, 'r':0, 'b':0},
+        'clickmode':'event+select',
+        'dragmode':'lasso',
+        'hovermode':'closest',
+        'hoverdistance':-1,
+        'xaxis':{'visible':False, 'autorange':True},
+        'yaxis':{'visible':False, 'autorange':True, 'scaleanchor':'x'},
+    },
+    'data':[{
+        'type':'heatmap',
+        'name':pause_info,
+        'hoverinfo':'name',
+        'hoverlabel':{'namelength':-1},
+        'xgap':2,
+        'ygap':2,
+        'zmin':0,
+        'zmax':1,
+        'connectgaps':False,
+        'showscale':False,
+        'autocolorscale':False,
+        'colorscale':[[0, 'whitesmoke'], [1, '#2f4f4f']],
+        **dict(zip(
+            ['x', 'y', 'z'],
+            zip(*it.product(range(default_cols), range(default_rows), [0])),
+        )),
+    }],
+}
+
 app_layout = [
-    dbc.Row(no_gutters=True, children=[
-        dbc.Col(width=6, children=[
-            dbc.Card([
-                dbc.CardHeader([
-                    dbc.InputGroup(
-                        size='sm',
-                        children=[
-                            dbc.InputGroupAddon(
-                                addon_type='prepend',
-                                children=dbc.Button(
-                                    children='Initial State',
-                                    n_clicks=0,
-                                    color='dark',
-                                    disabled=True,
-                                ),
-                            ),
-                            dbc.InputGroupAddon(
-                                addon_type='prepend',
-                                children='Dimension:',
-                            ),
-                            dbc.Input(
-                                id='input-gol-seed-dim',
-                                debounce=False,
-                                value=100,
-                                type='number',
-                                min=1,
-                                max=500,
-                                step=1,
-                            ),
-                            dbc.InputGroupAddon(
-                                addon_type='append',
-                                children=dbc.Button(
-                                    id='button-gol-seed-load',
-                                    children='Load',
-                                    n_clicks=0,
-                                    color='primary',
-                                    disabled=False,
-                                ),
-                            ),
-                        ],
+    dcc.Interval(
+        id='interval-gol',
+        interval=100,
+        disabled=True,
+    ),
+    dcc.Store(
+        id='store-gol',
+        data={},
+    ),
+    dbc.Card([
+        dbc.CardHeader([
+            dbc.InputGroup(
+                size='sm',
+                children=[
+                    dbc.InputGroupAddon(
+                        addon_type='prepend',
+                        children=dbc.Button(
+                            id='button-gol-clear',
+                            children='Clear',
+                            n_clicks=0,
+                            color='primary',
+                            disabled=False,
+                        ),
                     ),
-                ]),
-                dbc.CardBody([
-                    dcc.Graph(
-                        id='gol-graph-seed',
-                        style={'height':'50vw'},
-                        config={'scrollZoom':True, 'displayModeBar':True, 'displaylogo':False},
-                        figure={
-                            'layout':{
-                                'uirevision':'keep',
-                                'margin':{'t':0,'b':0,'l':0,'r':0, 'pad':0},
-                                'xaxis':{'visible':False},
-                                'yaxis':{'visible':False},
-                                'showlegend':False,
-                                'annotations':[
-                                    {
-                                        'text':'<b>Select a Dimension and Load</b>',
-                                        'xref':'paper',
-                                        'yref':'paper',
-                                        'x':0.5,
-                                        'y':0.5,
-                                        'showarrow':False,
-                                        'font':{'size':30},
-                                    },
-                                ],
-                            },
-                            'data':[{
-                            }],
-                        },
+                    dbc.InputGroupAddon(
+                        addon_type='prepend',
+                        children='Rows:',
                     ),
-                ]),
-            ]),
+                    dbc.Select(
+                        id='select-gol-rows',
+                        value=default_rows,
+                        options = [
+                            {'value':dim, 'label':dim}
+                            for dim in [10, 25, 50, 75, 100]
+                        ]
+                    ),
+                    dbc.InputGroupAddon(
+                        addon_type='prepend',
+                        children='Cols:',
+                    ),
+                    dbc.Select(
+                        id='select-gol-cols',
+                        value=default_cols,
+                        options = [
+                            {'value':dim, 'label':dim}
+                            for dim in [10, 25, 50, 75, 100]
+                        ]
+                    ),
+                    dbc.InputGroupAddon(
+                        addon_type='prepend',
+                        children='Duration:',
+                    ),
+                    dbc.Select(
+                        id='select-gol-tdur',
+                        value=default_tdur,
+                        options = [
+                            {'value':dur, 'label':f'{dur/1000:.1f}S'}
+                            for dur in [100, 300, 500, 1000]
+                        ]
+                    ),
+                    dbc.InputGroupAddon(
+                        addon_type='append',
+                        children=dbc.Button(
+                            id='button-gol-state',
+                            children='Play',
+                            n_clicks=0,
+                            color='primary',
+                            disabled=False,
+                        ),
+                    ),
+                    dbc.InputGroupAddon(
+                        addon_type='append',
+                        children=dbc.Button(
+                            id='icon-gol-state',
+                            className='fa fa-cog',
+                            n_clicks=0,
+                            color='link',
+                            disabled=True,
+                        ),
+                    ),
+                ],
+            ),
         ]),
-        dbc.Col(width=6, children=[
-            dbc.Card([
-                dbc.CardHeader([
-                    dbc.InputGroup(
-                        size='sm',
-                        children=[
-                        ],
-                    ),
-                ]),
-                dbc.CardBody([
-                ]),
-            ]),
+        dbc.CardBody([
+            dcc.Graph(
+                id='graph-gol',
+                style={'height':'50vw'},
+                config={'displayModeBar':False, 'displaylogo':False},
+                figure=default_figure,
+            ),
         ]),
     ]),
 ]
@@ -217,13 +271,110 @@ def register_app_callbacks(app:dash.Dash) -> None:
 
     @app.callback(
         [
-            ddp.Output('button-gol-seed-load', 'children'),
-            ddp.Output('button-gol-seed-load', 'color'),
-            ddp.Output('button-gol-seed-load', 'disabled'),
+            ddp.Output('icon-gol-state', 'className'),
+            ddp.Output('button-gol-state', 'children'),
+            ddp.Output('button-gol-state', 'color'),
+            ddp.Output('button-gol-state', 'disabled'),
+            ddp.Output('interval-gol', 'disabled'),
         ],
-        [ddp.Input('input-gol-seed-dim', 'value')],
+        [
+            ddp.Input('select-gol-cols', 'value'),
+            ddp.Input('select-gol-rows', 'value'),
+            ddp.Input('select-gol-tdur', 'value'),
+            ddp.Input('button-gol-state', 'n_clicks'),
+            ddp.Input('tabs-projects', 'value'),
+        ],
+        [ddp.State('button-gol-state', 'children')],
     )
-    def set_load_state(dim:int) -> tp.Tuple[str, str, bool]:
-        if not dim or not isinstance(dim, int):
-            return 'Load', 'primary', True
-        return 'Load', 'primary', False
+    def set_state(*args:tp.Tuple[int]) -> tuple:
+        *values, n_clicks, tab, state = args
+        if not all(values):
+            return 'fa fa-times', 'Check Parameters', 'primary', True, True
+        trigger = dash.callback_context.triggered[0]
+        if trigger['prop_id'].startswith('select'):
+            raise dex.PreventUpdate
+        if tab=='gol' and state=='Play' and trigger['prop_id'].endswith('n_clicks'):
+            return 'fa fa-cog fa-spin', 'Pause', 'warning', False, False
+        return 'fa fa-cog', 'Play', 'primary', False, True
+        
+    @app.callback(
+        [
+            ddp.Output('graph-gol', 'figure'),
+            ddp.Output('graph-gol', 'config'),
+        ],
+        [
+            ddp.Input('button-gol-clear', 'n_clicks'),
+            ddp.Input('interval-gol', 'n_intervals'),
+            ddp.Input('interval-gol', 'disabled'),
+            ddp.Input('graph-gol', 'clickData'),
+            ddp.Input('graph-gol', 'selectedData'),
+        ],
+        [
+            ddp.State('select-gol-cols', 'value'),
+            ddp.State('select-gol-rows', 'value'),
+            ddp.State('select-gol-tdur', 'value'),
+            ddp.State('button-gol-state', 'children'),
+            ddp.State('graph-gol', 'figure'),
+            ddp.State('graph-gol', 'config'),
+            ddp.State('graph-gol', 'loading_state'),
+        ],
+    )
+    def plot_gol(
+        n_clicks:int,
+        n_intervals:int,
+        disabled:bool,
+        clickData:dict,
+        selectedData:dict,
+        cols:int,
+        rows:int,
+        tdur:int,
+        state:str,
+        figure:dict,
+        config:dict,
+        loading_state:bool,
+    ) -> tp.Tuple[dict, dict]:
+        trigger = dash.callback_context.triggered[0]
+        
+        if trigger['prop_id'].endswith('n_intervals'):
+            # Throttle interval updates.
+            tdur = int(tdur)
+            n_intervals = int(n_intervals)
+            if (100*n_intervals)%tdur:
+                raise dex.PreventUpdate
+
+        datum = figure['data'][0]
+        if state=='Play':
+            figure['layout']['title'] = pause_title
+            datum['name'] = pause_info
+        elif state=='Pause':
+            figure['layout']['title'] = play_title
+            datum['name'] = ''
+                
+        if trigger['prop_id'].endswith('clickData') or trigger['prop_id'].endswith('selectedData'):
+            if state=='Pause':
+                raise dex.PreventUpdate
+            # Flip selected cells.
+            points = trigger['value']['points']
+            for point in points:
+                i = rows*point['x'] + point['y']
+                datum['z'][i] = 1 - datum['z'][i]
+            return figure, config
+        if trigger['prop_id'].endswith('clear.n_clicks'):
+            # Clear cells.
+            state = []
+        else:
+            # Extract live cells.
+            state = [(x, y) for x, y, z in zip(datum['x'], datum['y'], datum['z']) if z]
+            if trigger['prop_id'].endswith('n_intervals'):
+                gol = GameOfLife(state=state)
+                state = next(gol)
+
+        cols = int(cols)
+        rows = int(rows)
+        cells = dict(zip(
+            ['x', 'y', 'z'],
+            zip(*[(*xy, int(xy in state)) for xy in it.product(range(cols), range(rows))]),
+        ))
+        datum.update(cells)
+        return figure, config
+        
