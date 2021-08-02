@@ -269,10 +269,10 @@ def register_app_callbacks(app:dash.Dash) -> None:
 
     @app.callback(
         [
-            ddp.Output('icon-gol-state', 'className'),
             ddp.Output('button-gol-state', 'children'),
             ddp.Output('button-gol-state', 'color'),
             ddp.Output('button-gol-state', 'disabled'),
+            ddp.Output('icon-gol-state', 'className'),
             ddp.Output('interval-gol', 'disabled'),
         ],
         [
@@ -282,18 +282,25 @@ def register_app_callbacks(app:dash.Dash) -> None:
             ddp.Input('button-gol-state', 'n_clicks'),
             ddp.Input('tabs-projects', 'value'),
         ],
-        [ddp.State('button-gol-state', 'children')],
+        [
+            ddp.State('button-gol-state', 'children'),
+            ddp.State('button-gol-state', 'color'),
+            ddp.State('button-gol-state', 'disabled'),
+            ddp.State('icon-gol-state', 'className'),
+            ddp.State('interval-gol', 'disabled'),
+        ],
     )
     def set_state(*args:tp.Tuple[int]) -> tuple:
-        *values, n_clicks, tab, state = args
+        values, args  = args[:3], args[3:]
         if not all(values):
-            return 'fa fa-times', 'Check Parameters', 'primary', True, True
+            return 'Check Parameters', 'primary', True, 'fa fa-times', True
+        n_clicks, tab, *states = args
         trigger = dash.callback_context.triggered[0]
         if trigger['prop_id'].startswith('select'):
-            raise dex.PreventUpdate
-        if trigger['prop_id'].endswith('n_clicks') and state=='Play' and tab=='gol':
-            return 'fa fa-cog fa-spin', 'Pause', 'warning', False, False
-        return 'fa fa-cog', 'Play', 'primary', False, True
+            return states
+        if trigger['prop_id'].endswith('n_clicks') and states[0]=='Play' and tab=='gol':
+            return 'Pause', 'warning', False, 'fa fa-cog fa-spin', False
+        return 'Play', 'primary', False, 'fa fa-cog', True
         
     @app.callback(
         [
