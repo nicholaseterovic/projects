@@ -266,7 +266,7 @@ class RubiksCube:
 ####################################################################################################
 # LAYOUT
 
-base_figure = {
+empty_cube_figure = {
     'layout':{
         'dragmode':'orbit',
         'uirevision':'keep',
@@ -275,6 +275,7 @@ base_figure = {
         'yaxis':{'visible':False},
         'showlegend':False,
         'annotations':[
+            # Center annotation.
             {
                 'text':'<b>Select a Cube Size and Load</b>',
                 'xref':'paper',
@@ -284,6 +285,7 @@ base_figure = {
                 'showarrow':False,
                 'font':{'size':30},
             },
+            # Corner annotations.
             *[
                 {'text':text, 'xref':'paper', 'yref':'paper', 'x':x, 'y':y, 'showarrow':False}
                 for x, y, text in [
@@ -298,7 +300,6 @@ base_figure = {
 }
 
 app_layout = [
-    dcc.Store(id='rubik-store-state', data=None),
     dbc.Card([
         dbc.CardHeader([
             dbc.InputGroup(
@@ -350,6 +351,7 @@ app_layout = [
                 ],
             ),
         ]),
+        dcc.Store(id='rubik-store-state', data=[]),
         dbc.CardBody([
             dbc.Row([
                 dbc.Col(width=10, children=[
@@ -357,7 +359,7 @@ app_layout = [
                         id='rubik-graph-state',
                         style={'height':'100vh', 'border':'1px black solid'},
                         config={'scrollZoom':True, 'displayModeBar':False, 'displaylogo':False},
-                        figure=base_figure,
+                        figure=empty_cube_figure,
                     ),
                 ]),
                 dbc.Col(width=2, children=[
@@ -412,20 +414,28 @@ def register_app_callbacks(app:dash.Dash) -> None:
     def set_cube_state(*args:list) -> tp.List[dict]:
         trigger = dash.callback_context.triggered[0]
         if not trigger['value'] or trigger['prop_id'].endswith('clear.n_clicks'):
+            # Clear cube.
             return [], []
 
+        # Unpack arguments and enforce data types.
         *_, dim, scramble, state, history = args
-        cube = RubiksCube(dim=int(dim), state=state)
+        dim = int(dim)
+        scramble = int(scramble)
+
         if trigger['prop_id'].endswith('load.n_clicks'):
-            cube = RubiksCube(dim=int(dim), state=None)
+            # Load new cube.
+            cube = RubiksCube(dim=dim, state=None)
             return cube.get_state(), []
+        cube = RubiksCube(dim=dim, state=state)
 
         if trigger['prop_id'].endswith('scramble.n_clicks'):
-            operation = cube.scramble(n=int(scramble))
+            # Scramble cube.
+            operation = cube.scramble(n=scramble)
             history.extend({'move':move} for move in operation.split(','))
             return cube.get_state(), history
 
         if trigger['prop_id'].endswith('state.clickData'):
+            # Rotate face of cube.
             faces, axes = zip(*RubiksCube._face_axes.items())
             point = trigger['value']['points'][0]
             coord = {axis:point[axis] for axis in ['x', 'y', 'z']}
@@ -439,28 +449,29 @@ def register_app_callbacks(app:dash.Dash) -> None:
         return cube.get_state(), history
         
     @app.callback(
-        [
-            ddp.Output('rubik-graph-state', 'figure'),
-            ddp.Output('rubik-graph-state', 'clickData'),
-        ],
+        ddp.Output('rubik-graph-state', 'figure'),
         [ddp.Input('rubik-store-state', 'data')],
-        [ddp.State('rubik-select-dim', 'value'),]
+        [ddp.State('rubik-select-dim', 'value')],
     )
     def graph_cube_state(state:list, dim:int) -> dict:
         if not state:
-            return base_figure, None
-        figure = RubiksCube(dim=int(dim), state=state).get_figure()
+            return empty_cube_figure
+        dim = int(dim)
+        cube = RubiksCube(dim=dim, state=state)
+        figure = cube.get_figure()
         for trace in figure['data']:
+            # Disable hover information.
             trace.update({
                 'hoverinfo':'none' if trace['type']=='mesh3d' else 'skip',
                 'hovertemplate':'',
                 'name':None,
             })
         figure['layout'].update({
-            **base_figure['layout'],
-            'annotations':base_figure['layout']['annotations'][1:],
+            **empty_cube_figure['layout'],
+            # Remove center annotation.
+            'annotations':empty_cube_figure['layout']['annotations'][1:],
         })
-        return figure, None
+        return figure
 
     @app.callback(
         ddp.Output('rubik-button-scramble', 'disabled'),
