@@ -347,17 +347,19 @@ def register_app_callbacks(app:dash.Dash) -> None:
             if (100*n_intervals)%tdur:
                 raise dex.PreventUpdate
 
+        # Extract state.
         cols = int(cols)
         rows = int(rows)
         datum = figure['data'][0]
 
+        # Set annotations.
         if state=='Play':
             figure['layout']['title'] = pause_title
             datum['name'] = pause_info
         elif state=='Pause':
             figure['layout']['title'] = play_title
             datum['name'] = ''
-                
+        
         if trigger['prop_id'].endswith('clickData') or trigger['prop_id'].endswith('selectedData'):
             if state=='Pause':
                 raise dex.PreventUpdate
@@ -377,7 +379,6 @@ def register_app_callbacks(app:dash.Dash) -> None:
             if trigger['prop_id'].endswith('n_intervals'):
                 gol = GameOfLife(state=cells)
                 cells = next(gol)
-
         
         xyzd = dict(zip(
             ['x', 'y', 'z'],
