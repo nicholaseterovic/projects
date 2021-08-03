@@ -18,20 +18,27 @@ app_layout = [
         style={'height':'100vh', 'background-color':'#2f4f4f'},
         children=[
             dbc.Col(width=7, children=[
-                dbc.Jumbotron(fluid=True, style={'height':'100%'}, children=[
-                    dbc.Container(fluid=True, children=[
-                        dhc.Hr(),
-                        dhc.H3('Greetings!'),
-                        dhc.Br(),
-                        dhc.P(
-                            'You\'ve stumbled on my humble personal website, '
-                            'home to some of my recreational math and coding projects. '
-                            'Feel free to take a look at what\'s available using the sidebar. '
-                            'For the best user experience, I recommend browsing with desktop Chrome.'
-                        ),
-                        dhc.Br(),
-                        dcc.Markdown('*- Nick Eterovic*', style={'text-align':'right'}),
-                        dhc.Hr(),
+                dbc.Card(style={'height':'100%', 'border-radius':'0px'}, children=[
+                    dbc.CardBody([
+                        dcc.Markdown('''
+                            # Home
+                            ***
+
+                            ### This Page
+                            ***
+
+                              Greetings!
+                              
+                              You've stumbled upon my humble personal website,
+                             home to some of my recreational math and coding projects.
+
+                              Feel free to take a look at what\'s available using the sidebar.
+                             For the best user experience, I recommend browsing with desktop Chrome.
+                        '''),
+                        dcc.Markdown(style={'text-align':'right'}, children='''
+                            *- Nick Eterovic*
+                            ***
+                        '''),
                     ]),
                 ]),
             ]),
