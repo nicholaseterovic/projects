@@ -5,11 +5,11 @@
 import os
 import json
 import math
+import gzip
 import numpy as np
 import pandas as pd
 import typing as tp
 import pykalman as pk
-import itertools as it
 import plotly.colors as pcl
 import plotly.subplots as psp
 
@@ -24,9 +24,90 @@ import dash_bootstrap_components as dbc
 # LAYOUT
 
 app_layout = [
-    dcc.Store(id='store-kca-bars', data=[]),
+    dbc.Card([
+        dbc.CardBody([
+            dcc.Markdown('''
+                # Kinetic Component Analysis (KCA)
+                ***
+
+                ### Introduction
+                ***
+
+                  This project is an implementation of a 2016
+                [paper](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2422183)
+                by Marcos Lopez de Prado and Riccardo Rebonato.
+
+                  The authors introduce **Kinetic Component Analysis**,
+                *"a state-space application that extracts the signal from a series
+                of noisy measurements by applying a Kalman Filter on a Taylor expansion
+                of a stochastic process"*.  
+
+                  For long I've been interested in the application of Kalman Filters in finance,
+                an industry infamous for exhibiting low signal-to-noise ratio in its data.
+
+                  Moreover, I find the model pleasingly interpretable -
+                decomposing an asset price's dynamics into familiar concepts:
+                position, velocity, and acceleration.
+
+                  Practitioners of technical analysis often speak of *trend* and *momentum*,
+                concepts which are rigorously defined and quantified in the KCA model.
+
+                  The aim of this project is to apply and evaluate the KCA model
+                via a futures price prediction and execution problem.
+
+                  Let's begin!
+            '''),
+        ]),
+    ]),
+    dbc.Card([
+        dbc.CardBody([
+            dcc.Markdown('''
+                ### Preparing the Data
+                ***
+
+                  The raw data set consists of futures trades in two assets: **MCU30** and **HGN9**,
+                including the fields: `TIMESTAMP`, `PRICE`, and `SIZE`.
+
+                  The objective is to forecast the futures' price evolution -
+                the first step is to establish the precise time series.
+                
+                  The decided-on approach is to resample the trades into *volume bars*,
+                where each bar summarizes trades with volume totalling a prespecified number -
+                100 contracts, say.
+                
+                Each bar includes the aggregated fields `TIMESTAMP_first`, `TIMESTAMP_last`, `SIZE_sum`, `NOTIONAL_sum`, and `VWAP`.
+                  The *volume-weighted average price (VWAP)* will be our target for price-prediction.
+
+                  The sampling approach is motivated by volume as a *proxy for market information*.
+                Hence, the price series will sample more (fewer) points during periods of heightened (lessened) market activity.
+
+                  From a modelling perspective, this is attractive for multiple reasons:
+
+                  * *Price-changes have reduced heteroskedasticity*.
+                    Sampling in tandem with market activity produces more consistent price-change magnitudes.
+
+                  * *Price-discontinuities are removed*.
+                    Sampling with volume ensures at least one trade per bar, avoiding price-jumps across empty bars.
+
+                  * *Price-series are more reliable*. Aggregated in every VWAP data point is a constant (volume) sample of trades. 
+
+                However, the sampling approach also has drawbacks:
+
+                  * *Price-changes are less interpretable*. The model views price evolving in volume - not chronological - time.
+
+                  * *Price-forecasts will require volume-forecasts*. A seperate model for volume (bars) will be necessary.
+
+                The resampled volume bars are viewable below, after **selecting a future** and **clicking Load**.
+                ***
+            '''),
+        ]),
+    ]),
     dbc.Card([
         dbc.CardHeader([
+            dcc.Markdown('''
+                ### Visualizing the VWAP
+                ***
+            '''),
             dbc.InputGroup(
                 size='sm',
                 children=[
@@ -44,25 +125,26 @@ app_layout = [
                         children='Trade Data:',
                     ),
                     dbc.Select(
-                        id='select-kca-data-path',
+                        id='select-kca-data-code',
                         options=[
-                            {'label':file, 'value':os.path.join('data', 'futures', file)}
-                            for file in reversed(sorted(os.listdir(os.path.join('data', 'futures'))))
-                            if file.endswith('trd2.gz')
+                            {'label':'MCU30', 'value':'MCU30'},
+                            {'label':'HGN9', 'value':'HGN9'},
                         ],
                         value=None,
+                        placeholder='<Select Future>',
                     ),
                     dbc.InputGroupAddon(
                         addon_type='prepend',
                         children='Volume per Bar:',
                     ),
-                    dbc.Input(
-                        id='input-kca-bars-delv',
-                        debounce=False,
+                    dbc.Select(
+                        id='select-kca-bars-delv',
+                        options=[
+                            {'label':f'{delv} Contracts', 'value':delv}
+                            for delv in (100, 250, 500)
+                        ],
                         value=100,
-                        type='number',
-                        min=1,
-                        step=1,
+                        placeholder='<Select VBAR>',
                     ),
                     dbc.InputGroupAddon(
                         addon_type='prepend',
@@ -77,6 +159,42 @@ app_layout = [
                         value='VBAR',
                     ),
                     dbc.InputGroupAddon(
+                        addon_type='prepend',
+                        children='Log Price?',
+                    ),
+                    dbc.InputGroupAddon(
+                        addon_type='prepend',
+                        children=dbc.Checkbox(
+                            id='checkbox-kca-bars-plog',
+                            checked=False,
+                            disabled=False,
+                        ), 
+                    ),
+                    dbc.InputGroupAddon(
+                        addon_type='prepend',
+                        children='Price Difference?',
+                    ),
+                    dbc.InputGroupAddon(
+                        addon_type='prepend',
+                        children=dbc.Checkbox(
+                            id='checkbox-kca-bars-diff',
+                            checked=False,
+                            disabled=False,
+                        ), 
+                    ),
+                    dbc.InputGroupAddon(
+                        addon_type='prepend',
+                        children='Cumulate Volume?',
+                    ),
+                    dbc.InputGroupAddon(
+                        addon_type='prepend',
+                        children=dbc.Checkbox(
+                            id='checkbox-kca-bars-cums',
+                            checked=False,
+                            disabled=False,
+                        ), 
+                    ),
+                    dbc.InputGroupAddon(
                         addon_type='append',
                         children=dbc.Button(
                             id='button-kca-bars-load',
@@ -89,6 +207,7 @@ app_layout = [
                 ],
             ),
         ]),
+        dcc.Store(id='store-kca-bars', data=[]),
         dbc.CardBody([
             dbc.Row([
                 dbc.Col(width=6, children=[
@@ -153,7 +272,7 @@ app_layout = [
                     dbc.Input(
                         id='input-kca-filt-pow',
                         debounce=False,
-                        value=2,
+                        value=0,
                         type='number',
                         min=0,
                         max=3,
@@ -272,7 +391,7 @@ app_layout = [
                         id='graph-kca-error-cae',
                         config={'displayModeBar':False, 'displaylogo':False},
                         figure={
-                            'data':{},
+                            'data':[],
                             'layout':{
                                 'title':'Cumulative Absolute Error',
                                 'yaxis':{'title':'CAE'},
@@ -286,7 +405,7 @@ app_layout = [
                         id='graph-kca-error-dist',
                         config={'displayModeBar':False, 'displaylogo':False},
                         figure={
-                            'data':{},
+                            'data':[],
                             'layout':{
                                 'title':'Error Distribution',
                                 'yaxis':{'title':'Error Bin Count'},
@@ -313,13 +432,13 @@ def register_app_callbacks(app:dash.Dash) -> None:
             ddp.Output('button-kca-bars-load', 'disabled'),
         ],
         [
-            ddp.Input('select-kca-data-path', 'value'),
-            ddp.Input('input-kca-bars-delv', 'value'),
+            ddp.Input('select-kca-data-code', 'value'),
+            ddp.Input('select-kca-bars-delv', 'value'),
             ddp.Input('select-kca-bars-time', 'value'),
         ],
     )
-    def set_load_state(path:str, delv:int, time:str) -> tp.Tuple[str, str, bool]:
-        if not path or not delv or not time or not os.path.isfile(path=path) or not isinstance(delv, int):
+    def set_load_state(*args:tp.Tuple[str]) -> tp.Tuple[str, str, bool]:
+        if not all(args):
             return 'Load', 'primary', True
         return 'Load', 'primary', False
 
@@ -331,38 +450,69 @@ def register_app_callbacks(app:dash.Dash) -> None:
         ],
         [ddp.Input('button-kca-bars-load', 'n_clicks')],
         [
-            ddp.State('select-kca-data-path', 'value'),
-            ddp.State('input-kca-bars-delv', 'value'),
+            ddp.State('select-kca-data-code', 'value'),
+            ddp.State('select-kca-bars-delv', 'value'),
             ddp.State('select-kca-bars-time', 'value'),
+            ddp.State('checkbox-kca-bars-plog', 'checked'),
+            ddp.State('checkbox-kca-bars-diff', 'checked'),
+            ddp.State('checkbox-kca-bars-cums', 'checked'),
             ddp.State('graph-kca-bars-vwap', 'figure'),
             ddp.State('graph-kca-bars-volume', 'figure'),
         ],
     )
-    def load_data(n_clicks:int, path:str, delv:str, time:str, *figures:tp.List[dict]) -> tp.List[dict]:
+    def load_data(
+        n_clicks:int,
+        code:str,
+        delv:str,
+        time:str,
+        plog:bool,
+        diff:bool,
+        cums:bool,
+        *figures:tp.List[dict],
+    ) -> tp.List[dict]:
         if not n_clicks:
             raise dex.PreventUpdate
         for figure in figures:
             figure.update({'data':[]})
-        if not path or not delv or not time or not os.path.isfile(path=path) or not isinstance(delv, int):
+        if not code or not delv or not time:
             return ([], *figures)
         try:
-            # Load clean futures trade data.
-            file = os.path.basename(path)
-            code = file.split(sep='.')[0]
-            data = pd.read_csv(filepath_or_buffer=path, usecols=['TIMESTAMP', 'PRICE', 'SIZE'])
-            data = data.loc[data['TIMESTAMP'].ne(f'DATA_QUALITY_CHANGE:{code}')]
-            # Enforce data types.
-            data['PRICE'] = data['PRICE'].astype(float)
-            data['SIZE'] = data['SIZE'].astype(int)
-            data['TIMESTAMP'] = pd.to_datetime(arg=data['TIMESTAMP'].astype(str), format='%Y%m%d%H%M%S.%f')
-            # Resample trade data into volume bars.
-            by = data['SIZE'].cumsum().floordiv(delv).mul(delv).rename('VBAR')
-            func = {'TIMESTAMP':['first', 'last'], 'NOTIONAL':'sum', 'SIZE':'sum'}
-            data['NOTIONAL'] = data['PRICE']*data['SIZE']
-            bars = data.groupby(by=by).agg(func=func)
-            bars.columns = bars.columns.map('_'.join)
-            bars.reset_index(level='VBAR', drop=False, inplace=True)
-            bars['VWAP'] = bars['NOTIONAL_sum']/bars['SIZE_sum']
+            bars_file = os.path.join('data', 'futures', f'{code}.bars.{delv}.gz')
+            if os.path.exists(path=bars_file):
+                # Load pre-aggregated volume-bar data.
+                dtype = {
+                    'VBAR':'int',
+                    'TIMESTAMP_first':'datetime64[ns]',
+                    'TIMESTAMP_last':'datetime64[ns]',
+                    'NOTIONAL_sum':'float',
+                    'SIZE_sum':'int',
+                    'VWAP':'float',
+                }
+                usecols = list(dtype.keys())
+                bars = pd.read_csv(filepath_or_buffer=bars_file, usecols=usecols)
+                bars = bars.astype(dtype=dtype, errors='raise')
+            else:
+                # Load trade data.
+                trd2_file = os.path.join('data', 'futures', f'{code}.trd2.gz')
+                usecols = ['TIMESTAMP', 'PRICE', 'SIZE']
+                trd2 = pd.read_csv(filepath_or_buffer=trd2_file, usecols=usecols)
+                trd2 = trd2.loc[lambda df:df['TIMESTAMP'].ne(f'DATA_QUALITY_CHANGE:{code}')]
+                # Enforce data types.
+                delv = int(delv)
+                trd2['PRICE'] = trd2['PRICE'].astype(float)
+                trd2['SIZE'] = trd2['SIZE'].astype(int)
+                trd2['TIMESTAMP'] = pd.to_datetime(arg=trd2['TIMESTAMP'].astype(str), format='%Y%m%d%H%M%S.%f')
+                # Resample trade data into volume-bars.
+                trd2['NOTIONAL'] = trd2['PRICE']*trd2['SIZE']
+                by = trd2['SIZE'].cumsum().floordiv(delv).mul(delv).rename('VBAR')
+                func = {'TIMESTAMP':['first', 'last'], 'NOTIONAL':'sum', 'SIZE':'sum'}
+                bars = trd2.groupby(by=by).agg(func=func)
+                bars.columns = bars.columns.map('_'.join)
+                bars.reset_index(level='VBAR', drop=False, inplace=True)
+                bars['VWAP'] = bars['NOTIONAL_sum']/bars['SIZE_sum']
+                # Save aggregated volume-bar data.
+                bars.to_csv(path_or_buf=bars_file, index=False)
+
             # Return volume-bar records.
             records = bars.to_dict(orient='records')
             colors = pcl.DEFAULT_PLOTLY_COLORS
@@ -372,13 +522,25 @@ def register_app_callbacks(app:dash.Dash) -> None:
                 for axis in ('xaxis', 'yaxis'):
                     for key in ('type', 'range', 'autorange'):
                         figure['layout'][axis].pop(key, None)
-                # Renew data.
+                # Extract data.
+                y = bars[col]
+                x = bars[time]
                 color = colors[i%len(colors)]
+                # Apply transformations.
+                if col=='VWAP':
+                    if plog:
+                        y = np.log(y)
+                    if diff:
+                        y = y.diff()
+                else:
+                    if cums:
+                        y = y.cumsum()
+                # Visualize data.
                 figure.update({'data':[
                     {
                         'type':'scatter',
-                        'y':bars[col],
-                        'x':bars[time],
+                        'y':y,
+                        'x':x,
                         'xaxis':'x',
                         'yaxis':'y',
                         'name':col.split('_')[0],
@@ -389,7 +551,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
                     },
                     {
                         'type':'box',
-                        'y':bars[col],
+                        'y':y,
                         'xaxis':'x2',
                         'yaxis':'y2',
                         'name':col.split('_')[0],
@@ -438,7 +600,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
             ddp.State('input-kca-filt-iter', 'value'),
         ],
     )
-    def fit_filt(n_clicks:int, records:tp.List[dict], time:str, pow:int, seed:float, iter:int, *figures:tp.List[dict]) -> dict:
+    def fit_filt(n_clicks:int, records:tp.List[dict], time:str, pow:int, seed:float, iter:int) -> dict:
         if not n_clicks:
             raise dex.PreventUpdate
         if not all([records, seed, iter]) or not isinstance(pow, int) or not isinstance(iter, int):
@@ -469,7 +631,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
             # Extrat model specification.
             text = json.dumps(obj=kf.__dict__, indent=4, default=lambda x:list(x) if pd.api.types.is_list_like(x) else float(x))
             filt = json.loads(s=text)
-            return (filt, text, *figures)
+            return filt, text
         except Exception as exception:
             print(str(exception))
             return {}, ''
