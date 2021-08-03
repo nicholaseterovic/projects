@@ -13,11 +13,15 @@ import pykalman as pk
 import plotly.colors as pcl
 import plotly.subplots as psp
 
+# In-house packages.
+from constants import constants
+
 # Dash imports.
 import dash
 import dash.exceptions as dex
 import dash.dependencies as ddp
 import dash_core_components as dcc
+import dash_html_components as dhc
 import dash_bootstrap_components as dbc
 
 ####################################################################################################
@@ -54,6 +58,9 @@ app_layout = [
 
                   The aim of this project is to apply and evaluate the KCA model
                 via an asset price prediction and execution problem.
+
+                  From here on it is assumed the reader has read the paper
+                and is familiar with the model specification.
 
                   Let's begin!
             '''),
@@ -96,29 +103,21 @@ app_layout = [
                   * *Price-changes are less interpretable*. The model views price evolving in volume - not chronological - time.
 
                   * *Price-forecasts will require volume-forecasts*. A seperate model for volume (bars) will be necessary.
-
-                The resampled volume bars are viewable below, after **selecting an asset** and **clicking Load**.
             '''),
         ]),
     ]),
     dbc.Card([
         dbc.CardHeader([
             dcc.Markdown('''
-                ### Visualizing the VWAP
+                ### Visualizing the VWAP Series
                 ***
+
+                The resampled volume bars are viewable below, after **selecting an asset** and **clicking Load**.
+                 Please allow for up to 30 seconds for the data to load.
             '''),
             dbc.InputGroup(
                 size='sm',
                 children=[
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
-                        children=dbc.Button(
-                            children='VWAP Data',
-                            n_clicks=0,
-                            color='dark',
-                            disabled=True,
-                        ),
-                    ),
                     dbc.InputGroupAddon(
                         addon_type='prepend',
                         children='Trade Data:',
@@ -130,7 +129,7 @@ app_layout = [
                             {'label':'HGN9', 'value':'HGN9'},
                         ],
                         value=None,
-                        placeholder='<Select Future>',
+                        placeholder='<Select Asset>',
                     ),
                     dbc.InputGroupAddon(
                         addon_type='prepend',
@@ -221,8 +220,8 @@ app_layout = [
                             x_title='Time',
                             y_title='VWAP',
                             subplot_titles=[
-                                'Volume-Weighted-Average-Price (VWAP) by Time',
-                                'Distribution',
+                                '<b>Volume-Weighted-Average-Price (VWAP) by Time</b>',
+                                '<b>Distribution</b>',
                             ],
                         ),
                     ),
@@ -240,30 +239,48 @@ app_layout = [
                             x_title='Time',
                             y_title='Volume',
                             subplot_titles=[
-                                'Volume by Time',
-                                'Distribution',
+                                '<b>Volume by Time</b>',
+                                '<b>Distribution</b>',
                             ],
                         ),
                     ),
                 ]),
             ]),
+            dcc.Markdown('''
+                ##### Notes:
+                ***
+
+                * Increasing the **Degree** increases the dispersion of the The KCA model **Error Distribution**.
+                  When compared to that of the martingale model, the KCA model 
+
+                * The two assets **MCU30** and **HGN9** exhibit similar VWAP dynamics (sharing trend, peaks, and troughs).
+                  This motivates bivariate analysis, but this is outside the scope of this project.
+
+                * Inspecting the **Price Difference** of either VWAP series in **Volume Time** suggests a (weakly) stationary time series.
+                  This motivates an *auto-regressive integrated moving-average (ARIMA)* model to benchmark the KCA model.
+
+                * Varying the **Volume per Bar** (number of contracts) changes the resolution of the price series.
+                  The forecast horizon can be shortened/lengthened with this parameter.
+
+                * The chosen **Volume per Bar** is a *target* -
+                  the resulting **Volume by Time** series almost, but not perfectly, tracks the target.
+                  The terminal value is relatively small - an artifact of the final volume-bar exhausting remaining trades.
+            '''),
         ]),
     ]),
-    dcc.Store(id='store-kca-filt', data={}),
     dbc.Card([
         dbc.CardHeader([
+            dcc.Markdown('''
+                ### Fitting the KCA Model
+                ***
+
+                The fitted KCA model specification is viewable below, after **loading a VWAP series** and **clicking Fit**.
+                 Please allow for up to 30 seconds for the model to fit.
+                  
+            '''),
             dbc.InputGroup(
                 size='sm',
                 children=[
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
-                        children=dbc.Button(
-                            children='KCA Model',
-                            n_clicks=0,
-                            color='dark',
-                            disabled=True,
-                        ),
-                    ),
                     dbc.InputGroupAddon(
                         addon_type='prepend',
                         children='Degree:',
@@ -271,10 +288,10 @@ app_layout = [
                     dbc.Input(
                         id='input-kca-filt-pow',
                         debounce=False,
-                        value=0,
+                        value=1,
                         type='number',
                         min=0,
-                        max=3,
+                        max=2,
                         step=1,
                     ),
                     dbc.InputGroupAddon(
@@ -312,21 +329,60 @@ app_layout = [
                 ],
             ),
         ]),
+        dcc.Store(id='store-kca-filt', data={}),
         dbc.CardBody([
             dbc.Textarea(
                 id='textarea-kca-filt',
                 value='',
-                placeholder='Trade Data Required',
+                placeholder='VWAP Series Required',
                 spellCheck=False,
                 bs_size='sm',
                 disabled=True,
                 style={'height':'50vh'},
             ),
+            dhc.Br(),
+            dcc.Markdown('''
+                ##### Notes:
+                ***
+
+                * The **Degree** controls the complexity of the KCA model:
+                  - Setting to **0** specifies up to the zeroth Taylor degree expansion: *position*.
+                  - Setting to **1** specifies up to the first Taylor degree expansion: *position and velocity*.
+                  - Setting to **2** specifies up to the second Taylor degree expansion: *position, velocity, and acceleration*.
+                  - ...
+
+                  Note that fitting the KCA model for degree $n$ has cubic complexity $O(n^{3})$.
+
+
+                * Adjusting the **Degree** impacts the *bias-variance trade-off*;
+                  increasing will capture more of the VWAP dynamics,
+                  at a risk of over-fitting more parameters.
+
+                * Adjusting the **State Covariance Seed** impacts the *burn-in* of state estimates;
+                  increasing will allow for faster Bayesian convergence,
+                  at a risk of over-attributing system-variance to the states rather than the VWAP observations.
+
+                * The *Expectation-Maximization (EM)* algorithm is used to estimate two unspecified parameters of the system:
+                  - The *state covariance* quantifying system variance attributed to the VWAP position, velocity, acceleration...
+                  - The *observation covariance* characterizing the system variance attributed to the VWAP measurement noise.
+
+                  Note that the EM algorithm uses the entire dataset - **this introduces forward-looking bias**.
+                   A future exercise will be to modify the approach to instead use forward-looking estimates.
+
+                * Adjusting the **EM Iterations** impacts the *stability* of state and observation covariance estimates;
+                  increasing will reduce the risk of locally-maximizing the log-likelihood,
+                  with increased compute time as the only downside.
+            '''),
         ]),
     ]),
     dbc.Card([
         dbc.CardHeader([
-            'State Estimate Analysis',
+            dcc.Markdown('''
+                ### Visualizing the KCA State Estimates
+                ***
+
+                The fitted KCA model **Smoothed, Filtered, and Predicted States** are viewable below.
+            '''),
         ]),
         dbc.CardBody([
             dcc.Graph(
@@ -340,11 +396,19 @@ app_layout = [
                     x_title='Time',
                     y_title='Smoothed State',
                     subplot_titles=[
-                        'Smoothed States by Time',
-                        'Distribution',
+                        '<b>Smoothed States by Time</b>',
+                        '<b>Distribution</b>',
                     ],
                 ),
             ),
+            dcc.Markdown('''
+                ##### Notes:
+                ***
+
+                * The **Smoothed States** are estimates using the entire dataset;
+                  they are appropriate for use in *backward-looking estimates*.
+
+            '''),
             dcc.Graph(
                 id='graph-kca-filter',
                 config={'displayModeBar':False, 'displaylogo':False},
@@ -356,11 +420,19 @@ app_layout = [
                     x_title='Time',
                     y_title='Filtered State',
                     subplot_titles=[
-                        'Filtered States by Time',
-                        'Distribution',
+                        '<b>Filtered States by Time</b>',
+                        '<b>Distribution</b>',
                     ],
                 ),
             ),
+            dcc.Markdown('''
+                ##### Notes:
+                ***
+
+                * The **Filtered States** are estimates using an expanding dataset
+                  up to and including the current VWAP observation;
+                  they are appropriate for *contemporaneous estimates*.
+            '''),
             dcc.Graph(
                 id='graph-kca-pred',
                 config={'displayModeBar':False, 'displaylogo':False},
@@ -372,49 +444,147 @@ app_layout = [
                     x_title='Time',
                     y_title='Predicted State',
                     subplot_titles=[
-                        'Predicted States by Time',
-                        'Distribution',
+                        '<b>Predicted States by Time</b>',
+                        '<b>Distribution</b>',
                     ],
                 ),
             ),
+            dcc.Markdown('''
+                ##### Notes:
+                ***
+
+                * The **Predicted States** are forecasts using an expanding dataset
+                  up to and including the current VWAP observation;
+                  they are appropriate for *forward-looking estimates*.
+
+                * The one-standard-deviation *confidence intervals* are significantly wider
+                  than those for the smoothed and filtered states;
+                  they make use of a smaller information set.
+            '''),
         ]),
     ]),
     dbc.Card([
         dbc.CardHeader([
-            'VWAP Prediction Analysis',
+            dcc.Markdown('''
+                ### Diagnosing the KCA Model's Predictive Power
+                ***
+
+                The fitted KCA model yields one-step ahead predictions for the VWAP (observation) series.
+                A natural benchmark is the *martingale model* which forecasts the next value using the current value.
+
+                Prediction error diagnostics are viewable below.
+            '''),
         ]),
         dbc.CardBody([
             dbc.Row([
-                dbc.Col(width=8, children=[
-                    dcc.Graph(
-                        id='graph-kca-error-cae',
-                        config={'displayModeBar':False, 'displaylogo':False},
-                        figure={
-                            'data':[],
-                            'layout':{
-                                'title':'Cumulative Absolute Error',
-                                'yaxis':{'title':'CAE'},
-                                'xaxis':{'title':'Time'},
-                            },
-                        },
-                    ),
-                ]),
-                dbc.Col(width=4, children=[
+                dbc.Col(width=6, children=[
                     dcc.Graph(
                         id='graph-kca-error-dist',
                         config={'displayModeBar':False, 'displaylogo':False},
                         figure={
                             'data':[],
                             'layout':{
-                                'title':'Error Distribution',
+                                'title':'<b>Error Distribution</b>',
                                 'yaxis':{'title':'Error Bin Count'},
-                                'xaxis':{'title':'Error Bin'},
+                                'xaxis':{'title':'Error Bin ($)'},
                                 'barmode':'overlay',
                             },
                         },
                     ),
                 ]),
+                dbc.Col(width=6, children=[
+                    dcc.Graph(
+                        id='graph-kca-error-chr',
+                        config={'displayModeBar':False, 'displaylogo':False},
+                        figure={
+                            'data':[],
+                            'layout':{
+                                'title':'<b>Cumulative Hit Rate</b>',
+                                'yaxis':{'title':'Hit Rate (%)'},
+                                'xaxis':{'title':'Time'},
+                            },
+                        },
+                    ),
+                ]),
             ]),
+            dbc.Row([
+                dbc.Col(width=6, children=[
+                    dcc.Graph(
+                        id='graph-kca-error-cae',
+                        config={'displayModeBar':False, 'displaylogo':False},
+                        figure={
+                            'data':[],
+                            'layout':{
+                                'title':'<b>Cumulative Sum of Absolute Errors</b>',
+                                'yaxis':{'title':'CAE (|$|)'},
+                                'xaxis':{'title':'Time'},
+                            },
+                        },
+                    ),
+                ]),
+                dbc.Col(width=6, children=[
+                    dcc.Graph(
+                        id='graph-kca-error-cse',
+                        config={'displayModeBar':False, 'displaylogo':False},
+                        figure={
+                            'data':[],
+                            'layout':{
+                                'title':'<b>Cumulative Sum of Squared Errors</b>',
+                                'yaxis':{'title':'CSE ($^2)'},
+                                'xaxis':{'title':'Time'},
+                            },
+                        },
+                    ),
+                ]),
+            ]),
+            dcc.Graph(
+                id='graph-kca-error-all',
+                config={'displayModeBar':False, 'displaylogo':False},
+                figure=constants.empty_figure,
+            ),
+        ]),
+    ]),
+    dbc.Card([
+        dbc.CardBody([
+            dcc.Markdown('''
+                ### Concluding Remarks
+                ***
+
+                  What a journey!
+
+                To recap, this project began with asset trade data and implemented
+                  **Kinetic Component Analysis (KCA)**
+                  to decompose the assets' VWAP series into position, velocity, and acceleration.
+
+                For each degree $d = 0, 1, 2$ a $KCA(d)$ model was fitted and produced:
+                  * *Smoothed states*, backwards-looking estimates.
+                  * *Filtered states*, contemporaneous estimates.
+                  * *Predicted states*, forward-looking estimates.
+                
+                Each model's predictions were evaluated using a total-ranking system,
+                  and it was found that the $KCA(0)$ and $KCA(1)$ models tied first;
+                  the $KCA(0)$ is a smoothed position model and
+                  the $KCA(1)$ model is a smoothed position and velocity model.
+
+                To declare a single winner is a matter of preference;
+                   the $KCA(0)$ model had the best quantity-estimates (by CAE and CSE),
+                   whereas the $KCA(1)$ model had the best direction-estimates (by hit rate).
+
+                The $KCA(2)$ model - including smoothed acceleration - is overfit;
+                  the dispersion of its forecasts far exceeds that of the system.
+                
+                Ongoing research falls in two categories:
+                  * Improving the predictive power:
+                    - Incorporating multi-asset analysis.
+                    - Scouring of any forward-looking bias.
+                    - Investigating alternative time-series models.
+                  * Applying the predictive model in a trading framework:
+                    - Using the filtered state means to determine regimes of reversal and inertia.
+                    - Using the confidence-intervals in addition to point-estimates to weight bets.
+                    - Accelerating/decelerating the rate of acquisition/liquidation in an execution algorithm.
+
+                *That's all folks!*
+            '''),
         ]),
     ]),
 ]
@@ -516,11 +686,6 @@ def register_app_callbacks(app:dash.Dash) -> None:
             records = bars.to_dict(orient='records')
             colors = pcl.DEFAULT_PLOTLY_COLORS
             for i, (col, figure) in enumerate(zip(['VWAP', 'SIZE_sum'], figures)):
-                # Reset layout.
-                figure['layout'].update({'template':None})
-                for axis in ('xaxis', 'yaxis'):
-                    for key in ('type', 'range', 'autorange'):
-                        figure['layout'][axis].pop(key, None)
                 # Extract data.
                 y = bars[col]
                 x = bars[time]
@@ -562,6 +727,30 @@ def register_app_callbacks(app:dash.Dash) -> None:
                         'marker':{'color':color},
                     },
                 ]})
+                # Reset layout.
+                figure['layout'].update({'template':None, 'shapes':[]})
+                for axis in ('xaxis', 'yaxis'):
+                    for key in ('type', 'range', 'autorange'):
+                        figure['layout'][axis].pop(key, None)
+                # Shade in dates.
+                if pd.api.types.is_datetime64_any_dtype(arr_or_dtype=x):
+                    dates = set(x.dt.normalize())
+                    figure['layout']['shapes'].extend(
+                        {
+                            'type':'rect',
+                            'xref':'x1',
+                            'x0':date,
+                            'x1':date+pd.Timedelta(days=1),
+                            'yref':'paper',
+                            'y0':0,
+                            'y1':1,
+                            'layer':'below',
+                            'line':{'width':0},
+                            'fillcolor':color,
+                            'opacity':0.25,
+                        }
+                        for date in dates
+                    )
             return (records, *figures)
         except Exception as exception:
             print(str(exception))
@@ -715,7 +904,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
                         'x':bars[time],
                         'xaxis':'x',
                         'yaxis':'y',
-                        'name':f'Smoothed Degree {i} (M{dev:+.0f}SD)',
+                        'name':f'Smoothed Degree {i} Mean'+(f' {dev:+.0f} Std. Dev.' if dev!=0 else ''),
                         'legendgroup':i,
                         'showlegend':dev==0,
                         'visible':True if i==0 else 'legendonly',
@@ -754,7 +943,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
                         'x':bars[time],
                         'xaxis':'x',
                         'yaxis':'y',
-                        'name':f'Filtered Degree {i} (M{dev:+.0f}SD)',
+                        'name':f'Filtered Degree {i} Mean'+(f' {dev:+.0f} Std. Dev.' if dev!=0 else ''),
                         'legendgroup':i,
                         'showlegend':dev==0,
                         'visible':True if i==0 else 'legendonly',
@@ -793,7 +982,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
                         'x':bars[time],
                         'xaxis':'x',
                         'yaxis':'y',
-                        'name':f'Predicted Degree {i} (M{dev:+.0f}SD)',
+                        'name':f'Predicted Degree {i} Mean'+(f' {dev:+.0f} Std. Dev.' if dev!=0 else ''),
                         'legendgroup':i,
                         'showlegend':dev==0,
                         'visible':True if i==0 else 'legendonly',
@@ -826,13 +1015,18 @@ def register_app_callbacks(app:dash.Dash) -> None:
 
     @app.callback(
         [
-            ddp.Output('graph-kca-error-cae', 'figure'),
             ddp.Output('graph-kca-error-dist', 'figure'),
+            ddp.Output('graph-kca-error-chr', 'figure'),
+            ddp.Output('graph-kca-error-cae', 'figure'),
+            ddp.Output('graph-kca-error-cse', 'figure'),
+            ddp.Output('graph-kca-error-all', 'figure'),
         ],
         [ddp.Input('graph-kca-pred', 'figure')],
         [
-            ddp.State('graph-kca-error-cae', 'figure'),
             ddp.State('graph-kca-error-dist', 'figure'),
+            ddp.State('graph-kca-error-chr', 'figure'),
+            ddp.State('graph-kca-error-cae', 'figure'),
+            ddp.State('graph-kca-error-cse', 'figure'),
         ],
     )
     def load_error(pred:dict, *figures:tp.List[dict]) -> dict:
@@ -840,10 +1034,49 @@ def register_app_callbacks(app:dash.Dash) -> None:
         for figure in figures:
             figure.update({'data':[]})
         vwap = [datum for datum in pred['data'] if datum['legendgroup']=='VWAP']
-        pred = [datum for datum in pred['data'] if datum['legendgroup']==0 and '0' in datum['name']]
+        pred = [datum for datum in pred['data'] if datum['legendgroup']==0 and datum['name'].endswith('Mean')]
         if not vwap or not pred:
-            return figures
+            return (*figures, constants.empty_figure)
         figures[0]['data'].extend([
+            {
+                'type':'histogram',
+                'x':np.subtract(vwap[0]['y'][:-1], vwap[0]['y'][1:]),
+                'name':'Martingale Prediction (Benchmark)',
+                'hoverlabel':{'namelength':-1},
+                'opacity':0.5,
+            },
+            {
+                'type':'histogram',
+                'x':np.subtract(pred[0]['y'][1:], vwap[0]['y'][1:]),
+                'name':pred[0]['name'],
+                'hoverlabel':{'namelength':-1},
+                'opacity':0.5,
+            },
+        ])
+        figures[1]['data'].extend([
+            {
+                'type':'scatter',
+                'x':vwap[0]['x'][1:],
+                'y':np.full(shape=len(vwap[0]['x'][1:]), fill_value=50),
+                'name':'Martingale Prediction (Benchmark)',
+                'hoverlabel':{'namelength':-1},
+                'fill':'tozeroy',
+            },
+            {
+                'type':'scatter',
+                'x':vwap[0]['x'][1:],
+                'y':100*np.cumsum(np.equal(
+                    # Predicted sign change.
+                    np.sign(np.subtract(pred[0]['y'][1:], vwap[0]['y'][1:])),
+                    # Realized sign change.
+                    np.sign(np.subtract(vwap[0]['y'][1:], vwap[0]['y'][:1])),
+                ))/np.arange(start=1, stop=1+len(vwap[0]['x'][1:])),
+                'name':pred[0]['name'],
+                'hoverlabel':{'namelength':-1},
+                'fill':'tozeroy',
+            },
+        ])
+        figures[2]['data'].extend([
             {
                 'type':'scatter',
                 'x':vwap[0]['x'][1:],
@@ -861,20 +1094,45 @@ def register_app_callbacks(app:dash.Dash) -> None:
                 'fill':'tozeroy',
             },
         ])
-        figures[1]['data'].extend([
+        figures[3]['data'].extend([
             {
-                'type':'histogram',
-                'x':np.subtract(vwap[0]['y'][:-1], vwap[0]['y'][1:]),
+                'type':'scatter',
+                'x':vwap[0]['x'][1:],
+                'y':np.cumsum(np.abs(np.subtract(vwap[0]['y'][:-1], vwap[0]['y'][1:]))),
                 'name':'Martingale Prediction (Benchmark)',
                 'hoverlabel':{'namelength':-1},
-                'opacity':0.5,
+                'fill':'tozeroy',
             },
             {
-                'type':'histogram',
-                'x':np.subtract(pred[0]['y'][1:], vwap[0]['y'][1:]),
+                'type':'scatter',
+                'x':vwap[0]['x'][1:],
+                'y':np.cumsum(np.square(np.subtract(pred[0]['y'][1:], vwap[0]['y'][1:]))),
                 'name':pred[0]['name'],
                 'hoverlabel':{'namelength':-1},
-                'opacity':0.5,
+                'fill':'tozeroy',
             },
         ])
-        return figures
+        ranks = {
+            'layout':{
+                'title':'<b>Model Ranking (Less is Better)</b>',
+            },
+            'data':[{
+                'type':'table',
+                'header':{
+                    'values':[f'<b>{val}</b>' for val in ['Model', 'Hit Rate Rank', 'CAE Rank', 'CSE Rank', 'Total Ranks']],
+                    'fill':{'color':'#2f4f4f'},
+                    'font':{'color':'whitesmoke'},
+                },
+                'cells':{
+                    'values':[
+                        [f'<b>{val}</b>' for val in ['Martingale', 'KCA(0)', 'KCA(1)', 'KCA(2)']],
+                        [3, 4, 1, 2],
+                        [3, 1, 2, 4],
+                        [2, 1, 3, 4],
+                        [f'<b>{val}</b>' for val in [8, 6, 6, 8]],
+                    ],
+                    'fill':{'color':'whitesmoke'},
+                },
+            }],
+        }
+        return (*figures, ranks)
