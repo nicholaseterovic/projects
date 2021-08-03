@@ -35,12 +35,16 @@ import bug_and_lizard.bug_and_lizard as bug_and_lizard
 app = dash.Dash(
     name=__name__,
     title='Nicholas Eterovic',
-    #update_title='Nicholas Eterovic',
     assets_folder='assets',
     prevent_initial_callbacks=True,
     external_stylesheets=[
         dbc.themes.BOOTSTRAP,
+        # Font Awesome for icons.
         'https://use.fontawesome.com/releases/v5.15.0/css/all.css',
+    ],
+    external_scripts=[
+        # Mathjax for formulae.
+        'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-MML-AM_CHTML',
     ],
 )
 server = app.server
@@ -107,6 +111,7 @@ app.layout = dhc.Div(
                 value=list(projects)[0],
                 style={'height':'0px'},
                 persistence=True,
+                persistence_type='local',
                 children=[
                     dcc.Tab(
                         value=project,
