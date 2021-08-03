@@ -53,7 +53,7 @@ app_layout = [
                 concepts which are rigorously defined and quantified in the KCA model.
 
                   The aim of this project is to apply and evaluate the KCA model
-                via a futures price prediction and execution problem.
+                via an asset price prediction and execution problem.
 
                   Let's begin!
             '''),
@@ -65,10 +65,10 @@ app_layout = [
                 ### Preparing the Data
                 ***
 
-                  The raw data set consists of futures trades in two assets: **MCU30** and **HGN9**,
+                  The raw data set consists of trades in two assets: **MCU30** and **HGN9**,
                 including the fields: `TIMESTAMP`, `PRICE`, and `SIZE`.
 
-                  The objective is to forecast the futures' price evolution -
+                  The objective is to forecast the assets' price evolution -
                 the first step is to establish the precise time series.
                 
                   The decided-on approach is to resample the trades into *volume bars*,
@@ -97,8 +97,7 @@ app_layout = [
 
                   * *Price-forecasts will require volume-forecasts*. A seperate model for volume (bars) will be necessary.
 
-                The resampled volume bars are viewable below, after **selecting a future** and **clicking Load**.
-                ***
+                The resampled volume bars are viewable below, after **selecting an asset** and **clicking Load**.
             '''),
         ]),
     ]),
@@ -477,7 +476,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
         if not code or not delv or not time:
             return ([], *figures)
         try:
-            bars_file = os.path.join('data', 'futures', f'{code}.bars.{delv}.gz')
+            bars_file = os.path.join('data', 'ticks', f'{code}.bars.{delv}.gz')
             if os.path.exists(path=bars_file):
                 # Load pre-aggregated volume-bar data.
                 dtype = {
@@ -493,7 +492,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
                 bars = bars.astype(dtype=dtype, errors='raise')
             else:
                 # Load trade data.
-                trd2_file = os.path.join('data', 'futures', f'{code}.trd2.gz')
+                trd2_file = os.path.join('data', 'ticks', f'{code}.trd2.gz')
                 usecols = ['TIMESTAMP', 'PRICE', 'SIZE']
                 trd2 = pd.read_csv(filepath_or_buffer=trd2_file, usecols=usecols)
                 trd2 = trd2.loc[lambda df:df['TIMESTAMP'].ne(f'DATA_QUALITY_CHANGE:{code}')]
