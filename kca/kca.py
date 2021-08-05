@@ -250,9 +250,6 @@ app_layout = [
                 ##### Notes:
                 ***
 
-                * Increasing the **Degree** increases the dispersion of the The KCA model **Error Distribution**.
-                  When compared to that of the martingale model, the KCA model 
-
                 * The two assets **MCU30** and **HGN9** exhibit similar VWAP dynamics (sharing trend, peaks, and troughs).
                   This motivates bivariate analysis, but this is outside the scope of this project.
 
