@@ -28,6 +28,7 @@ import rubiks_cube.rubiks_cube as rubiks_cube
 import pivot_table.pivot_table as pivot_table
 import game_of_life.game_of_life as game_of_life
 import bug_and_lizard.bug_and_lizard as bug_and_lizard
+#import boids.boid_simulation as boids
 
 ####################################################################################################
 # APPLICATION
@@ -53,20 +54,20 @@ ns = djs.Namespace('dapp', 'tabulator')
 ####################################################################################################
 # LAYOUT
 
-projects = {
-    'home':{'label':'Home', 'icon':'fas fa-home', 'module':home},
-    'cube':{'label':'Rubik\'s Cube', 'icon':'fas fa-cube', 'module':rubiks_cube},
-    'pivot':{'label':'Pivot Table', 'icon':'fas fa-border-all', 'module':pivot_table},
-    'fractal':{'label':'Fractal Generator', 'icon':'fas fa-wave-square', 'module':fractal},
-    'bal':{'label':'The Bug and the Lizard', 'icon':'fas fa-bug', 'module':bug_and_lizard},
-    'kca':{'label':'Kinetic Component Analysis', 'icon':'fas fa-chart-line', 'module':kca},
-    'gol':{'label':'Conway\'s Game of Life', 'icon':'fas fa-heart', 'module':game_of_life},
-}
-
 links = {
     'github':{'icon':'fab fa-github', 'href':'https://github.com/NicholasEterovic'},
     'linkedin':{'icon':'fab fa-linkedin', 'href':'https://www.linkedin.com/in/nicholaseterovic'},
     'instagram':{'icon':'fab fa-instagram', 'href':'https://www.instagram.com/nicholaseterovic'},
+}
+projects = {
+    'home':{'label':'Home', 'icon':'fas fa-home', 'module':home},
+    'cube':{'label':'Rubik\'s Cube', 'icon':'fas fa-cube', 'module':rubiks_cube},
+    'pivot':{'label':'Pivot Table', 'icon':'fas fa-ruler-combined', 'module':pivot_table},
+    'fractal':{'label':'Self-Similar Fractals', 'icon':'fas fa-wave-square', 'module':fractal},
+    'bal':{'label':'The Bug and the Lizard', 'icon':'fas fa-bug', 'module':bug_and_lizard},
+    'kca':{'label':'Kinetic Component Analysis', 'icon':'fas fa-chart-line', 'module':kca},
+    'gol':{'label':'Conway\'s Game of Life', 'icon':'fas fa-heart', 'module':game_of_life},
+    #'boid':{'label':'Boids', 'icon':'fas fa-crow', 'module':boids},
 }
 
 app.layout = dhc.Div(
@@ -75,15 +76,6 @@ app.layout = dhc.Div(
         dtc.SideBar(
             bg_color='#2f4f4f',
             children=[
-                dtc.SideBarItem(
-                    id=f'sbi-{project}',
-                    icon=params['icon'],
-                    label=params['label'],
-                )
-                for project, params in projects.items()
-            ] + [
-                dhc.Hr(),
-            ] + [
                 dhc.Div(
                     style={'margin-left':'20px'},
                     children=[
@@ -101,6 +93,15 @@ app.layout = dhc.Div(
                     ],
                 )
                 for link, params in links.items()
+            ] + [
+                dhc.Hr(),
+            ] + [
+                dtc.SideBarItem(
+                    id=f'sidebaritem-{project}',
+                    icon=params['icon'],
+                    label=params['label'],
+                )
+                for project, params in projects.items()
             ] + [
                 dhc.Hr(),
             ],
@@ -139,11 +140,11 @@ app.layout = dhc.Div(
 
 @app.callback(
     ddp.Output('tabs-projects', 'value'),
-    [ddp.Input(f'sbi-{project}', 'n_clicks') for project in projects],
+    [ddp.Input(f'sidebaritem-{project}', 'n_clicks') for project in projects],
 )
 def click_tab(*_:tp.List[int]) -> str:
     trigger = dash.callback_context.triggered[0]
-    return trigger['prop_id'].replace('sbi-', '').replace('.n_clicks', '')
+    return trigger['prop_id'].replace('sidebaritem-', '').replace('.n_clicks', '')
 
 for project, params in projects.items():
     if 'module' in params and hasattr(params['module'], 'register_app_callbacks'):
