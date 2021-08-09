@@ -10,7 +10,6 @@ import itertools as it
 # Dash imports.
 import dash
 import dash_tabulator as dtb
-import dash.exceptions as dex
 import dash.dependencies as ddp
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
@@ -302,36 +301,14 @@ empty_cube_figure = {
 
 app_layout = [
     dbc.Card([
-        dbc.CardBody([
-            dcc.Markdown('''
-                # Solving the Rubik's Cube
-                ***
-
-                ### Introduction
-                ***
-
-                  This project originated in the Summer of 2020
-                with a sudden motivation to learn how to solve a **Rubik's cube**.
-                Little did I know of how deep the cubing rabbit's hole goes!
-
-                  As I sat fiddling and memorizing the various algorithms needed to assemble colors,
-                I decided that a better way to learn the cube's intricacies was instead to *code it up*.
-
-                  The result is a *virtual cube* that I am proud to share with you.
-                If you are curious,
-                I have documented below my modelling and implementation approach.
-            '''),
-        ]),
-    ]),
-    dbc.Card([
         dbc.CardHeader([
             dbc.InputGroup(
                 size='sm',
                 children=[
                     dbc.InputGroupAddon(addon_type='prepend', children=[
                         dbc.Button(
-                            id='rubik-button-reset',
-                            children='Reset',
+                            id='rubik-button-load',
+                            children='Load',
                             n_clicks=0,
                             color='primary',
                             disabled=False,
@@ -409,68 +386,6 @@ app_layout = [
             ]),
         ]),
     ]),
-    dbc.Card([
-        dbc.CardBody([
-            dcc.Markdown('''
-                ### The Group of Rotations
-                ***
-
-                  An unsurprising fact is that there are finitely many cube configurations;
-                beginning from a solved cube,
-                any (possible) state can be represented by its sequence of intermediate rotations.
-
-                  Extending this idea, one can model the cube's rotations with a *group*,
-                an algebraic structure $(G, \\times)$ consisting of a set $G$ equipped with an operation $\\times$.
-
-                  Here, the set $G$ consists of all **finite sequences**
-                of the **U**p, **D**own, **L**eft, **R**ight, **T**op, and **B**ottom **quarter-turn rotations**:
-
-                $$ G = \\lbrace U, D, L, R, T, B, \dots \\rbrace $$
-
-                  The group operation $\\times$ maps any two elements of $G$ to their *composition*,
-                which by definition is also in $G$:
-
-                $$ \\times : G^{2} \\rightarrow G $$
-
-                Now, $(G,\\times)$ qualifies as a group as it satisfies the defining assumptions:
-
-                * **Associativity of the operation:**
-
-                  $$ \\forall f, g, h \in G, \\ (f \\times g) \\times h = f \\times (g \\times h) $$
-
-                  In other words, it does not matter how you group a sequence of rotations -
-                only that they are executed in the same order.
-
-                * **Existence of an identity:**
-                
-                  $$ \exists \\ i \in G : \\forall g \in G, \\ g \\times i = i = i \\times g $$
-
-                  For the Rubik's cube group, the identity is the empty sequence of rotations i.e doing nothing.
-
-                * **Existence of inverses:**
-                
-                  $$ \\forall g \in G, \exists \\ g^{-1} : g \\times g^{-1} = i $$
-
-                  A single-face rotation $ g \in \\lbrace U, D, L, R, T, B \\rbrace $ has a natural inverse:
-                that same rotation performed thrice more.
-
-                  That is,
-                $g^{-1} = g^{3} \in G: g \\times g^{-1} = g \\times g^{3} = g \\times (g \\times g \\times g) = i $.
-
-                  A sequence of rotations has a more involved inverse: the reverse-sequence of inverse-rotations.
-
-                  For example,
-                $ (L \\times U \\times B \\times R)^{-1} =
-                R^{-1} \\times B^{-1} \\times U^{-1} \\times L^{-1} = 
-                R^{3} \\times B^{3} \\times U^{3} \\times L^{3} $.
-
-                Identifying the Rubik's cube group allows the application of *group theory* and its numerous results.
-
-                I invite the reader to [learn more!](https://en.wikipedia.org/wiki/Rubik%27s_Cube_group)
-
-            '''),
-        ]),
-    ]),
 ]
 
 ####################################################################################################
@@ -479,23 +394,13 @@ app_layout = [
 def register_app_callbacks(app:dash.Dash) -> None:
 
     @app.callback(
-        ddp.Output('rubik-button-reset', 'n_clicks'),
-        [ddp.Input('tabs-projects', 'value')],
-        [ddp.State('rubik-button-reset', 'n_clicks')],
-    )
-    def click_reset(tab:str, n_clicks:int) -> int:
-        if tab != 'rubik' or n_clicks > 0:
-            raise dex.PreventUpdate
-        return n_clicks + 1
-
-    @app.callback(
         [
             ddp.Output('rubik-store-state', 'data'),
             ddp.Output('rubik-table-history', 'data'),
         ],
         [
             ddp.Input('rubik-button-clear', 'n_clicks'),
-            ddp.Input('rubik-button-reset', 'n_clicks'),
+            ddp.Input('rubik-button-load', 'n_clicks'),
             ddp.Input('rubik-button-scramble', 'n_clicks'),
             ddp.Input('rubik-graph-state', 'clickData'),
         ],
@@ -517,7 +422,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
         dim = int(dim)
         scramble = int(scramble)
 
-        if trigger['prop_id'].endswith('reset.n_clicks'):
+        if trigger['prop_id'].endswith('load.n_clicks'):
             # Load new cube.
             cube = RubiksCube(dim=dim, state=None)
             return cube.get_state(), []
