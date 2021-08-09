@@ -19,6 +19,7 @@ import sklearn.utils as sku
 
 # In-house packages.
 import utils.system as su
+from constants import constants
 
 # In-house projects.
 import kca.kca as kca
@@ -28,7 +29,7 @@ import rubiks_cube.rubiks_cube as rubiks_cube
 import pivot_table.pivot_table as pivot_table
 import game_of_life.game_of_life as game_of_life
 import bug_and_lizard.bug_and_lizard as bug_and_lizard
-#import boids.boid_simulation as boids
+import boids.boid_simulation as boids
 
 ####################################################################################################
 # APPLICATION
@@ -61,20 +62,20 @@ links = {
 }
 projects = {
     'home':{'label':'Home', 'icon':'fas fa-home', 'module':home},
-    'cube':{'label':'Rubik\'s Cube', 'icon':'fas fa-cube', 'module':rubiks_cube},
+    'rubik':{'label':'Rubik\'s Cube', 'icon':'fas fa-cube', 'module':rubiks_cube},
     'pivot':{'label':'Pivot Table', 'icon':'fas fa-ruler-combined', 'module':pivot_table},
     'fractal':{'label':'Self-Similar Fractals', 'icon':'fas fa-wave-square', 'module':fractal},
     'bal':{'label':'The Bug and the Lizard', 'icon':'fas fa-bug', 'module':bug_and_lizard},
     'kca':{'label':'Kinetic Component Analysis', 'icon':'fas fa-chart-line', 'module':kca},
     'gol':{'label':'Conway\'s Game of Life', 'icon':'fas fa-heart', 'module':game_of_life},
-    #'boid':{'label':'Boids', 'icon':'fas fa-crow', 'module':boids},
+    'boids':{'label':'Boids', 'icon':'fas fa-crow', 'module':boids},
 }
 
 app.layout = dhc.Div(
     style={'position':'relative'},
     children=[
         dtc.SideBar(
-            bg_color='#2f4f4f',
+            bg_color=constants.bg_color,
             children=[
                 dhc.Div(
                     style={'margin-left':'20px'},
