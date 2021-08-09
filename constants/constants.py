@@ -1,5 +1,3 @@
-bg_color = '#2f4f4f'
-
 empty_figure = {
     'data':[],
     'layout':{
