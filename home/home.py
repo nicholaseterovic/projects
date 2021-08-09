@@ -24,9 +24,6 @@ app_layout = [
                             # Home
                             ***
 
-                            ### This Page
-                            ***
-
                               Greetings!
                               
                               You've stumbled upon my humble personal website,
