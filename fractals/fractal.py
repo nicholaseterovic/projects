@@ -7,14 +7,13 @@ import numpy as np
 import typing as tp
 import pandas as pd
 import itertools as it
-import plotly.offline as py
 
 # In-house packages.
 from constants import constants
 
 # Dash packages.
 import dash
-import dash_canvas as dcv
+import dash.exceptions as dex
 import dash.dependencies as ddp
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
@@ -79,32 +78,45 @@ class Fractal(object):
 # LAYOUT
 
 empty_path_figure = {
+    'data':[{
+        'type':'scatter',
+        'x':[],
+        'y':[],
+    }],
     'layout':{
         **constants.empty_figure['layout'],
-        'annotations':[{
-            'text':'<b>Draw</b> a piece-wise linear path<br>and <b>click</b> "Confirm"',
-            'xref':'paper',
-            'yref':'paper',
-            'x':0.5,
-            'y':0.5,
-            'showarrow':False,
-            'font':{'size':15},
-        }],
+        'margin':{'b':0, 'l':0, 'r':0, 'pad':0},
+        'showlegend':False,
+        'dragmode':'drawline',
+        'xaxis':{'visible':False, 'range':[0, 1], 'autorange':False},
+        'yaxis':{'visible':False, 'range':[0, 1], 'autorange':False, 'scaleanchor':'x'},
+        'title':'<b>Draw</b> a piece-wise linear path below',
     },
 }
 
 app_layout = [
     dbc.Row(no_gutters=True, children=[
-        dbc.Col(width=6, children=[
-            dbc.Card(style={'height':'50vh'}, children=[
+        dbc.Col(width=4, children=[
+            dbc.Card([
                 dbc.CardHeader([
                     dbc.InputGroup(
                         size='sm',
                         children=[
+                            dbc.InputGroupAddon(
+                                addon_type='prepend',
+                                children=[
+                                    dbc.Button(
+                                        id=f'button-fractal-{path}-clear',
+                                        children='Clear',
+                                        color='primary',
+                                        n_clicks=0,
+                                    ),
+                                ],
+                            ),
                             dbc.DropdownMenu(
-                                id=f'fractal-ddm-{comp}',
-                                label=f'Fractal {comp.capitalize()}',
-                                color='link',
+                                id=f'dropdownmenu-fractal-{path}',
+                                label=f'Fractal {path.capitalize()}',
+                                color='info',
                                 direction='right',
                                 addon_type='prepend',
                                 children=[
@@ -114,38 +126,17 @@ app_layout = [
                     ),
                 ]),
                 dbc.CardBody([
-                    dbc.Row(no_gutters=True, children=[
-                        dbc.Col(width=6, children=[
-                            dcv.DashCanvas(
-                                id=f'fractal-canvas-{comp}',
-                                width=1000,
-                                height=1000,
-                                tool='line',
-                                goButtonTitle='Confirm',
-                                hide_buttons=[
-                                    'zoom',
-                                    'pan',
-                                    'pencil',
-                                    'rectangle',
-                                    'select',
-                                ],
-                            ),
-                        ]),
-                        dbc.Col(width=6, children=[
-                            dcc.Graph(
-                                id=f'fractal-graph-{comp}',
-                                style={'height':'100%'},
-                                figure=empty_path_figure,
-                                config={'displayModeBar':False, 'displaylogo':False},
-                            ),
-                        ]),
-                    ]),
+                    dcc.Graph(
+                        id=f'graph-fractal-{path}',
+                        figure=empty_path_figure,
+                        config={'displayModeBar':False, 'displaylogo':False},
+                    ),
                 ])
             ])
-            for comp in ['seed', 'generator']
+            for path in ['seed', 'generator']
         ]),
-        dbc.Col(width=6, children=[
-            dbc.Card(style={'height':'100vh'}, children=[
+        dbc.Col(width=8, children=[
+            dbc.Card(style={'height':'100%'}, children=[
                 dbc.CardHeader([
                     dbc.InputGroup(
                         size='sm',
@@ -154,7 +145,7 @@ app_layout = [
                                 addon_type='append',
                                 children=[
                                     dbc.Button(
-                                        id='fractal-button-clear',
+                                        id='button-fractal-clear',
                                         children='Clear',
                                         color='primary',
                                         n_clicks=0,
@@ -165,7 +156,7 @@ app_layout = [
                                 addon_type='append',
                                 children=[
                                     dbc.Button(
-                                        id='fractal-button-iterate',
+                                        id='button-fractal-iterate',
                                         children='Generate',
                                         color='warning',
                                         n_clicks=0,
@@ -177,14 +168,20 @@ app_layout = [
                 ]),
                 dbc.CardBody([
                     dcc.Store(
-                        id='fractal-store-iterations',
+                        id='store-fractal-iterations',
                         data={},
                     ),
                     dcc.Graph(
-                        id='fractal-graph-iterations',
-                        style={'height':'100%'},
+                        id='graph-fractal-iterations',
                         config={'displayModeBar':False, 'displaylogo':False},
-                        figure=constants.empty_figure,
+                        style={'height':'100%'},
+                        figure={
+                            **empty_path_figure,
+                            'layout':{
+                                **empty_path_figure['layout'],
+                                'title':'',
+                            }
+                        },
                     ),
                 ]),
             ]),
@@ -197,36 +194,42 @@ app_layout = [
 
 def register_app_callbacks(app:dash.Dash) -> None:
 
-    for comp in ['seed', 'generator']:
+    for path in ['seed', 'generator']:
         @app.callback(
-            ddp.Output(f'fractal-graph-{comp}', 'figure'),
-            [ddp.Input(f'fractal-canvas-{comp}', 'json_data')],
+            ddp.Output(f'graph-fractal-{path}', 'figure'),
+            [
+                ddp.Input(f'button-fractal-{path}-clear', 'n_clicks'),
+                ddp.Input(f'graph-fractal-{path}', 'relayoutData')
+            ],
+            [ddp.State(f'graph-fractal-{path}', 'figure')],
         )
-        def parse_canvas(data:str) -> dict:
-            data = json.loads(data)
-            figure = {**empty_path_figure, 'data':[]}
-            if not data['objects']:
+        def set_path(clear_clicks:int, relayoutData:dict, figure:dict) -> dict:
+            xpath = figure['data'][0]['x']
+            ypath = figure['data'][0]['y']
+            trigger = dash.callback_context.triggered[0]
+            if trigger['prop_id'].endswith('n_clicks'):
+                xpath.clear()
+                ypath.clear()
                 return figure
-
-            lines = pd.DataFrame(data['objects'])
-            moves = lines[['x2', 'y2']].sub(lines[['x1', 'y1']].values)
-            moves.rename(columns=lambda s:s[0], inplace=True)
-            path = pd.concat([pd.DataFrame([{'x':0, 'y':0}]), moves.cumsum()])
-            path['y'] *= -1
-
-            figure['data'] = [{'type':'scatter', 'x':path['x'], 'y':path['y'], 'showlegend':False}]
-            figure['layout']['annotations'] = []
+            lines = [shape for shape in relayoutData.get('shapes', []) if shape['type']=='line']            
+            for line in lines:
+                if not xpath:
+                    xpath.append(line['x0'])
+                if not ypath:
+                    ypath.append(line['y0'])
+                xpath.append(xpath[-1]+line['x1']-line['x0'])
+                ypath.append(ypath[-1]+line['y1']-line['y0'])
             return figure
 
     @app.callback(
-        ddp.Output(f'fractal-store-iterations', 'data'),
+        ddp.Output(f'store-fractal-iterations', 'data'),
         [
-            ddp.Input(f'fractal-button-clear', 'n_clicks'),
-            ddp.Input(f'fractal-button-iterate', 'n_clicks'),
-            ddp.Input(f'fractal-graph-seed', 'figure'),
-            ddp.Input(f'fractal-graph-generator', 'figure'),
+            ddp.Input(f'button-fractal-clear', 'n_clicks'),
+            ddp.Input(f'button-fractal-iterate', 'n_clicks'),
+            ddp.Input(f'graph-fractal-seed', 'figure'),
+            ddp.Input(f'graph-fractal-generator', 'figure'),
         ],
-        [ddp.State(f'fractal-store-iterations', 'data')],
+        [ddp.State(f'store-fractal-iterations', 'data')],
     )
     def store_iterations(clear:int, iterate:int, seed:dict, generator:dict, iterations:dict) -> dict:
         trigger = dash.callback_context.triggered[0]
@@ -247,8 +250,8 @@ def register_app_callbacks(app:dash.Dash) -> None:
         return iterations
 
     @app.callback(
-        ddp.Output('fractal-graph-iterations', 'figure'),
-        [ddp.Input('fractal-store-iterations', 'data')],
+        ddp.Output('graph-fractal-iterations', 'figure'),
+        [ddp.Input('store-fractal-iterations', 'data')],
     )
     def graph_iterations(iterations:dict) -> dict:
         figure = {**constants.empty_figure, 'data':[]}
