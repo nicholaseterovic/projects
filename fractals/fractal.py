@@ -22,145 +22,181 @@ import dash_bootstrap_components as dbc
 
 class Fractal(object):
     
+    # Class attributes.
+    unit = pd.Series({'dx':1, 'dy':0})
+    example_paths = {
+        'seed':{
+            'Horizontal Line':[
+                {'x0':0, 'x1':1, 'y0':0, 'y1':0, 'fractal':True},
+            ],
+            'Vertical Line':[
+                {'x0':0, 'x1':0, 'y0':0, 'y1':1, 'fractal':True},
+            ],
+            'Diagonal Line':[
+                {'x0':0, 'x1':1, 'y0':0, 'y1':1, 'fractal':True},
+            ],
+            'Unit Triangle':[
+                {'x0':0, 'x1':0.5, 'y0':0, 'y1':0.5*3**0.5, 'fractal':True},
+                {'x0':0.5, 'x1':1, 'y0':0.5*3**0.5, 'y1':0, 'fractal':True},
+                {'x0':1, 'x1':0, 'y0':0, 'y1':0, 'fractal':True},
+            ],
+            'Unit Square':[
+                {'x0':0, 'x1':0, 'y0':0, 'y1':1, 'fractal':True},
+                {'x0':0, 'x1':1, 'y0':1, 'y1':1, 'fractal':True},
+                {'x0':1, 'x1':1, 'y0':1, 'y1':0, 'fractal':True},
+                {'x0':1, 'x1':0, 'y0':0, 'y1':0, 'fractal':True},
+            ],
+        },
+        'generator':{
+            'Minkowski Sausage':[
+                {'x0':0, 'x1':1/4, 'y0':0, 'y1':0, 'fractal':True},
+                {'x0':1/4, 'x1':1/4, 'y0':0, 'y1':1/4, 'fractal':True},
+                {'x0':1/4, 'x1':1/2, 'y0':1/4, 'y1':1/4, 'fractal':True},
+                {'x0':1/2, 'x1':1/2, 'y0':1/4, 'y1':0, 'fractal':True},
+                {'x0':1/2, 'x1':1/2, 'y0':0, 'y1':-1/4, 'fractal':True},
+                {'x0':1/2, 'x1':3/4, 'y0':-1/4, 'y1':-1/4, 'fractal':True},
+                {'x0':3/4, 'x1':3/4, 'y0':-1/4, 'y1':0, 'fractal':True},
+                {'x0':3/4, 'x1':1, 'y0':0, 'y1':0, 'fractal':True},
+            ],
+            'Koch Curve':[
+                {'x0':0, 'x1':1/3, 'y0':0, 'y1':0, 'fractal':True},
+                {'x0':1/3, 'x1':1/2, 'y0':0, 'y1':(1/6)*3**(1/2), 'fractal':True},
+                {'x0':1/2, 'x1':2/3, 'y0':(1/6)*3**(1/2), 'y1':0, 'fractal':True},
+                {'x0':2/3, 'x1':1, 'y0':0, 'y1':0, 'fractal':True},
+            ],
+            'Cesàro Antisnowflake':[
+                {'x0':0, 'x1':1/3, 'y0':0, 'y1':0, 'fractal':True},
+                {'x0':1/3, 'x1':1/2, 'y0':0, 'y1':(-1/6)*3**(1/2), 'fractal':True},
+                {'x0':1/2, 'x1':2/3, 'y0':(-1/6)*3**(1/2), 'y1':0, 'fractal':True},
+                {'x0':2/3, 'x1':1, 'y0':0, 'y1':0, 'fractal':True},
+            ],
+            'Bifurcation':[
+                {'x0':0, 'x1':1/2, 'y0':0, 'y1':0, 'fractal':False},
+                {'x0':1/2, 'x1':1, 'y0':0, 'y1':1/2, 'fractal':True},
+                {'x0':1/2, 'x1':1, 'y0':0, 'y1':-1/2, 'fractal':True},
+            ],
+            'Lightning Bolt':[
+                {'x0':0, 'x1':1/2, 'y0':0, 'y1':1/4, 'fractal':True},
+                {'x0':1/2, 'x1':1/2, 'y0':1/4, 'y1':-1/4, 'fractal':True},
+                {'x0':1/2, 'x1':1, 'y0':-1/4, 'y1':0, 'fractal':True},
+            ],
+        },
+    }
+
     def __init__(self:object, seed:tp.List[dict], generator:tp.List[dict]) -> object:
+        # Set public attributes.
         self.seed = seed
         self.generator = generator
-
+        # Set internal attributes.
         self._seed = pd.DataFrame(self.seed)
         self._generator = pd.DataFrame(self.generator)
+        self._N:int = 1000
+        self._n:int = 0
 
-    @staticmethod
-    def _get_rotation_matrix(rads:float=np.pi/2) -> pd.DataFrame:
-        cos, sin = np.cos(rads), np.sin(rads)
-        rotation_matrix = pd.DataFrame([[+cos, -sin], [+sin, +cos]])
-        return rotation_matrix
+    def __iter__(self) -> object:
+        return self
+    
+    def __next__(self) -> pd.DataFrame:
+        if self._n  >= self._N:
+            raise StopIteration
+        interpolated_seed = Fractal.interpolate_seed(
+            seed=self._seed,
+            generator=self._generator,
+        )
+        self._seed = interpolated_seed
+        self._n += 1
+        return interpolated_seed
     
     @staticmethod
-    def _interpolate(start:pd.Series, end:pd.Series, generator:pd.DataFrame) -> pd.DataFrame:
+    def interpolate_seed(seed:pd.DataFrame, generator:pd.DataFrame) -> pd.DataFrame:
+        if seed.empty or generator.empty:
+            return seed
+        u = Fractal.unit
+        S = seed.copy()
         
-        u_vec = generator.iloc[-1] - generator.iloc[0]
-        v_vec = end - start
+        # Enrich seed line(s) properties.
+        S['dx'] = S['x1'] - S['x0']
+        S['dy'] = S['y1'] - S['y0']
+        S['length'] = S[['dx', 'dy']].pow(2).sum(axis=1).pow(0.5)
+        S['cross'] = np.where(np.cross(S[['dx', 'dy']], u)>0, -1, 1)
+        S['angle'] = S[['dx', 'dy']].dot(u).div(S['length']).map(np.arccos).mul(S['cross'])
 
-        u_len = u_vec.pow(2).sum()**.5
-        v_len = v_vec.pow(2).sum()**.5
+        # Interpolate each seed line.
+        lines = []
+        for i, s in S.iterrows():
+            if not s['fractal']:
+                # Do not interpolate non-fractal seed line.
+                line = s[seed.columns].to_frame().T
+            else:
+                # Rotate, rescale, and translate generator to interpolate seed line.
+                G = generator.copy()
+                R = Fractal._get_rotation_matrix(rads=s['angle'])
+                G[['x0', 'y0']] = G[['x0', 'y0']].dot(R.T).values * s['length'] + s[['x0', 'y0']].values
+                G[['x1', 'y1']] = G[['x1', 'y1']].dot(R.T).values * s['length'] + s[['x0', 'y0']].values                    
+                line = G[seed.columns]
+            lines.append(line)
 
-        scale = v_len/u_len
-        angle = np.arccos((u_vec*v_vec).sum()/(u_len*v_len))
-        if u_vec[0]*v_vec[1]-u_vec[1]*v_vec[0] > 0:
-            angle *= -1
+        interpolated_seed = pd.concat(lines)
+        return interpolated_seed
 
-        rotation = Fractal._get_rotation_matrix(angle)
-        interpolation = generator.sub(generator.iloc[0]).mul(scale).dot(rotation).add(start)
-        return interpolation
-    
-    def get_iteration(self:object, n:int=0) -> pd.DataFrame:
-        if not isinstance(n, int) or n<0:
-            raise ValueError(n)
-        elif n==0:
-            return self._seed
-        elif n in self._iterations:
-            return self._iterations[n]
-        else:
-            prev_iteration = self.get_iteration(n=n-1)
-            iteration = pd.concat(ignore_index=True, objs=[
-                Fractal._interpolate(
-                    start=prev_iteration.iloc[i],
-                    end=prev_iteration.iloc[i+1],
-                    generator=self._generator,
-                ).iloc[int(i>0):]
-                for i in range(len(prev_iteration)-1)
-            ])
-            self._iterations[n] = iteration
-            return iteration
+    @staticmethod
+    def _get_rotation_matrix(rads:float=np.pi/2) -> np.ndarray:
+        cos, sin = np.cos(rads), np.sin(rads)
+        rotation_matrix = np.array([[+cos, -sin], [+sin, +cos]])
+        return rotation_matrix
+
+    @staticmethod
+    def _get_path_from_figure(figure:dict) -> tp.List[dict]:
+        return [
+            {'x0':x0, 'y0':y0, 'x1':x1, 'y1':y1, 'fractal':bool(i)}
+            for i, d in enumerate(figure['data'][:2])
+            for x0, y0, x1, y1 in zip(d['x'][1::3], d['y'][1::3], d['x'][2::3], d['y'][2::3])
+        ]
 
 ####################################################################################################
 # LAYOUT
 
+# Fractal construction lines.
 static_segment_datum = {
+    'type':'scatter',
     'name':'Static Segments',
-    'line':{'color':'black', 'dash':'dash', 'width':5},
+    'hoverlabel':{'namelength':-1},
+    'line':{'color':'#7f7f7f', 'dash':'dot', 'width':5},
+    'opacity':0.75,
+    'x':[None],
+    'y':[None],
 }
 fractal_segment_datum = {
+    'type':'scatter',
     'name':'Fractal Segments',
-    'line':{'color':'red', 'dash':'dash', 'width':5},
+    'hoverlabel':{'namelength':-1},
+    'line':{'color':'#1f77b4', 'dash':'dot', 'width':5},
+    'opacity':0.75,
+    'x':[None],
+    'y':[None],
 }
-
-example_lines = {
-    'seed':{
-        'Horizontal Line':[
-            {'x0':0, 'x1':1, 'y0':0, 'y1':0, 'fractal':True},
-        ],
-        'Vertical Line':[
-            {'x0':0, 'x1':0, 'y0':0, 'y1':1, 'fractal':True},
-        ],
-        'Diagonal Line':[
-            {'x0':0, 'x1':1, 'y0':0, 'y1':1, 'fractal':True},
-        ],
-        'Unit Triangle':[
-            {'x0':0, 'x1':1, 'y0':0, 'y1':0, 'fractal':True},
-            {'x0':1, 'x1':0.5, 'y0':0, 'y1':0.5*3**0.5, 'fractal':True},
-            {'x0':0.5, 'x1':0, 'y0':0.5*3**0.5, 'y1':0, 'fractal':True},
-        ],
-        'Unit Square':[
-            {'x0':0, 'x1':1, 'y0':0, 'y1':0, 'fractal':True},
-            {'x0':1, 'x1':1, 'y0':0, 'y1':1, 'fractal':True},
-            {'x0':1, 'x1':0, 'y0':1, 'y1':1, 'fractal':True},
-            {'x0':0, 'x1':0, 'y0':1, 'y1':0, 'fractal':True},
-        ],
-    },
-    'generator':{
-        'Minkowski Sausage':[
-            {'x0':0, 'x1':1, 'y0':0, 'y1':0, 'fractal':True},
-            {'x0':1, 'x1':1, 'y0':0, 'y1':1, 'fractal':True},
-            {'x0':1, 'x1':2, 'y0':1, 'y1':1, 'fractal':True},
-            {'x0':2, 'x1':2, 'y0':1, 'y1':0, 'fractal':True},
-            {'x0':2, 'x1':2, 'y0':0, 'y1':-1, 'fractal':True},
-            {'x0':2, 'x1':3, 'y0':-1, 'y1':-1, 'fractal':True},
-            {'x0':3, 'x1':3, 'y0':-1, 'y1':0, 'fractal':True},
-            {'x0':3, 'x1':4, 'y0':0, 'y1':0, 'fractal':True},
-        ],
-        'Koch Curve':[
-            {'x0':0, 'x1':1, 'y0':0, 'y1':0, 'fractal':True},
-            {'x0':1, 'x1':1.5, 'y0':0, 'y1':0.5*3**0.5, 'fractal':True},
-            {'x0':1.5, 'x1':2, 'y0':0.5*3**0.5, 'y1':0, 'fractal':True},
-            {'x0':2, 'x1':3, 'y0':0, 'y1':0, 'fractal':True},
-        ],
-        'Cesàro Antisnowflake':[
-            {'x0':0, 'x1':1, 'y0':0, 'y1':0, 'fractal':True},
-            {'x0':1, 'x1':1.5, 'y0':0, 'y1':-0.5*3**0.5, 'fractal':True},
-            {'x0':1.5, 'x1':2, 'y0':-0.5*3**0.5, 'y1':0, 'fractal':True},
-            {'x0':2, 'x1':3, 'y0':0, 'y1':0, 'fractal':True},
-        ],
-        'Bifurcation':[
-            {'x0':0, 'x1':0, 'y0':0, 'y1':1, 'fractal':False},
-            {'x0':0, 'x1':-1, 'y0':1, 'y1':2, 'fractal':True},
-            {'x0':0, 'x1':1, 'y0':1, 'y1':2, 'fractal':True},
-        ],
-    },
+interpolate_segment_datum = {
+    'type':'scatter',
+    'name':'Interpolation Segment',
+    'hoverlabel':{'namelength':-1},
+    'line':{'color':'#ff7f0e', 'dash':'dot', 'width':5},
+    'opacity':0.75,
+    'x':[None, 0, 1],
+    'y':[None, 0, 0],
 }
-
 empty_path_figure = {
     'data':[
-        {
-            **datum,
-            'line':{**datum.get('line', {}), 'dash':'none'},
-            'type':'scatter',
-            'x':[None],
-            'y':[None],
-            'mode':'lines+markers',
-            'hoverlabel':{'namelength':-1},
-            'marker':{'size':10},
-        }
+        {**datum, 'line':{**datum.get('line', {}), 'dash':'none'}}
         for datum in (static_segment_datum, fractal_segment_datum)
     ],
     'layout':{
-        **constants.empty_figure['layout'],
-        'legend':{'xanchor':'left', 'x':0, 'yanchor':'bottom', 'y':0, 'bgcolor':'rgba(0, 0, 0, 0)'},
-        'showlegend':True,
-        'dragmode':'drawline',
-        'xaxis':{'visible':False},
-        'yaxis':{'visible':False, 'scaleanchor':'x'},
+        'hovermode':'closest',
+        'dragmode':'zoom',
         'newshape':fractal_segment_datum,
+        'showlegend':True,
+        'xaxis':{'visible':True},
+        'yaxis':{'visible':True, 'scaleanchor':'x'},
+        'legend':{'orientation':'h', 'bgcolor':'rgba(0, 0, 0, 0)'},
     },
 }
 
@@ -174,7 +210,29 @@ app_layout = [
                 ### Introduction
                 ***
 
-                Coming soon!
+                I find fractals a fascinating example of *emergent behaviour* - 
+                complicated patterns which are generated by simple rules behind the scenes.
+
+                This project implements a simple method of creating fractals (rather, their finite approximations),
+                  using two components:
+
+                * An initial **seed**, which is the fractal's zeroth iteration;
+                * An iterative **generator**, which is used to construct the next fractal iteration.
+
+                The algorithm is simple; given a fractal iteration, *interpolate every straight-line segment
+                  with a copy of the generator*.
+                  This yields the next fractal iteration, for which the algorithm repeats.
+
+                Below is a tool I created to expirement with different combinations of seeds and generators -
+                  I was pleasantly surprised with the outcomes!
+
+                One can select from **Fractal Seed** and **Fractal Generator** example libraries or
+                  custom-draw lines directly on the construction graphs.
+
+                Once a seed and generator pair is ready, click **Iterate** to get the next fractal iteration.
+                  Note that I have capped the number of line segments at 1000 (as it grows exponentially fast).
+
+                Happy Fractalling!
             '''),
         ]),
     ]),
@@ -185,6 +243,17 @@ app_layout = [
                     dbc.InputGroup(
                         size='sm',
                         children=[
+                            dbc.InputGroupAddon(
+                                addon_type='prepend',
+                                children=[
+                                    dbc.Button(
+                                        id=f'button-fractal-{path}-clear',
+                                        children='Clear',
+                                        color='warning',
+                                        n_clicks=0,
+                                    ),
+                                ],
+                            ),
                             dbc.DropdownMenu(
                                 id=f'dropdownmenu-fractal-{path}',
                                 label=f'Fractal {path.capitalize()}',
@@ -202,27 +271,13 @@ app_layout = [
                                         children=key,
                                         n_clicks=0,
                                     )
-                                    for key in example_lines[path].keys()
+                                    for key in Fractal.example_paths[path].keys()
                                 ],
                             ),
                             dbc.Input(
                                 f'input-fractal-{path}',
                                 value='Custom Linear Shape',
                                 disabled=False,
-                            ),
-                            dbc.InputGroupAddon(
-                                children='Modifying:',
-                            ),
-                            dbc.InputGroupAddon(
-                                addon_type='prepend',
-                                children=[
-                                    dbc.Button(
-                                        id=f'button-fractal-{path}-mod',
-                                        children=fractal_segment_datum['name'],
-                                        color='danger',
-                                        n_clicks=1,
-                                    ),
-                                ],
                             ),
                             dbc.InputGroupAddon(
                                 addon_type='prepend',
@@ -236,13 +291,16 @@ app_layout = [
                                 ],
                             ),
                             dbc.InputGroupAddon(
+                                children='Modifying:',
+                            ),
+                            dbc.InputGroupAddon(
                                 addon_type='prepend',
                                 children=[
                                     dbc.Button(
-                                        id=f'button-fractal-{path}-clear',
-                                        children='Clear',
+                                        id=f'button-fractal-{path}-mod',
+                                        children=fractal_segment_datum['name'],
                                         color='primary',
-                                        n_clicks=0,
+                                        n_clicks=1,
                                     ),
                                 ],
                             ),
@@ -253,7 +311,17 @@ app_layout = [
                     dcc.Graph(
                         id=f'graph-fractal-{path}',
                         config={'displayModeBar':False, 'displaylogo':False},
-                        figure=empty_path_figure,
+                        figure={
+                            'layout':{
+                                **empty_path_figure['layout'],
+                                'dragmode':'drawline',
+                                'title':f'{path.capitalize()} Construction',
+                            },
+                            'data':[
+                                *empty_path_figure['data'],
+                                *([interpolate_segment_datum] if path=='generator' else []),
+                            ],
+                        },
                     ),
                 ])
             ])
@@ -261,7 +329,7 @@ app_layout = [
         ]),
         dcc.Store(
             id='store-fractal',
-            data={'seed':[], 'generator':[]},
+            data={'seed':[], 'generator':[], 'n':0},
         ),
         dbc.Col(width=8, children=[
             dbc.Card(style={'height':'100%'}, children=[
@@ -274,7 +342,7 @@ app_layout = [
                                 children=[
                                     dbc.Button(
                                         id='button-fractal-iterate',
-                                        children='Fractal Iteration',
+                                        children='Iterate',
                                         color='warning',
                                         n_clicks=0,
                                     ),
@@ -302,8 +370,9 @@ app_layout = [
 def register_app_callbacks(app:dash.Dash) -> None:
     
     for path in ['seed', 'generator']:
-        key = list(example_lines[path].keys())[0]
-
+        
+        # Load default seed and generator on first tab visit.
+        key = list(Fractal.example_paths[path].keys())[0]
         @app.callback(
             ddp.Output(f'dropdownmenuitem-fractal-{key}-{path}', 'n_clicks'),
             [ddp.Input('tabs-projects', 'value')],
@@ -328,7 +397,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
                 ddp.Input(f'graph-fractal-{path}', 'relayoutData'),
             ] + [
                 ddp.Input(f'dropdownmenuitem-fractal-{key}-{path}', 'n_clicks')
-                for key in example_lines[path].keys()
+                for key in Fractal.example_paths[path].keys()
             ],
             [
                 ddp.State(f'graph-fractal-{path}', 'figure'),
@@ -338,12 +407,13 @@ def register_app_callbacks(app:dash.Dash) -> None:
             ],
         )
         def set_path(clear:int, undo:int, mod:int, relayoutData:dict, *args:list, path:str=path) -> dict:
-            states = list(args)[len(example_lines[path].keys()):]
-            i = mod%2
+            states = list(args)[len(Fractal.example_paths[path].keys()):]
             trigger = dash.callback_context.triggered[0]
+
+            # Load example path.
             if trigger['prop_id'].endswith(f'{path}.n_clicks'):
                 *_, key, path = trigger['prop_id'].rsplit('.', maxsplit=1)[0].split('-')
-                lines = example_lines[path][key]
+                lines = Fractal.example_paths[path][key]
                 for axis in ('x', 'y'):
                     for j in (0, 1):
                         del states[0]['data'][j][axis][1:]
@@ -354,17 +424,23 @@ def register_app_callbacks(app:dash.Dash) -> None:
                 states[3] = key
                 return states
 
+            # Change modifying state between fractal and static segments.
+            i = mod%2
             if trigger['prop_id'].endswith('mod.n_clicks'):
                 if i:
                     states[0]['layout']['newshape'] = fractal_segment_datum
                     states[1] = fractal_segment_datum['name']
-                    states[2] = 'danger'
+                    states[2] = 'primary'
                 else:
                     states[0]['layout']['newshape'] = static_segment_datum
                     states[1] = static_segment_datum['name']
                     states[2] = 'secondary'
                 return states
 
+            # Indicate custom path.
+            states[3] = 'Custom'
+
+            # Clear existing path.
             X = states[0]['data'][i]['x']
             Y = states[0]['data'][i]['y']
             if trigger['prop_id'].endswith('clear.n_clicks'):
@@ -376,13 +452,15 @@ def register_app_callbacks(app:dash.Dash) -> None:
                 del Y[-3:]
                 return states
             
+            # Extract non-null path points.
             XY = [xy for datum in states[0]['data'] for xy in zip(datum['x'], datum['y'])]
-            XY = list(filter(all, XY))
+            XY = list(filter((None, None).__ne__, XY))
 
             r = 0.05
             lines = [shape for shape in relayoutData.get('shapes', []) if shape['type']=='line']
             for line in lines:
                 if XY:
+                    # Snap custom line endpoints to existing points.
                     D0, D1 = zip(*(
                         (
                             ((x-line['x0'])**2 + (y-line['y0'])**2)**0.5,
@@ -400,6 +478,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
                         key=lambda dxy:dxy[0],
                         default=(0, (line['x1'], line['y1'])),
                     )
+                # Add custom line to figure data.
                 X.extend([line['x0'], line['x1'], None])
                 Y.extend([line['y0'], line['y1'], None])
             return states
@@ -409,29 +488,36 @@ def register_app_callbacks(app:dash.Dash) -> None:
         [
             ddp.Input(f'graph-fractal-seed', 'figure'),
             ddp.Input(f'graph-fractal-generator', 'figure'),
+            ddp.Input('button-fractal-iterate', 'n_clicks'),
         ],
         [ddp.State(f'store-fractal', 'data')],
     )
-    def set_fractal(seed:dict, generator:dict, data:dict) -> dict:
+    def store_fractal(seed:dict, generator:dict, n_clicks:int, data:dict) -> dict:
         trigger = dash.callback_context.triggered[0]
         if trigger['prop_id'].endswith('figure'):
-            path = trigger['prop_id'].rsplit('.', maxsplit=1)[0].rsplit('-', maxsplit=1)[-1]
-            data[path] = [
-                {'x0':x0, 'y0':y0, 'x1':x1, 'y1':y1, 'fractal':bool(i)}
-                for i, d in enumerate(trigger['value']['data'])
-                for x0, y0, x1, y1 in zip(d['x'][1::3], d['y'][1::3], d['x'][2::3], d['y'][2::3])
-            ]
-
-            print(pd.DataFrame(data[path]))
-
+            # Reset seed and generator data on figure edit.
+            for path, figure in (('seed', seed), ('generator', generator)):
+                data[path] = Fractal._get_path_from_figure(figure=figure)
+            data['n'] = 0
+            return data
+        interpolated_seed = Fractal.interpolate_seed(
+            seed=pd.DataFrame(data['seed']),
+            generator=pd.DataFrame(data['generator']),
+        )
+        data['seed'] = interpolated_seed.to_dict(orient='records')
+        data['n'] += 1
         return data
 
     @app.callback(
-        ddp.Output(f'graph-fractal', 'figure'),
-        [ddp.Input(f'store-fractal', 'data')],
+        [
+            ddp.Output('graph-fractal', 'figure'),
+            ddp.Output('button-fractal-iterate', 'disabled'),
+        ],
+        [ddp.Input('store-fractal', 'data')],
         [ddp.State(f'graph-fractal', 'figure')],
     )
     def plot_fractal(data:dict, figure:dict) -> dict:
+        n = data['n']
         lines = data['seed']
         for axis in ('x', 'y'):
             for j in (0, 1):
@@ -440,4 +526,5 @@ def register_app_callbacks(app:dash.Dash) -> None:
             j = int(line['fractal'])
             figure['data'][j]['x'].extend([line['x0'], line['x1'], None])
             figure['data'][j]['y'].extend([line['y0'], line['y1'], None])
-        return figure
+        figure['layout']['title'] = f'Fractal Iteration #{n}'
+        return figure, len(lines)>1000
