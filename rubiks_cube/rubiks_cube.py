@@ -161,7 +161,7 @@ class RubiksCube:
     def unscramble(self:object) -> str:
         '''
         ____________________________________________________________
-        > 'Solves' the cube by undoing rotations from initial solved state.
+        > 'Solves' the cube by undoing rotations back to the initial solved state.
         
         Output:
             Comma-seperated sequence of applied rotations.
@@ -170,6 +170,9 @@ class RubiksCube:
         operation = ','.join(f'{move[:-1]}{-int(move[-1])%4}' for move in reversed(self._history))
         self.rotate(operation=operation)
         return operation
+
+    def solve(self:object) -> str:
+        return
     
     ###############################################################################################
     # VISUALIZATION
@@ -389,13 +392,15 @@ app_layout = [
                     dtb.DashTabulator(
                         id='rubik-table-history',
                         data=[],
-                        columns=[{
-                            'title':'Move History',
-                            'field':'move',
-                            'hozAlign':'center',
-                            'headerSort':False,
-                            'headerSortStartingDir':'desc',
-                        }],
+                        columns=[
+                            {
+                                'title':'Move Sequence (Click to Revert)',
+                                'columns':[
+                                    {'title':'Index', 'field':'i', 'hozAlign':'center', 'headerSort':False},
+                                    {'title':'Move', 'field':'move', 'hozAlign':'center', 'headerSort':False},
+                                ]
+                            },
+                        ],
                         options={
                             'placeholder':'None',
                             'layout':'fitDataStretch',
@@ -498,6 +503,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
             ddp.Input('rubik-button-reset', 'n_clicks'),
             ddp.Input('rubik-button-scramble', 'n_clicks'),
             ddp.Input('rubik-graph-state', 'clickData'),
+            ddp.Input('rubik-table-history', 'rowClicked'),
         ],
         [
             ddp.State('rubik-select-dim', 'value'),
@@ -521,12 +527,23 @@ def register_app_callbacks(app:dash.Dash) -> None:
             # Load new cube.
             cube = RubiksCube(dim=dim, state=None)
             return cube.get_state(), []
+
+        if trigger['prop_id'].endswith('history.rowClicked'):
+            # Revert cube.
+            i = trigger['value']['i']
+            history = [move for move in history if move['i']<i]
+            cube = RubiksCube(dim=dim, state=None)
+            operation = ','.join(move['move'] for move in history)
+            cube.rotate(operation=operation)
+            return cube.get_state(), history
+
         cube = RubiksCube(dim=dim, state=state)
+        n = len(history)
 
         if trigger['prop_id'].endswith('scramble.n_clicks'):
             # Scramble cube.
             operation = cube.scramble(n=scramble)
-            history.extend({'move':move} for move in operation.split(','))
+            history.extend({'move':move, 'i':n+i} for i, move in enumerate(operation.split(',')))
             return cube.get_state(), history
 
         if trigger['prop_id'].endswith('state.clickData'):
@@ -538,7 +555,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
             axis += '+' if coord[axis]>0 else '-'
             face = list(faces)[list(axes).index(axis)]
             cube.rotate(operation=face)
-            history.append({'move':face})
+            history.append({'move':face, 'i':n})
             return cube.get_state(), history
 
         return cube.get_state(), history
