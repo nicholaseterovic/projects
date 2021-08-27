@@ -15,6 +15,9 @@ import dash.dependencies as ddp
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 
+# In-house packages.
+import constants.constants as constants
+
 ####################################################################################################
 
 class RubiksCube:
@@ -28,22 +31,37 @@ class RubiksCube:
         '''
         ____________________________________________________________
         > Instantiate a Rubik's cube.
+
+        Args:
+            dim: Positive integer dimension of the cube.
+            state: Initial state of the cube, defaults to solved state if None.
+
+        Returns:
+            RubiksCube object.
         ____________________________________________________________
         '''
         self.dim = dim
-        self._history = []
+        self.state = state
         
-        if state is None:
-            state = []
+        if state is not None:
+            self._state = state
+        else:
+            self._state = []
             for c, color in enumerate(self._colors):
                 z = self._axes[c%3]
                 x, y = [axis for axis in self._axes if axis!=z]
-                state.extend([
+                self._state.extend([
                     {'color':color, z:(-1 if c%2 else +1)*dim, x:i, y:j}
                     for i, j in it.product(range(1-dim, dim), repeat=2)
                     if i%2!=dim%2 and j%2!=dim%2
                 ])
-        self._state = pd.DataFrame(state)
+
+        self._state = pd.DataFrame(self._state)
+        self._history = []
+
+    @property
+    def is_solved(self:object) -> bool:
+        return self._state.groupby('color')[self._axes].nunique().eq(1).sum(axis=1).eq(1).all()
 
     ###############################################################################################
     # GETTERS/SETTERS
@@ -57,16 +75,79 @@ class RubiksCube:
     
     ###############################################################################################
     # ATOMIC OPERATIONS
-    
-    def _get_stickers(self:object, face:str, layers:int=1) -> pd.Series:
-        axis, sign = self._face_axes[face]
-        return self._state[axis].mul(-1 if sign=='-' else +1).between(self.dim-2*layers, self.dim)
         
-    def _get_rotation(self:object, face:str, rads:float=np.pi/2) -> pd.DataFrame:
+    def rotate(self:object, rotations:tp.Union[str, tp.List[str]]) -> tp.List[str]:
+        '''
+        ____________________________________________________________
+        > Rotates the cube using (string-of-comma-seperated) rotations.
+        
+        Output:
+            Comma-seperated sequence of applied rotations.
+            
+        A rotation '<m><F><n>' has three components:
+        
+        * A face '<F>' to rotate, one of 'F', 'B', 'L', 'R', 'U', 'D'.
+        * A +ve integer '<n>' of clockwise rotations, omit to perfom a single rotation.
+        * A +ve integer '<m>' of layers to rotate, omit to rotate a single layer.
+        
+        Examples:
+        rotation='F' rotates the front-face by 90-degrees clockwise.
+        rotation='R2' rotates the right-face by 180-degrees clockwise.
+        rotation='2T3' rotates the top-face top-two-layers by 90-degrees anti-clockwise.
+        ____________________________________________________________
+        '''
+        if isinstance(rotations, str):
+            rotations = list(filter(None, rotations.upper().strip(' ').split(',')))
+        if not rotations:
+            return []
+        
+        # Unpack first operation.
+        rotation, *remaining = rotations
+        i = min(i for i, char in enumerate(rotation) if char.isupper())
+        prfx, face, sffx = rotation[:i], rotation[i], rotation[i+1:]
+        
+        # Parse valid face, number of layers, and number of radions.
+        if face not in self._face_axes:
+            raise ValueError(f'Invalid operation face "{face}" in "{rotation}"')
+        if not prfx:
+            layers = 1
+            rotation = f'1{rotation}'
+        elif all(char.isdigit() for char in prfx):
+            layers = [int(digit) for digit in prfx]
+        else:
+            raise ValueError(f'Invalid operation prefix "{prfx}" in "{rotation}"')
+        if not sffx:
+            rads = np.pi/2
+            rotation = f'{rotation}1'
+        elif sffx.isnumeric():
+            rads = int(sffx)*np.pi/2
+        else:
+            raise ValueError(f'Invalid rotation suffix "{sffx}" in "{rotation}"')
+        
+        # Apply rotation to affected stickers.
+        matrix = self._get_rotation_matrix(face=face, rads=rads)
+        stickers = self._get_stickers(face=face, layers=layers)
+        index = stickers.index
+        self._state.loc[index, self._axes] = self._state.loc[index, self._axes].dot(matrix)
+        
+        # Append rotation to history; recurse on remaining rotations.
+        self._history.append(rotation)
+        return [rotation, *self.rotate(rotations=remaining)]
+    
+    def _get_stickers(self:object, face:str, layers:tp.Union[int, tp.List[int]]=1) -> pd.DataFrame:
+        if not isinstance(layers, list):
+            layers = [layers]
+        levels = [1+self.dim-2*layer+margin for layer in layers for margin in (+1, 0, -1)]
+        axis, sign = self._face_axes[face]
+        mask = self._state[axis].mul(-1 if sign=='-' else +1).isin(levels)
+        index = mask.loc[mask].index
+        stickers = self._state.loc[index]
+        return stickers
+        
+    def _get_rotation_matrix(self:object, face:str, rads:float=np.pi/2) -> pd.DataFrame:
         # Unpack rotation axis and angle.
         axis, sign = self._face_axes[face]
         rads *= -1 if sign=='-' else +1
-        
         # Construct 3D rotation matrix.
         cos, sin = np.cos(rads), (-1 if axis=='y' else +1)*np.sin(rads)
         rotation = pd.DataFrame(data=0, index=self._axes, columns=self._axes)
@@ -77,107 +158,107 @@ class RubiksCube:
             [+sin, +cos],
         ]
         return rotation.round(0)
-    
-    def rotate(self:object, operation:str) -> None:
-        '''
-        ____________________________________________________________
-        > Rotates the cube using (comma-seperated-list-of) operations.
-        
-        Output:
-            None
-            
-        An operation '<m><F><n>' has three components:
-        
-        * A face '<F>' to rotate, one of 'F', 'B', 'L', 'R', 'U', 'D'.
-        * A +ve integer '<n>' of clockwise rotations, omit to perfom a single rotation.
-        * A +ve integer '<m>' of layers to rotate, omit to rotate a single layer.
-        
-        Examples:
-        operation='F' rotates the front-face by 90-degrees clockwise.
-        operation='R2' rotates the right-face by 180-degrees clockwise.
-        operation='2T3' rotates the top-face top-two-layers by 90-degrees anti-clockwise.
-        ____________________________________________________________
-        '''
-        if not operation:
-            return
-        
-        # Unpack first operation.
-        notation, *remaining = operation.upper().strip(' ').split(',')
-        i = min(i for i, char in enumerate(notation) if char.isupper())
-        prfx, face, sffx = notation[:i], notation[i], notation[i+1:]
-        
-        # Parse valid face, number of layers, and number of radions.
-        if face not in self._face_axes:
-            raise ValueError(f'Invalid operation face "{face}" in "{operation}"')
-        if not prfx:
-            layers = 1
-            notation = f'1{notation}'
-        elif prfx.isnumeric():
-            layers = int(prfx)
-        else:
-            raise ValueError(f'Invalid operation prefix "{prfx}" in "{operation}"')
-        if not sffx:
-            rads = np.pi/2
-            notation = f'{notation}1'
-        elif sffx.isnumeric():
-            rads = int(sffx)*np.pi/2
-        else:
-            raise ValueError(f'Invalid operation suffix "{sffx}" in "{operation}"')
-        
-        # Apply rotation to affected stickers.
-        rotation = self._get_rotation(face=face, rads=rads)
-        stickers = self._get_stickers(face=face, layers=layers)
-        self._state.loc[stickers, self._axes] = self._state.loc[stickers, self._axes].dot(rotation)
-        
-        # Append rotation to history; recurse on remaining operations.
-        self._history.append(notation)
-        if remaining:
-            self.rotate(operation=','.join(remaining))
-    
+
     ###############################################################################################
     # COMPOSITIE OPERATIONS
     
-    def scramble(self:object, n:int=100, turns:bool=False, layers:bool=False) -> str:
+    def scramble(self:object, n:int=100, turns:bool=True, layers:bool=True) -> tp.List[str]:
         '''
         ____________________________________________________________
         > Performs <n> random moves on the cube.
         
         Output:
-            Comma-seperated sequence of applied rotations.
+            List of applied rotations.
         ____________________________________________________________
         '''
-        faces = np.random.choice(a=list(self._face_axes), size=n)
+        rotations = list(np.random.choice(a=list(self._face_axes), size=n))
         if turns:
             array = np.random.randint(low=1, high=4, size=n)
-            faces = [face+str(turn) for face, turn in zip(faces, array)]
+            rotations = [face+str(turn) for face, turn in zip(rotations, array)]
         if layers:
             array = np.random.randint(low=1, high=self.dim+1, size=n)
-            faces = [str(layer)+face for layer, face in zip(array, faces)]
+            rotations = [str(layer)+face for layer, face in zip(array, rotations)]
 
-        operation = ','.join(faces)
-        self.rotate(operation=operation)
-        return operation
+        return self.rotate(rotations=rotations)
         
-    def unscramble(self:object) -> str:
+    def unscramble(self:object) -> tp.List[str]:
         '''
         ____________________________________________________________
-        > 'Solves' the cube by undoing rotations back to the initial solved state.
+        > 'Solves' the cube by undoing rotations back to the initial state.
         
         Output:
-            Comma-seperated sequence of applied rotations.
+            List of applied rotations.
         ____________________________________________________________
         '''
-        operation = ','.join(f'{move[:-1]}{-int(move[-1])%4}' for move in reversed(self._history))
-        self.rotate(operation=operation)
-        return operation
+        rotations = [f'{move[:-1]}{-int(move[-1])%4}' for move in reversed(self._history)]
+        return self.rotate(rotations=rotations)
 
-    def solve(self:object) -> str:
-        return
+    ###############################################################################################
+    # SOLVE OPERATIONS
+
+    def solve(self:object) -> tp.List[str]:
+        if self.is_solved:
+            return []
+        return [
+            *self._solve_daisy(),
+        ]
+
+    def _solve_daisy(self:object) -> tp.List[str]:
+        return [
+            *self._rotate_cube(identifier_from='yellow', identifier_to='U'),
+            *self._solve_daisy_middle_layer(),
+        ]
     
+    def _solve_daisy_middle_layer(self:object) -> tp.List[str]:
+        return []
+    
+    ###############################################################################################
+    # UTILITIES
+
+    def _get_center_sticker(self:object, identifier:str='F') -> pd.Series:
+        if identifier in self._colors:
+            points = self._state.loc[lambda df:df['color'].eq(identifier)]
+        elif identifier in self._face_axes.keys():
+            axis, sign = self._face_axes[identifier]
+            coord = self.dim*(-1 if '-' in sign else +1)
+            points = self._state.loc[lambda df:df[axis].eq(coord)]
+        else:
+            raise TypeError(identifier)
+        sticker_index = points[self._axes].eq(0).sum(axis=1).eq(2).idxmax()
+        sticker = self._state.loc[sticker_index]
+        return sticker
+
+    def _get_face(self:object, sticker:pd.Series) -> str:
+        axis = sticker[self._axes].astype(float).abs().idxmax()
+        code = axis + ('+' if sticker[axis]==self.dim else '-')
+        face = max(self._face_axes.keys(), key=lambda key:self._face_axes[key]==code)
+        return face
+
+    def _rotate_cube(self:object, identifier_from:str, identifier_to:str) -> tp.List[str]:
+        sticker_from = self._get_center_sticker(identifier=identifier_from)
+        sticker_to = self._get_center_sticker(identifier=identifier_to)
+        sticker_diff = sticker_to[self._axes] - sticker_from[self._axes]
+        if sticker_diff.eq(0).all():
+            return []
+
+        axis = sticker_diff.eq(0).idxmax()
+        face = max(self._face_axes.keys(), key=lambda key:self._face_axes[key].startswith(axis))
+        layers = ''.join(map(str, range(1, self.dim+1)))
+
+        if sticker_diff.abs().eq(2*self.dim).any():
+            return self.rotate(rotations=f'{layers}{face}2')        
+        return [
+            *self.rotate(rotations=f'{layers}{face}'),
+            *self._rotate_cube(
+                identifier_from=sticker_from['color'],
+                identifier_to=self._get_face(sticker_to),
+            ),
+        ]
+
     ###############################################################################################
     # VISUALIZATION
     
-    def _get_face(self:object) -> pd.Series:
+    def get_labels(self:object) -> pd.DataFrame:
         return pd.DataFrame([
             {
                 'text':face,
@@ -189,7 +270,7 @@ class RubiksCube:
             for face, desc in self._face_axes.items()
         ])
         
-    def _get_mesh(self:object) -> pd.DataFrame:
+    def get_mesh(self:object) -> pd.DataFrame:
         return pd.DataFrame([
             {
                 'color':sticker['color'],
@@ -243,7 +324,7 @@ class RubiksCube:
             ])
         
         # Append mesh-face trace.
-        mesh = self._get_mesh()
+        mesh = self.get_mesh()
         xyz = list(set(
             (x, y, z)
             for v in ['i', 'j', 'k']
@@ -258,10 +339,10 @@ class RubiksCube:
             },
         })
         
-        # Append text-face trace.
-        face = self._get_face()
+        # Append text-labels trace.
+        labels = self.get_labels()
         figure['data'].append({
-            'type':'scatter3d', 'x':face['x'], 'y':face['y'], 'z':face['z'], 'text':face['text'],
+            'type':'scatter3d', 'x':labels['x'], 'y':labels['y'], 'z':labels['z'], 'text':labels['text'],
             'mode':'text', 'textposition':'middle center', 'name':'Faces', 'textfont':{'size':30},
         })
         
@@ -303,6 +384,7 @@ empty_cube_figure = {
     },
 }
 
+
 app_layout = [
     dbc.Card([
         dbc.CardBody([
@@ -331,6 +413,15 @@ app_layout = [
             dbc.InputGroup(
                 size='sm',
                 children=[
+                    dbc.InputGroupAddon(addon_type='append', children=[
+                        dbc.Button(
+                            id='rubik-button-clear',
+                            children='Clear',
+                            n_clicks=0,
+                            color='warning',
+                            disabled=False,
+                        ),
+                    ]),
                     dbc.InputGroupAddon(addon_type='prepend', children=[
                         dbc.Button(
                             id='rubik-button-reset',
@@ -346,6 +437,15 @@ app_layout = [
                         options=[
                             {'label':f'{n}x{n} Cube', 'value':n}
                             for n in range(1, 6)
+                        ],
+                    ),
+                    dbc.InputGroupAddon(addon_type='prepend', children='On face click:'),
+                    dbc.Select(
+                        id='rubik-select-layer',
+                        value=1,
+                        options=[
+                            {'label':f'Rotate layer {layer}', 'value':layer}
+                            for layer in range(1, 4)
                         ],
                     ),
                     dbc.InputGroupAddon(addon_type='prepend', children=[
@@ -367,8 +467,8 @@ app_layout = [
                     ),
                     dbc.InputGroupAddon(addon_type='append', children=[
                         dbc.Button(
-                            id='rubik-button-clear',
-                            children='Clear',
+                            id='rubik-button-solve',
+                            children='Solve',
                             n_clicks=0,
                             color='primary',
                             disabled=False,
@@ -495,6 +595,8 @@ def register_app_callbacks(app:dash.Dash) -> None:
 
     @app.callback(
         [
+            ddp.Output('rubik-select-layer', 'options'),
+            ddp.Output('rubik-select-layer', 'value'),
             ddp.Output('rubik-store-state', 'data'),
             ddp.Output('rubik-table-history', 'data'),
         ],
@@ -502,49 +604,59 @@ def register_app_callbacks(app:dash.Dash) -> None:
             ddp.Input('rubik-button-clear', 'n_clicks'),
             ddp.Input('rubik-button-reset', 'n_clicks'),
             ddp.Input('rubik-button-scramble', 'n_clicks'),
+            ddp.Input('rubik-button-solve', 'n_clicks'),
             ddp.Input('rubik-graph-state', 'clickData'),
             ddp.Input('rubik-table-history', 'rowClicked'),
+            ddp.Input('rubik-select-dim', 'value'),
         ],
         [
-            ddp.State('rubik-select-dim', 'value'),
+            ddp.State('rubik-select-layer', 'value'),
             ddp.State('rubik-select-scramble', 'value'),
             ddp.State('rubik-store-state', 'data'),
             ddp.State('rubik-table-history', 'data'),
         ],
     )
-    def set_cube_state(*args:list) -> tp.List[dict]:
+    def set_cube_state(*args:list) -> tp.Tuple[object, ...]:
         trigger = dash.callback_context.triggered[0]
         if not trigger['value'] or trigger['prop_id'].endswith('clear.n_clicks'):
             # Clear cube.
-            return [], []
+            return constants.EMPTY_OPTIONS, '', [], [], 
 
         # Unpack arguments and enforce data types.
-        *_, dim, scramble, state, history = args
+        *_, dim, layer, scramble, state, history = args
         dim = int(dim)
+        layer = int(layer) if layer else 1
         scramble = int(scramble)
+        
+        options = [
+            {'label':f'Rotate layer {layer}', 'value':layer}
+            for layer in range(1, 1+dim)
+        ]
+        layer = min(layer, dim)
 
-        if trigger['prop_id'].endswith('reset.n_clicks'):
+        if trigger['prop_id'].endswith('reset.n_clicks') or trigger['prop_id'].endswith('dim.value'):
             # Load new cube.
             cube = RubiksCube(dim=dim, state=None)
-            return cube.get_state(), []
+            return options, layer, cube.get_state(), []
 
         if trigger['prop_id'].endswith('history.rowClicked'):
             # Revert cube.
             i = trigger['value']['i']
             history = [move for move in history if move['i']<i]
             cube = RubiksCube(dim=dim, state=None)
-            operation = ','.join(move['move'] for move in history)
-            cube.rotate(operation=operation)
-            return cube.get_state(), history
+            rotations = [move['move'] for move in history]
+            cube.rotate(rotations=rotations)
+            return options, layer, cube.get_state(), history
 
         cube = RubiksCube(dim=dim, state=state)
-        n = len(history)
-
+        
         if trigger['prop_id'].endswith('scramble.n_clicks'):
             # Scramble cube.
-            operation = cube.scramble(n=scramble)
-            history.extend({'move':move, 'i':n+i} for i, move in enumerate(operation.split(',')))
-            return cube.get_state(), history
+            rotations = cube.scramble(n=scramble)
+
+        if trigger['prop_id'].endswith('solve.n_clicks'):
+            # Solve cube.
+            rotations = cube.solve()
 
         if trigger['prop_id'].endswith('state.clickData'):
             # Rotate face of cube.
@@ -554,18 +666,19 @@ def register_app_callbacks(app:dash.Dash) -> None:
             axis = max(coord.keys(), key=lambda axis:abs(coord[axis]))
             axis += '+' if coord[axis]>0 else '-'
             face = list(faces)[list(axes).index(axis)]
-            cube.rotate(operation=face)
-            history.append({'move':face, 'i':n})
-            return cube.get_state(), history
+            rotations = f'{layer}{face}'
+            rotations = cube.rotate(rotations=rotations)
 
-        return cube.get_state(), history
+        n = len(history)
+        history.extend({'move':rotation, 'i':n+i} for i, rotation in enumerate(rotations))
+        return options, layer, cube.get_state(), history
         
     @app.callback(
         ddp.Output('rubik-graph-state', 'figure'),
         [ddp.Input('rubik-store-state', 'data')],
         [ddp.State('rubik-select-dim', 'value')],
     )
-    def graph_cube_state(state:list, dim:int) -> dict:
+    def graph_cube_state(state:list, dim:str) -> dict:
         if not state:
             return empty_cube_figure
         dim = int(dim)
@@ -586,14 +699,17 @@ def register_app_callbacks(app:dash.Dash) -> None:
         return figure
 
     @app.callback(
-        ddp.Output('rubik-button-scramble', 'disabled'),
         [
-            ddp.Input('rubik-select-dim', 'value'),
-            ddp.Input('rubik-graph-state', 'figure'),
+            ddp.Output('rubik-button-scramble', 'disabled'),
+            ddp.Output('rubik-button-solve', 'disabled'),
         ],
+        [ddp.Input('rubik-store-state', 'data')],
+        [ddp.State('rubik-select-dim', 'value')],
     )
-    def enable_scramble_button(dim:int, figure:dict) -> bool:
-        trigger = dash.callback_context.triggered[0]
-        if trigger['prop_id'].endswith('dim.value'):
-            return True
-        return not trigger['value'].get('data', [])
+    def disable_buttons(state:tp.List[str], dim:str) -> tp.Tuple[bool, bool]:
+        if not state or not dim:
+            return True, True
+        dim = int(dim)
+        if dim != 3:
+            return False, True
+        return False, False

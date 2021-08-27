@@ -12,3 +12,7 @@ empty_figure = {
         'annotations':[],
     },
 }
+
+EMPTY_OPTIONS = [
+    {'label':'(None)', 'value':''}
+]
