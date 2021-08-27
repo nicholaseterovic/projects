@@ -22,6 +22,7 @@ Flask-Caching==1.9.0
 Flask-Compress==1.7.0
 future==0.18.2
 gunicorn==20.0.4
+humanize==3.11.0
 imageio==2.9.0
 ipython==7.16.1
 ipython-genutils==0.2.0

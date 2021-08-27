@@ -5,6 +5,7 @@
 import numpy as np
 import pandas as pd
 import typing as tp
+import humanize as hu
 import itertools as it
 
 # Dash imports.
@@ -444,7 +445,7 @@ app_layout = [
                         id='rubik-select-layer',
                         value=1,
                         options=[
-                            {'label':f'Rotate layer {layer}', 'value':layer}
+                            {'label':f'Rotate {hu.ordinal(layer)} layer', 'value':layer}
                             for layer in range(1, 4)
                         ],
                     ),
@@ -629,7 +630,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
         scramble = int(scramble)
         
         options = [
-            {'label':f'Rotate layer {layer}', 'value':layer}
+            {'label':f'Rotate {hu.ordinal(layer)} layer', 'value':layer}
             for layer in range(1, 1+dim)
         ]
         layer = min(layer, dim)
