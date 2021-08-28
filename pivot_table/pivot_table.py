@@ -118,6 +118,23 @@ app_layout = [
 
 def register_app_callbacks(app:dash.Dash) -> None:
 
+    # Load default data on first tab visit.
+    library, source, func = [
+        (library, source, func)
+        for library, sources in datasets.items()
+        for source, funcs in sources.items()
+        for func in funcs
+    ][0]
+    @app.callback(
+        ddp.Output(f'pivot-dmi-{library}-{source}-{func}', 'n_clicks'),
+        [ddp.Input('tabs-projects', 'value')],
+        [ddp.State(f'pivot-dmi-{library}-{source}-{func}', 'n_clicks')],
+    )
+    def click(tab:str, n_clicks:int) -> int:
+        if tab!='pivot' or n_clicks>0:
+            raise dex.PreventUpdate
+        return n_clicks+1
+
     @app.callback(
         [
             ddp.Output('pivot-tabulator-raw', 'data'),

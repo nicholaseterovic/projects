@@ -237,7 +237,7 @@ app_layout = [
         ]),
     ]),
     dbc.Row(no_gutters=True, children=[
-        dbc.Col(width=4, children=[
+        dbc.Col(width=6, children=[
             dbc.Card([
                 dbc.CardHeader([
                     dbc.InputGroup(
@@ -331,7 +331,7 @@ app_layout = [
             id='store-fractal',
             data={'seed':[], 'generator':[], 'n':0},
         ),
-        dbc.Col(width=8, children=[
+        dbc.Col(width=6, children=[
             dbc.Card(style={'height':'100%'}, children=[
                 dbc.CardHeader([
                     dbc.InputGroup(
