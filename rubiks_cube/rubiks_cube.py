@@ -144,7 +144,10 @@ class RubiksCube:
         index = mask.loc[mask].index
         stickers = self._state.loc[index]
         return stickers
-        
+    
+    def _get_neighbors(self:object, sticker:pd.Series, distance:int=1) -> pd.DataFrame:
+        return self._state.loc[lambda df:df[self._axes].sub(sticker[self._axes]).abs().le(distance).all(axis=1)]
+
     def _get_rotation_matrix(self:object, face:str, rads:float=np.pi/2) -> pd.DataFrame:
         # Unpack rotation axis and angle.
         axis, sign = self._face_axes[face]
@@ -159,6 +162,14 @@ class RubiksCube:
             [+sin, +cos],
         ]
         return rotation.round(0)
+
+    def _get_reflection_matrix(self:object, face:str) -> pd.DataFrame:
+        axis, sign = self._face_axes[face]
+        reflection = pd.DataFrame(data=0, index=self._axes, columns=self._axes)
+        reflection.loc[axis, axis] = -1
+        for axis in reflection.index.difference([axis]):
+            reflection.loc[axis, axis] = 1
+        return reflection
 
     ###############################################################################################
     # COMPOSITIE OPERATIONS
@@ -207,10 +218,46 @@ class RubiksCube:
     def _solve_daisy(self:object) -> tp.List[str]:
         return [
             *self._rotate_cube(identifier_from='yellow', identifier_to='U'),
+            *self._solve_daisy_bottom_layer(),
             *self._solve_daisy_middle_layer(),
+            *self._solve_daisy_top_layer(),
         ]
-    
+        
+    def _solve_daisy_bottom_layer(self:object) -> tp.List[str]:
+        bottom_layer = self._get_stickers(face='D', layers=1)
+        bottom_edge = bottom_layer.loc[lambda df:df[self._axes].eq(0).sum(axis=1).eq(1)]
+        bottom_edge_yellow = bottom_edge.loc[lambda df:df['color'].eq('white')]
+
+        bottom_center = self._get_center_sticker(identifier='D')
+        reflection = self._get_reflection_matrix(face='D')
+
+        rotations = []
+        for index, sticker in bottom_edge_yellow.iterrows():
+            neighbors = self._get_neighbors(sticker=sticker, distance=1)[self._axes]
+
+            flip = True
+            while flip:
+                top_layer = self._get_stickers(face='U', layers=1)
+                reflected = top_layer[self._axes].dot(reflection).reset_index()
+                opposites = top_layer.loc[reflected.merge(neighbors, how='inner', on=self._axes)['index']] 
+                if opposites['color'].eq('white').any():
+                    rotations.extend(self.rotate(rotations='U'))
+                else:
+                    flip = False
+                rotations
+
+            diff = sticker[self._axes]- bottom_center[self._axes]
+            axis = diff.astype(float).abs().idxmax()
+            code = axis + ('+' if diff[axis]>0 else '-')
+            face = max(self._face_axes.keys(), key=lambda key:self._face_axes[key]==code)
+            rotations.extend(self.rotate(rotations=f'{face}2'))
+            
+        return rotations
+
     def _solve_daisy_middle_layer(self:object) -> tp.List[str]:
+        return []
+    
+    def _solve_daisy_top_layer(self:object) -> tp.List[str]:
         return []
     
     ###############################################################################################
