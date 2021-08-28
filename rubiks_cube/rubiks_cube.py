@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import typing as tp
 import humanize as hu
+import functools as ft
 import itertools as it
 
 # Dash imports.
@@ -27,19 +28,19 @@ class RubiksCube:
     _axes = ['x', 'y', 'z']
     _colors = ['yellow', 'green', 'red', 'white', 'blue', 'orange']
     _face_axes = {'L':'x-', 'R':'x+', 'U':'y+', 'D':'y-', 'F':'z+', 'B':'z-'}
+    _solvable_dims = [1, 3]
 
     def __init__(self:object, dim:int=3, state:tp.List[dict]=None) -> object:
         '''
-        ____________________________________________________________
         > Instantiate a Rubik's cube.
 
         Args:
             dim: Positive integer dimension of the cube.
-            state: Initial state of the cube, defaults to solved state if None.
-
+            state: List of sticker states [{'x':<x>, 'y':<y>, 'z':<z>, 'color':<color>}, ...].
+                If None, defaults to solved state.
+            
         Returns:
             RubiksCube object.
-        ____________________________________________________________
         '''
         self.dim = dim
         self.state = state
@@ -60,81 +61,137 @@ class RubiksCube:
         self._state = pd.DataFrame(self._state)
         self._history = []
 
-    @property
-    def is_solved(self:object) -> bool:
-        return self._state.groupby('color')[self._axes].nunique().eq(1).sum(axis=1).eq(1).all()
+    def get_state(self:object) -> tp.List[dict]:
+        '''
+        > Returns the Rubik's cube state.
+        
+        Arguments:
+            None
 
-    ###############################################################################################
-    # GETTERS/SETTERS
-    
-    def get_state(self:object) -> list:
+        Output:
+            List of sticker states [{'x':<x>, 'y':<y>, 'z':<z>, 'color':<color>}, ...]
+        '''
         return self._state.to_dict(orient='records')
     
     def set_state(self:object, state:tp.List[dict]) -> object:
+        '''
+        > Set the Rubik's cube state.
+        
+        Arguments:
+            List of sticker states [{'x':<x>, 'y':<y>, 'z':<z>, 'color':<color>}, ...]
+
+        Output:
+            Reset Rubik's cube.
+        '''
         self._state = pd.DataFrame(state)
         return self
     
-    ###############################################################################################
-    # ATOMIC OPERATIONS
-        
+    @property
+    def is_solved(self:object) -> bool:
+        return self._state.groupby('color')[self._axes].nunique().eq(1).sum(axis=1).eq(1).all()
+            
     def rotate(self:object, rotations:tp.Union[str, tp.List[str]]) -> tp.List[str]:
         '''
-        ____________________________________________________________
-        > Rotates the cube using (string-of-comma-seperated) rotations.
+        > Rotates the cube with a (list of) rotations.
         
+        Arguments:
+            rotations: (List of) rotation ['<m><F><n>', ...] 
+
         Output:
-            Comma-seperated sequence of applied rotations.
+            List of applied rotations.
             
         A rotation '<m><F><n>' has three components:
         
-        * A face '<F>' to rotate, one of 'F', 'B', 'L', 'R', 'U', 'D'.
-        * A +ve integer '<n>' of clockwise rotations, omit to perfom a single rotation.
         * A +ve integer '<m>' of layers to rotate, omit to rotate a single layer.
+        * A face '<F>' to rotate, one of 'L', 'R', 'U', 'D', 'F', 'B'.
+        * A +ve integer '<n>' of clockwise rotations, omit to perfom a single rotation.
         
         Examples:
-        rotation='F' rotates the front-face by 90-degrees clockwise.
-        rotation='R2' rotates the right-face by 180-degrees clockwise.
-        rotation='2T3' rotates the top-face top-two-layers by 90-degrees anti-clockwise.
-        ____________________________________________________________
+        'F' rotates the front-face by one turn clockwise.
+        'R2' rotates the right-face by two turns clockwise.
+        '2T3' rotates the top-face top-two-layers by three turns clockwise (one turn anti-clockwise).
         '''
         if isinstance(rotations, str):
             rotations = list(filter(None, rotations.upper().strip(' ').split(',')))
         if not rotations:
             return []
         
-        # Unpack first operation.
+        # Extract first rotation and unpack layers, face, turns.
         rotation, *remaining = rotations
         i = min(i for i, char in enumerate(rotation) if char.isupper())
         prfx, face, sffx = rotation[:i], rotation[i], rotation[i+1:]
         
-        # Parse valid face, number of layers, and number of radions.
-        if face not in self._face_axes:
-            raise ValueError(f'Invalid operation face "{face}" in "{rotation}"')
+        # Validate and enforce layers, face, and turns.
         if not prfx:
             layers = 1
             rotation = f'1{rotation}'
         elif all(char.isdigit() for char in prfx):
             layers = [int(digit) for digit in prfx]
         else:
-            raise ValueError(f'Invalid operation prefix "{prfx}" in "{rotation}"')
+            raise ValueError(f'Invalid prefix "{prfx}" in "{rotation}"')
+        if face not in self._face_axes:
+            raise ValueError(f'Invalid face "{face}" in "{rotation}"')
         if not sffx:
             rads = np.pi/2
             rotation = f'{rotation}1'
-        elif sffx.isnumeric():
+        elif all(char.isdigit() for char in sffx):
             rads = int(sffx)*np.pi/2
         else:
-            raise ValueError(f'Invalid rotation suffix "{sffx}" in "{rotation}"')
+            raise ValueError(f'Invalid suffix "{sffx}" in "{rotation}"')
         
         # Apply rotation to affected stickers.
         matrix = self._get_rotation_matrix(face=face, rads=rads)
         stickers = self._get_stickers(face=face, layers=layers)
-        index = stickers.index
-        self._state.loc[index, self._axes] = self._state.loc[index, self._axes].dot(matrix)
+        self._state.loc[stickers.index, self._axes] = stickers[self._axes].dot(matrix)
         
         # Append rotation to history; recurse on remaining rotations.
         self._history.append(rotation)
         return [rotation, *self.rotate(rotations=remaining)]
     
+    def scramble(self:object, n:int=100, layers:bool=True, turns:bool=True) -> tp.List[str]:
+        '''
+        > Applies random rotations to the Rubik's cube.
+        
+        Arguments:
+            n: Positive integer number of random face rotations.
+            layers: If True, also randomize layers per rotation.
+            turns: If True, also randomize turns per rotation.
+            
+        Output:
+            List of applied rotations.
+        '''
+        rotations = list(np.random.choice(a=list(self._face_axes), size=n))
+        if turns:
+            array = np.random.randint(low=1, high=4, size=n)
+            rotations = [face+str(turn) for face, turn in zip(rotations, array)]
+        if layers:
+            array = np.random.randint(low=1, high=self.dim+1, size=n)
+            rotations = [str(layer)+face for layer, face in zip(array, rotations)]
+
+        return self.rotate(rotations=rotations)
+        
+    def solve(self:object) -> tp.List[str]:
+        '''
+        > Solves the Rubiks's Cube.
+        
+        Arguments:
+            n: Positive integer number of random face rotations.
+            layers: If True, also randomize layers per rotation.
+            turns: If True, also randomize turns per rotation.
+            
+        Output:
+            List of applied rotations.
+        '''
+        if self.dim not in self._solvable_dims:
+            raise NotImplementedError(f'Solving algorithm not implemented for size {self.dim} cube.')
+        if self.is_solved:
+            return []
+        return [
+            *self._solve_daisy(center_color='yellow', petal_color='white'),
+        ]
+
+    ####################################################################################################
+
     def _get_stickers(self:object, face:str, layers:tp.Union[int, tp.List[int]]=1) -> pd.DataFrame:
         if not isinstance(layers, list):
             layers = [layers]
@@ -144,15 +201,23 @@ class RubiksCube:
         index = mask.loc[mask].index
         stickers = self._state.loc[index]
         return stickers
+
+    def _get_edge_stickers(self:object, faces:str, layers:tp.Union[int, tp.List[int]]=1) -> pd.DataFrame:
+        indices = []
+        for face in faces:
+            stickers = self._get_stickers(face=face, layers=layers)
+            edge_stickers = stickers.loc[lambda df:df[self._axes].eq(0).sum(axis=1).eq(1)]
+            indices.append(edge_stickers.index)
+        index = ft.reduce(pd.Index.intersection, indices)
+        edge_stickers = self._state.loc[index]
+        return edge_stickers
     
     def _get_neighbors(self:object, sticker:pd.Series, distance:int=1) -> pd.DataFrame:
         return self._state.loc[lambda df:df[self._axes].sub(sticker[self._axes]).abs().le(distance).all(axis=1)]
 
     def _get_rotation_matrix(self:object, face:str, rads:float=np.pi/2) -> pd.DataFrame:
-        # Unpack rotation axis and angle.
         axis, sign = self._face_axes[face]
         rads *= -1 if sign=='-' else +1
-        # Construct 3D rotation matrix.
         cos, sin = np.cos(rads), (-1 if axis=='y' else +1)*np.sin(rads)
         rotation = pd.DataFrame(data=0, index=self._axes, columns=self._axes)
         rotation.loc[axis, axis] = 1
@@ -172,90 +237,61 @@ class RubiksCube:
         return reflection
 
     ###############################################################################################
-    # COMPOSITIE OPERATIONS
-    
-    def scramble(self:object, n:int=100, turns:bool=True, layers:bool=True) -> tp.List[str]:
-        '''
-        ____________________________________________________________
-        > Performs <n> random moves on the cube.
-        
-        Output:
-            List of applied rotations.
-        ____________________________________________________________
-        '''
-        rotations = list(np.random.choice(a=list(self._face_axes), size=n))
-        if turns:
-            array = np.random.randint(low=1, high=4, size=n)
-            rotations = [face+str(turn) for face, turn in zip(rotations, array)]
-        if layers:
-            array = np.random.randint(low=1, high=self.dim+1, size=n)
-            rotations = [str(layer)+face for layer, face in zip(array, rotations)]
-
-        return self.rotate(rotations=rotations)
-        
-    def unscramble(self:object) -> tp.List[str]:
-        '''
-        ____________________________________________________________
-        > 'Solves' the cube by undoing rotations back to the initial state.
-        
-        Output:
-            List of applied rotations.
-        ____________________________________________________________
-        '''
-        rotations = [f'{move[:-1]}{-int(move[-1])%4}' for move in reversed(self._history)]
-        return self.rotate(rotations=rotations)
-
-    ###############################################################################################
     # SOLVE OPERATIONS
 
-    def solve(self:object) -> tp.List[str]:
-        if self.is_solved:
-            return []
+    def _solve_daisy(self:object, center_color:str='yellow', petal_color:str='white') -> tp.List[str]:
         return [
-            *self._solve_daisy(),
-        ]
-
-    def _solve_daisy(self:object) -> tp.List[str]:
-        return [
-            *self._rotate_cube(identifier_from='yellow', identifier_to='U'),
-            *self._solve_daisy_bottom_layer(),
-            *self._solve_daisy_middle_layer(),
+            *self._rotate_cube(identifier_from=center_color, identifier_to='U'),
+            *self._solve_daisy_bottom_layer(petal_color=petal_color),
+            *self._solve_daisy_middle_layer(petal_color=petal_color),
             *self._solve_daisy_top_layer(),
         ]
         
-    def _solve_daisy_bottom_layer(self:object) -> tp.List[str]:
-        bottom_layer = self._get_stickers(face='D', layers=1)
-        bottom_edge = bottom_layer.loc[lambda df:df[self._axes].eq(0).sum(axis=1).eq(1)]
-        bottom_edge_yellow = bottom_edge.loc[lambda df:df['color'].eq('white')]
-
+    def _solve_daisy_bottom_layer(self:object, petal_color:str) -> tp.List[str]:
+        # Retrieve 
+        bottom_edges = self._get_edge_stickers(faces='D', layers=1)
+        bottom_petals = bottom_edges.loc[lambda df:df['color'].eq(petal_color)]
         bottom_center = self._get_center_sticker(identifier='D')
-        reflection = self._get_reflection_matrix(face='D')
 
         rotations = []
-        for index, sticker in bottom_edge_yellow.iterrows():
-            neighbors = self._get_neighbors(sticker=sticker, distance=1)[self._axes]
-
-            flip = True
-            while flip:
-                top_layer = self._get_stickers(face='U', layers=1)
-                reflected = top_layer[self._axes].dot(reflection).reset_index()
-                opposites = top_layer.loc[reflected.merge(neighbors, how='inner', on=self._axes)['index']] 
-                if opposites['color'].eq('white').any():
+        for index, sticker in bottom_petals.iterrows():
+            face = self._get_face(sticker=sticker[self._axes]-bottom_center[self._axes])
+            impeded = True
+            while impeded:
+                top_edge = self._get_edge_stickers(faces=f'U{face}')
+                if top_edge['color'].eq(petal_color).any():
                     rotations.extend(self.rotate(rotations='U'))
                 else:
-                    flip = False
-                rotations
-
-            diff = sticker[self._axes]- bottom_center[self._axes]
-            axis = diff.astype(float).abs().idxmax()
-            code = axis + ('+' if diff[axis]>0 else '-')
-            face = max(self._face_axes.keys(), key=lambda key:self._face_axes[key]==code)
-            rotations.extend(self.rotate(rotations=f'{face}2'))
-            
+                    impeded = False
+            turns = 2
+            rotations.extend(self.rotate(rotations=f'{face}{turns}'))
         return rotations
 
-    def _solve_daisy_middle_layer(self:object) -> tp.List[str]:
-        return []
+    def _solve_daisy_middle_layer(self:object, petal_color:str) -> tp.List[str]:
+        middle_layer = self._get_stickers(face='U', layers=2)
+        middle_edges = middle_layer.loc[lambda df:df[self._axes].eq(0).sum(axis=1).eq(1)]
+        middle_petals = middle_edges.loc[lambda df:df['color'].eq(petal_color)]
+        
+        rotations = []
+        for index, sticker in middle_petals.iterrows():
+            face = self._get_face(sticker=sticker)
+            impeded = True
+            while impeded:
+                top_edge = self._get_edge_stickers(faces=f'U{face}')
+                if top_edge['color'].eq(petal_color).any():
+                    rotations.extend(self.rotate(rotations='U'))
+                else:
+                    impeded = False
+            face_center = self._get_center_sticker(identifier=face)[self._axes].astype(float)
+            axis = face_center[self._axes].abs().idxmax()
+            edge = top_edge.loc[top_edge[axis].abs().idxmax()]
+            avec = sticker[self._axes].astype(float).sub(face_center)
+            bvec = edge[self._axes].astype(float).sub(face_center)
+            cvec = np.cross(avec, bvec)
+            sign = cvec[self._axes.index(axis)] * (+1 if face_center[axis]>0 else -1)
+            turns = 3 if sign>0 else 1 if sign<0 else 0
+            rotations.extend(self.rotate(rotations=f'{face}{turns}'))
+        return rotations
     
     def _solve_daisy_top_layer(self:object) -> tp.List[str]:
         return []
@@ -275,7 +311,7 @@ class RubiksCube:
         sticker_index = points[self._axes].eq(0).sum(axis=1).eq(2).idxmax()
         sticker = self._state.loc[sticker_index]
         return sticker
-
+    
     def _get_face(self:object, sticker:pd.Series) -> str:
         axis = sticker[self._axes].astype(float).abs().idxmax()
         code = axis + ('+' if sticker[axis]==self.dim else '-')
@@ -334,12 +370,10 @@ class RubiksCube:
     
     def get_figure(self:object) -> dict:
         '''
-        ____________________________________________________________
         > Returns a 3D figure dictionary.
         
         Output:
             Plotly figure dictionary.
-        ____________________________________________________________
         '''
         # Initialize figure with empty data.
         figure = {
@@ -461,7 +495,7 @@ app_layout = [
             dbc.InputGroup(
                 size='sm',
                 children=[
-                    dbc.InputGroupAddon(addon_type='append', children=[
+                    dbc.InputGroupAddon(addon_type='prepend', children=[
                         dbc.Button(
                             id='rubik-button-clear',
                             children='Clear',
@@ -757,7 +791,6 @@ def register_app_callbacks(app:dash.Dash) -> None:
     def disable_buttons(state:tp.List[str], dim:str) -> tp.Tuple[bool, bool]:
         if not state or not dim:
             return True, True
-        dim = int(dim)
-        if dim != 3:
+        if int(dim) not in RubiksCube._solvable_dims:
             return False, True
         return False, False
