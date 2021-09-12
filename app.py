@@ -18,18 +18,17 @@ import typing as tp
 import sklearn.utils as sku
 
 # In-house packages.
+import constants
 import utils.system as su
-from constants import constants
 
 # In-house projects.
-import kca.kca as kca
-import home.home as home
-import fractals.fractal as fractal
-import rubiks_cube.rubiks_cube as rubiks_cube
-import pivot_table.pivot_table as pivot_table
-import game_of_life.game_of_life as game_of_life
-import bug_and_lizard.bug_and_lizard as bug_and_lizard
-import boids.boid_simulation as boids
+import kca
+import home
+import boids
+import fractal
+import rubiks_cube
+import pivot_table
+import game_of_life
 
 ####################################################################################################
 # APPLICATION
@@ -67,7 +66,6 @@ projects = {
     'gol':{'label':'Conway\'s Game of Life', 'icon':'fas fa-heart', 'module':game_of_life},
     'kca':{'label':'Kinetic Component Analysis', 'icon':'fas fa-chart-line', 'module':kca},
     'pivot':{'label':'Pivot Table', 'icon':'fas fa-ruler-combined', 'module':pivot_table},
-    'bal':{'label':'The Bug and the Lizard', 'icon':'fas fa-bug', 'module':bug_and_lizard},
     'boids':{'label':'Boids', 'icon':'fas fa-crow', 'module':boids},
 }
 

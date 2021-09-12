@@ -14,7 +14,7 @@ import plotly.colors as pcl
 import plotly.subplots as psp
 
 # In-house packages.
-from constants import constants
+import constants
 
 # Dash imports.
 import dash

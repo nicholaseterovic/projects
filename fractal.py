@@ -9,7 +9,7 @@ import pandas as pd
 import itertools as it
 
 # In-house packages.
-from constants import constants
+import constants
 
 # Dash packages.
 import dash

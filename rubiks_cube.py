@@ -18,7 +18,7 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 
 # In-house packages.
-import constants.constants as constants
+import constants
 
 ####################################################################################################
 
@@ -243,45 +243,30 @@ class RubiksCube:
         return [
             *self._rotate_cube(identifier_from=center_color, identifier_to='U'),
             *self._solve_daisy_bottom_layer(petal_color=petal_color),
-            *self._solve_daisy_middle_layer(petal_color=petal_color),
-            *self._solve_daisy_top_layer(),
+            #*self._solve_daisy_middle_layer(petal_color=petal_color),
+            #*self._solve_daisy_top_layer(petal_color=petal_color),
         ]
         
     def _solve_daisy_bottom_layer(self:object, petal_color:str) -> tp.List[str]:
-        # Retrieve 
+        bottom_center = self._get_center_sticker(identifier='D')
         bottom_edges = self._get_edge_stickers(faces='D', layers=1)
         bottom_petals = bottom_edges.loc[lambda df:df['color'].eq(petal_color)]
-        bottom_center = self._get_center_sticker(identifier='D')
-
         rotations = []
         for index, sticker in bottom_petals.iterrows():
             face = self._get_face(sticker=sticker[self._axes]-bottom_center[self._axes])
-            impeded = True
-            while impeded:
-                top_edge = self._get_edge_stickers(faces=f'U{face}')
-                if top_edge['color'].eq(petal_color).any():
-                    rotations.extend(self.rotate(rotations='U'))
-                else:
-                    impeded = False
+            rotations.extend(self._clear_daisy_top_petal(face=face, petal_color=petal_color))
             turns = 2
             rotations.extend(self.rotate(rotations=f'{face}{turns}'))
         return rotations
 
     def _solve_daisy_middle_layer(self:object, petal_color:str) -> tp.List[str]:
-        middle_layer = self._get_stickers(face='U', layers=2)
-        middle_edges = middle_layer.loc[lambda df:df[self._axes].eq(0).sum(axis=1).eq(1)]
+        middle_edges = self._get_edge_stickers(faces='U', layers=2)
         middle_petals = middle_edges.loc[lambda df:df['color'].eq(petal_color)]
-        
         rotations = []
         for index, sticker in middle_petals.iterrows():
             face = self._get_face(sticker=sticker)
-            impeded = True
-            while impeded:
-                top_edge = self._get_edge_stickers(faces=f'U{face}')
-                if top_edge['color'].eq(petal_color).any():
-                    rotations.extend(self.rotate(rotations='U'))
-                else:
-                    impeded = False
+            rotations.extend(self._clear_daisy_top_petal(face=face, petal_color=petal_color))
+            top_edge = self._get_edge_stickers(faces=f'U{face}')
             face_center = self._get_center_sticker(identifier=face)[self._axes].astype(float)
             axis = face_center[self._axes].abs().idxmax()
             edge = top_edge.loc[top_edge[axis].abs().idxmax()]
@@ -293,12 +278,37 @@ class RubiksCube:
             rotations.extend(self.rotate(rotations=f'{face}{turns}'))
         return rotations
     
-    def _solve_daisy_top_layer(self:object) -> tp.List[str]:
-        return []
+    def _solve_daisy_top_layer(self:object, petal_color:str) -> tp.List[str]:
+        axis, sign = self._face_axes['U']
+        top_edges = self._get_edge_stickers(faces='U', layers=1)
+        top_petals = top_edges.loc[lambda df:df['color'].eq(petal_color)]
+        top_petals = top_petals.loc[lambda df:df[axis].mul(-1 if sign=='-' else +1).ne(self.dim)]
+        rotations = []
+        print('----')
+        for index, sticker in top_petals.iterrows():
+            right_face = self._get_face(sticker=sticker)
+            right_center = self._get_center_sticker(identifier=right_face)
+            rotation = self._get_rotation_matrix(face='U')
+            front_center = right_center[self._axes].dot(rotation)
+            front_face = self._get_face(sticker=front_center)
+            print([f'{right_face}3', 'U', f'{front_face}3', 'U3'])
+            #rotations.extend(self.rotate([f'{right_face}3', 'U', f'{front_face}3', 'U3']))
+        return rotations
     
+    def _clear_daisy_top_petal(self:object, face:str, petal_color:str) -> tp.List[str]:
+        rotations = []
+        cleared = False
+        while not cleared:
+            top_edge = self._get_edge_stickers(faces=f'U{face}')
+            if top_edge['color'].eq(petal_color).any():
+                rotations.extend(self.rotate(rotations='U'))
+            else:
+                cleared = True
+        return rotations
+
     ###############################################################################################
     # UTILITIES
-
+        
     def _get_center_sticker(self:object, identifier:str='F') -> pd.Series:
         if identifier in self._colors:
             points = self._state.loc[lambda df:df['color'].eq(identifier)]
@@ -562,7 +572,7 @@ app_layout = [
         dcc.Store(id='rubik-store-state', data=[]),
         dbc.CardBody([
             dbc.Row([
-                dbc.Col(width=10, children=[
+                dbc.Col(width=8, children=[
                     dcc.Graph(
                         id='rubik-graph-state',
                         style={'height':'100vh', 'border':'1px black solid'},
@@ -570,7 +580,7 @@ app_layout = [
                         figure=empty_cube_figure,
                     ),
                 ]),
-                dbc.Col(width=2, children=[
+                dbc.Col(width=4, children=[
                     dtb.DashTabulator(
                         id='rubik-table-history',
                         data=[],
