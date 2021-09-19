@@ -16,3 +16,5 @@ empty_figure = {
 EMPTY_OPTIONS = [
     {'label':'(None)', 'value':''}
 ]
+
+GOLDEN_RATIO = (1+5**0.5)/2

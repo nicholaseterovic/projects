@@ -26,6 +26,7 @@ import kca
 import home
 import boids
 import fractal
+import geometry
 import rubiks_cube
 import pivot_table
 import game_of_life
@@ -67,6 +68,7 @@ projects = {
     'kca':{'label':'Kinetic Component Analysis', 'icon':'fas fa-chart-line', 'module':kca},
     'pivot':{'label':'Pivot Table', 'icon':'fas fa-ruler-combined', 'module':pivot_table},
     'boids':{'label':'Boids', 'icon':'fas fa-crow', 'module':boids},
+    'geometry':{'label':'Geometry', 'icon':'fas fa-shapes', 'module':geometry},
 }
 
 app.layout = dhc.Div(
