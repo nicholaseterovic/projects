@@ -149,14 +149,13 @@ class Polygon(Shape):
         return trace
 
 class RegularPolygon(Polygon):
-    def __init__(self:object, line:Line, n:int=3) -> object:
-        self.points = points
-
-    @classmethod
-    def unit(cls:object, n:int=3) -> object:
-        line = Line.unit()
-        unit = cls(line, n)
-        return line
+    def __init__(self:object, sides:int, center:Point=Point.origin()) -> object:
+        angles = np.linspace(start=0, stop=2*math.pi, num=sides, endpoint=False)
+        points = [
+            center+Point(math.cos(angle), math.sin(angle))
+            for angle in angles
+        ]
+        return super().__init__(points=points)
 
 class Triangle(Polygon):
     def __init__(self:object, points:tp.Container[Point]) -> object:
