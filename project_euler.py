@@ -551,3 +551,31 @@ def solution_020(n:int=100) -> int:
     return sum(int(digit) for digit in str(factorial(n=n)))
 
 ####################################################################################################
+
+def get_sum_proper_divisors(n:int) -> int:
+    return sum(get_divisors(n=n)[:-1], 0)
+
+def amicable_pairs(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
+    """
+    > Yield pairs of amicable numbers.
+    """
+    idx = 1
+    val = 2
+    amicable_pairs = []
+    exceeded_max = False
+    while not exceeded_max:
+        if idx>max_idx:
+            exceeded_max = True
+        elif val>max_val:
+            exceeded_max = True
+        elif not any(val==pair[1] for pair in amicable_pairs):
+            other = get_sum_proper_divisors(n=val)
+            if val!= other and val==get_sum_proper_divisors(n=other):
+                idx += 1
+                pair = (val, other)
+                amicable_pairs.append(pair)
+                yield pair
+        val += 1
+
+def solution_021(n:int=1e4) -> int:
+    return sum(n for pair in amicable_pairs(max_val=n) for n in pair)
