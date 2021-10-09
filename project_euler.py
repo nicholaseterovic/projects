@@ -638,10 +638,6 @@ def amicable_pairs(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
 def solution_021(n:int=1e4) -> int:
     return sum(n for pair in amicable_pairs(max_val=n) for n in pair)
 
-
-with open('assets/p022_names.txt') as f:
-    text = f.read()
-
 ####################################################################################################
 
 def solution_022(file:str='assets/p022_names.txt') -> int:
