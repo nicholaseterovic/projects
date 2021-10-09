@@ -3,6 +3,7 @@
 
 # Open-source packages.
 import math
+import num2words
 import typing as tp
 import functools as ft
 import itertools as it
@@ -491,6 +492,63 @@ def solution_016(n:int=2**1000) -> int:
 
 ####################################################################################################
 
+def solution_017(n:int=1000) -> int:
+    nums = range(1, n+1)
+    num2chars = lambda num:num2words.num2words(num).replace("-", "").replace(" ", "")
+    num_chars = map(num2chars, nums)
+    num_char_counts = map(len, num_chars)
+    num_char_count = sum(num_char_counts)
+    return num_char_count
+
+####################################################################################################
+
+class Node:
+
+    def __init__(self, val:int, children:tp.List=[]):
+        self.val = val
+        self.children = children
+
+    @classmethod
+    def from_triangle_matrix(cls, triangle_matrix:tp.List[tp.List[int]]):
+        for i, row in enumerate(reversed(triangle_matrix)):
+            if i==0:
+                nodes = [cls(val=val, children=[]) for val in row]
+            else:
+                nodes = [cls(val=val, children=[nodes[i], nodes[i+1]]) for i, val in enumerate(row)]
+        return nodes[0]
+
+    @property
+    def maximal_path(self) -> tp.List[int]:
+        child_maximal_paths = [child.maximal_path for child in self.children]
+        return [self.val, *max(child_maximal_paths, default=[], key=sum)]
+
+def solution_018() -> int:
+    triangle_str = """
+    75
+    95 64
+    17 47 82
+    18 35 87 10
+    20 04 82 47 65
+    19 01 23 75 03 34
+    88 02 77 73 07 63 67
+    99 65 04 28 06 16 70 92
+    41 41 26 56 83 40 80 70 33
+    41 48 72 33 47 32 37 16 94 29
+    53 71 44 65 25 43 91 52 97 51 14
+    70 11 33 28 77 73 17 78 39 68 17 57
+    91 71 52 38 17 14 91 43 58 50 27 29 48
+    63 66 04 68 89 53 67 30 73 16 69 87 40 31
+    04 62 98 27 23 09 70 98 73 93 38 53 60 04 23
+    """
+    triangle_matrix = [
+        [int(num_str) for num_str in row_str.split()]
+        for row_str in triangle_str.strip().split("\n")
+    ]
+    node = Node.from_triangle_matrix(triangle_matrix=triangle_matrix)
+    return sum(node.maximal_path)
+
+####################################################################################################
+
 def is_leap_year(YYYY:int) -> bool:
     if YYYY % 100 == 0:
         if YYYY % 400 == 0:
@@ -579,3 +637,19 @@ def amicable_pairs(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
 
 def solution_021(n:int=1e4) -> int:
     return sum(n for pair in amicable_pairs(max_val=n) for n in pair)
+
+
+with open('assets/p022_names.txt') as f:
+    text = f.read()
+
+####################################################################################################
+
+def solution_022(file:str='assets/p022_names.txt') -> int:
+    with open(file=file, mode='r') as file_handle:
+        text = file_handle.read()
+    names = sorted(text.replace('"', "").split(","))
+    offset = ord('A')-1
+    scores = (i*(sum(map(ord, name))-len(name)*offset) for i, name in enumerate(names, 1))
+    return sum(scores)
+
+####################################################################################################
