@@ -8,102 +8,25 @@ import typing as tp
 import functools as ft
 import itertools as it
 
-####################################################################################################
+# In-house packages.
+import utils.sets as su
+import utils.numbers as nu
+import utils.temporal as tu
+from utils.tree import Node
+from utils.collatz import CollatzTree
 
-def get_set_union_agg(sets:tp.List[set], agg:tp.Callable=len) -> int:
-    """
-    > Aggregate <sets> using the inclusion-exclusion principle.
-    """
-    get_intersection = lambda sets:ft.reduce(set.intersection, sets, set())
-    n = len(sets)
-    I = range(1, n+1)
-    count = 0
-    for i in I:
-        sign = 1 if i%2==1 else -1
-        subsets = it.combinations(sets, i)
-        intersections = map(get_intersection, subsets)
-        counts = map(agg, intersections)
-        count += sign*sum(counts, 0)
-    return count
+####################################################################################################
 
 def solution_001(n:int=1000, K:tp.List[int]=[3, 5], agg=sum) -> int:
     sets = [set(range(k, n, k)) for k in K]
-    solution = get_set_union_agg(sets=sets, agg=agg)
+    solution = su.get_set_union_agg(sets=sets, agg=agg)
     return solution
 
-####################################################################################################
-
-def even_fibonnaci_numbers(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
-    """
-    > Yield even Fibonacci numbers.
-    """
-    idx = 1
-    prev = 2
-    curr = 8
-    exceeded_max = False
-    while not exceeded_max:
-        if idx>max_idx:
-            exceeded_max = True
-        else:
-            if idx==1:
-                val = prev
-            elif idx==2:
-                val = curr
-            else:
-                val = 4*curr+prev
-                prev = curr
-                curr = val
-            if val>max_val:
-                exceeded_max = True
-            else:
-                yield val
-        idx += 1
-
 def solution_002(max_val:int=4e6) -> int:
-    return sum(even_fibonnaci_numbers(max_val=max_val), 0)
-
-####################################################################################################
-
-def primes(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
-    """
-    > Yield prime numbers using the Sieve of Eratosthenes.
-    """
-    idx = 1
-    val = 2
-    primes = []
-    exceeded_max = False
-    while not exceeded_max:
-        if idx>max_idx:
-            exceeded_max = True
-        elif val>max_val:
-            exceeded_max = True
-        elif not any(val%prime==0 for prime in primes):
-            primes.append(val)
-            idx += 1
-            yield val
-        val += 1
-
-def get_prime_decomposition(n:int) -> tp.Container[int]:
-    """
-    > Decompose <n> into its prime factors.
-    """
-    for prime in primes(max_val=int(n**0.5)):
-        if n%prime==0:
-            return [prime, *get_prime_decomposition(n//prime)]
-    return [n]
+    return sum(nu.even_fibonnaci_numbers(max_val=max_val), 0)
 
 def solution_003(n:int=600851475143) -> int:
-    return max(get_prime_decomposition(n=n))
-
-####################################################################################################
-
-def prod(container:tp.Container, default=1) -> int:
-    iterator = iter(container)
-    try:
-        first = next(iterator)
-    except StopIteration:
-        return default
-    return first*ft.reduce(type(first).__mul__, iterator, 1)
+    return max(nu.get_prime_decomposition(n=n))
 
 def solution_004(numbers:int=2, digits:int=3) -> int:
     rng = range(int("9"*digits), int("1"*digits)-1, -1)
@@ -112,55 +35,24 @@ def solution_004(numbers:int=2, digits:int=3) -> int:
     for num in nums:
         if any(n<m for n, m in zip(num[:-1], num[1:])):
             continue
-        val = prod(num)
+        val = nu.prod(num)
         val_str = str(val)
         if val_str==val_str[::-1] and val>max_palindrome:
             max_palindrome = val
     return max_palindrome
 
-####################################################################################################
-
-def get_lcm(*numbers:tp.Collection[int]) -> int:
-    """
-    Compute the lowest common multiple of <numbers>.
-    """
-    decomps = [get_prime_decomposition(n) for n in numbers]
-    powers = [(prime, len(list(group))) for decomp in decomps for prime, group in it.groupby(decomp)]
-    powers = sorted(powers, key=lambda x:x[0])
-    max_powers = [max(power) for prime, power in it.groupby(powers, key=lambda x:x[0])]
-    powered = [prime**power for prime, power in max_powers]
-    lcm = prod(powered)
-    return lcm
-
 def solution_005(n:int=20) -> int:
-    return get_lcm(*range(1, n+1))
-
-####################################################################################################
-
-def get_sum_of_powers(n:int, power:int=1) -> int:
-    """
-    Compute the sum of the first <n> natural numbers raised to <power>.
-    """
-    if power==1:
-        return n*(n+1)//2
-    elif power==2:
-        return n*(n+1)*(2*n+1)//6
-    else:
-        return sum(k**power for k in range(1, n+1))
+    return nu.get_lcm(*range(1, n+1))
 
 def solution_006(n:int=100) -> int:
-    sum_of_squares = get_sum_of_powers(n=n, power=2)
-    square_of_sum = get_sum_of_powers(n=n, power=1)**2
+    sum_of_squares = nu.get_sum_of_powers(n=n, power=2)
+    square_of_sum = nu.get_sum_of_powers(n=n, power=1)**2
     return abs(sum_of_squares-square_of_sum)
 
-####################################################################################################
-
 def solution_007(i:int=10001) -> int:
-    for prime in primes(max_idx=i):
+    for prime in nu.primes(max_idx=i):
         pass
     return prime
-
-####################################################################################################
 
 def solution_008(n:int=13) -> int:
     num_str = """
@@ -193,55 +85,18 @@ def solution_008(n:int=13) -> int:
         if max_prod>-math.inf and 0 in num_sublist:
             continue
         num_subiter = filter(int(1).__ne__, num_sublist)
-        prod_num = prod(num_subiter, default=1)
+        prod_num = nu.prod(num_subiter, default=1)
         if prod_num>max_prod:
             max_prod = prod_num
     return max_prod
 
-####################################################################################################
-
-def get_pythag_triples(perimeter:int) -> tp.List[tp.Tuple[int, int, int]]:
-    """
-    > Return Pythagorian triple(s) (a, b, c) such that:
-      a^2 + b^2 = c^2
-      a + b + c = perimeter
-      a < b < c
-    """
-    pythag_triples = []
-    for a in range(1, perimeter//3):
-        for b in range(a+1, 1+(perimeter-a)//2):
-            c = perimeter - a - b
-            if a**2 + b**2 == c**2:
-                pythag_triple = (a, b, c)
-                pythag_triples.append(pythag_triple)
-    return pythag_triples
-
 def solution_009(perimeter:int=1000) -> int:
-    pythag_triples = get_pythag_triples(perimeter=perimeter)
+    pythag_triples = nu.get_pythag_triples(perimeter=perimeter)
     a, b, c = max(pythag_triples)
     return a*b*c
 
-####################################################################################################
-
 def solution_010(n:int=2e6) -> int:
-    return sum(primes(max_val=n))
-
-####################################################################################################
-
-def get_max_adj_prod(matrix:tp.List[tp.List[int]], adj_num:int) -> int:
-    directions = [(1, 0), (0, 1), (1, 1), (-1, 1)]
-    I = len(matrix)
-    J = min(map(len, matrix), default=0)
-    max_adj_prod = -math.inf
-    for i in range(I):
-        for j in range(J):
-            for di, dj in directions:
-                if 0<=i+(adj_num-1)*di<I and 0<=j+(adj_num-1)*dj<J:
-                    adj = (matrix[i+step*di][j+step*dj] for step in range(adj_num))
-                    adj_prod = prod(adj)
-                    if adj_prod>max_adj_prod:
-                        max_adj_prod = adj_prod
-    return max_adj_prod
+    return sum(nu.primes(max_val=n))
 
 def solution_011(adj_num:int=4) -> int:
     matrix_str = """
@@ -270,58 +125,14 @@ def solution_011(adj_num:int=4) -> int:
         [int(num_str) for num_str in row_str.strip().split(" ")]
         for row_str in matrix_str.strip().split("\n")
     ]
-    return get_max_adj_prod(matrix=matrix, adj_num=adj_num)
-
-####################################################################################################
-
-def triangle_numbers(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
-    """
-    > Yield triangle numbers.
-    """
-    idx = 1
-    val = 1
-    triangle_numbers = []
-    exceeded_max = False
-    while not exceeded_max:
-        if idx>max_idx:
-            exceeded_max = True
-        elif val>max_val:
-            exceeded_max = True
-        else:
-            val = idx*(idx+1)//2
-            idx += 1
-            yield val
-
-def get_divisors(n:int) -> tp.List[int]:
-    prime_decomposition = get_prime_decomposition(n=n)
-    divisors = {1, n}
-    for r in range(1, len(prime_decomposition)):
-        for primes in set(it.combinations(prime_decomposition, r=r)):
-            divisor = prod(primes, default=1)
-            divisors.add(divisor)
-    return sorted(divisors)
+    return nu.get_max_adj_prod(matrix=matrix, adj_num=adj_num)
     
 def solution_012(min_num_divisors:int=500) -> int:
-    for triangle_number in triangle_numbers():
-        divisors = get_divisors(triangle_number)
+    for triangle_number in nu.triangle_numbers():
+        divisors = nu.get_divisors(triangle_number)
         num_divisors = len(divisors)
         if num_divisors>min_num_divisors:
             return triangle_number
-
-####################################################################################################
-
-def sum_digit_lists(digit_lists:tp.List[tp.List[int]]) -> tp.List[int]:
-    digit_lists_reversed = it.zip_longest(*map(reversed, digit_lists))
-    total_digit_list = []
-    carry = 0
-    digits = True
-    while digits or carry:
-        digits = next(digit_lists_reversed, [])
-        total_digit_sum = sum(digits, 0) + carry
-        total_digit = total_digit_sum % 10
-        carry = (total_digit_sum - total_digit) // 10
-        total_digit_list.insert(0, total_digit)
-    return total_digit_list
     
 def solution_013(num_first_digits:int=10) -> int:
     numbers_str = """
@@ -430,67 +241,21 @@ def solution_013(num_first_digits:int=10) -> int:
         [int(digit_str) for digit_str in number_str]
         for number_str in numbers_str.strip().split()
     ]
-    total_digit_list = sum_digit_lists(digit_lists=digit_lists)
+    total_digit_list = nu.sum_digit_lists(digit_lists=digit_lists)
     first_digits = total_digit_list[:num_first_digits]
     return sum(digit*10**i for i, digit in enumerate(reversed(first_digits)))
-
-####################################################################################################
-
-class CollatzTree:
-        
-    def __init__(self):
-        self._term_cache = {1:1}
-        self._length_cache = {1:1}
-
-    def get_term(self, n:int=1) -> int:
-        if n in self._term_cache:
-            return self._term_cache[n]
-        term = self._term_cache[n] = n//2 if n%2==0 else 1+3*n
-        return term
-    
-    def get_length(self, n:int=1) -> int:
-        if n in self._length_cache:
-            return self._length_cache[n]
-        term = self.get_term(n=n)
-        length = self._length_cache[n] = 1+self.get_length(n=term)
-        return length
-    
-    def get_sequence(self, n:int=1) -> tp.List[int]:
-        sequence = [n]
-        while n!=1:
-            n = self.get_term(n=n)
-            sequence.append(n)
-        return sequence
 
 def solution_014(max_num:int=1e6) -> int:
     nums = range(1, int(max_num))
     collatz_tree = CollatzTree()
     return max(nums, key=collatz_tree.get_length)
-
-####################################################################################################
-
-def factorial(n:int) -> int:
-    factorial = 1
-    for i in range(2, n+1):
-        factorial *= i
-    return factorial
-
-def get_num_permutations(container:tp.Container) -> int:
-    n = len(container)
-    R = [len(list(group)) for key, group in it.groupby(sorted(container))]
-    num_permutations = factorial(n)//prod(map(factorial, R))
-    return num_permutations
     
 def solution_015(grid_length:int=20) -> int:
     moves = grid_length*['DOWN', 'RIGHT']
-    return get_num_permutations(moves)
-
-####################################################################################################
+    return nu.get_num_permutations(moves)
 
 def solution_016(n:int=2**1000) -> int:
     return sum(map(int, str(n)), 0)
-
-####################################################################################################
 
 def solution_017(n:int=1000) -> int:
     nums = range(1, n+1)
@@ -499,28 +264,6 @@ def solution_017(n:int=1000) -> int:
     num_char_counts = map(len, num_chars)
     num_char_count = sum(num_char_counts)
     return num_char_count
-
-####################################################################################################
-
-class Node:
-
-    def __init__(self, val:int, children:tp.List=[]):
-        self.val = val
-        self.children = children
-
-    @classmethod
-    def from_triangle_matrix(cls, triangle_matrix:tp.List[tp.List[int]]):
-        for i, row in enumerate(reversed(triangle_matrix)):
-            if i==0:
-                nodes = [cls(val=val, children=[]) for val in row]
-            else:
-                nodes = [cls(val=val, children=[nodes[i], nodes[i+1]]) for i, val in enumerate(row)]
-        return nodes[0]
-
-    @property
-    def maximal_path(self) -> tp.List[int]:
-        child_maximal_paths = [child.maximal_path for child in self.children]
-        return [self.val, *max(child_maximal_paths, default=[], key=sum)]
 
 def solution_018() -> int:
     triangle_str = """
@@ -547,98 +290,22 @@ def solution_018() -> int:
     node = Node.from_triangle_matrix(triangle_matrix=triangle_matrix)
     return sum(node.maximal_path)
 
-####################################################################################################
-
-def is_leap_year(YYYY:int) -> bool:
-    if YYYY % 100 == 0:
-        if YYYY % 400 == 0:
-            return True
-        return False
-    if YYYY % 4 == 0:
-        return True
-    return False
-
-def get_num_days_in_month(YYYY:int, MM:int) -> int:
-    if MM==2:
-        if is_leap_year(YYYY):
-            return 29
-        return 28
-    if MM in [4, 6, 9, 11]:
-        return 30
-    return 31
-
-def parse_date(YYYYMMDD:int) -> tp.Tuple[int, int, int]:
-    DD = YYYYMMDD % 100
-    MM = ((YYYYMMDD-DD) % 10000) // 100
-    YYYY = (YYYYMMDD-100*MM-DD) // 10000
-    return (YYYY, MM, DD)
-    
-def get_dates_between(sYYYYMMDD:int, eYYYYMMDD:int) -> tp.List[int]:
-    sYYYY, sMM, sDD = parse_date(YYYYMMDD=sYYYYMMDD)
-    eYYYY, eMM, eDD = parse_date(YYYYMMDD=eYYYYMMDD)
-    return [
-        10000*YYYY+100*MM+DD
-        for YYYY in range(
-            sYYYY,
-            eYYYY+1,
-        )
-        for MM in range(
-            sMM if YYYY==sYYYY else 1,
-            (eMM if YYYY==eYYYY else 12)+1,
-        )
-        for DD in range(
-            sDD if YYYY==sYYYY and MM==sMM else 1,
-            (eDD if YYYY==eYYYY and MM==eMM else get_num_days_in_month(YYYY, MM))+1,
-        )
-    ]
-
 def solution_019(sYYYYMMDD:int=19010101, eYYYYMMDD:int=20001231, day_of_week:int=7) -> int:
     date_mon = 19000101
-    dates = get_dates_between(min(date_mon, sYYYYMMDD), max(date_mon, eYYYYMMDD))
+    dates = tu.get_dates_between(min(date_mon, sYYYYMMDD), max(date_mon, eYYYYMMDD))
     i_mon = dates.index(date_mon)
     i_dow = i_mon+day_of_week-1
     return len([
         date
         for date in dates[i_dow%7::7]
-        if sYYYYMMDD<=date<=eYYYYMMDD and parse_date(date)[2]==1
+        if sYYYYMMDD<=date<=eYYYYMMDD and tu.parse_date(date)[2]==1
     ])
 
-####################################################################################################
-
 def solution_020(n:int=100) -> int:
-    return sum(int(digit) for digit in str(factorial(n=n)))
-
-####################################################################################################
-
-def get_sum_proper_divisors(n:int) -> int:
-    return sum(get_divisors(n=n)[:-1], 0)
-
-def amicable_pairs(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
-    """
-    > Yield pairs of amicable numbers.
-    """
-    idx = 1
-    val = 2
-    amicable_pairs = []
-    exceeded_max = False
-    while not exceeded_max:
-        if idx>max_idx:
-            exceeded_max = True
-        elif val>max_val:
-            exceeded_max = True
-        elif not any(val==pair[1] for pair in amicable_pairs):
-            other = get_sum_proper_divisors(n=val)
-            if val!= other and val==get_sum_proper_divisors(n=other):
-                idx += 1
-                pair = (val, other)
-                amicable_pairs.append(pair)
-                yield pair
-        val += 1
+    return sum(int(digit) for digit in str(nu.factorial(n=n)))
 
 def solution_021(n:int=1e4) -> int:
-    return sum(n for pair in amicable_pairs(max_val=n) for n in pair)
-
-####################################################################################################
+    return sum(n for pair in nu.amicable_pairs(max_val=n) for n in pair)
 
 def solution_022(file:str='assets/p022_names.txt') -> int:
     with open(file=file, mode='r') as file_handle:
@@ -648,4 +315,18 @@ def solution_022(file:str='assets/p022_names.txt') -> int:
     scores = (i*(sum(map(ord, name))-len(name)*offset) for i, name in enumerate(names, 1))
     return sum(scores)
 
-####################################################################################################
+def solution_024(digits_str:str='0123456789', i:int=1000000) -> str:
+    perms = map(''.join, it.permutations(iterable=digits_str, r=len(digits_str)))
+    lex_perms = sorted(perms)
+    lex_perm = lex_perms[i-1]
+    return lex_perm
+
+def solution_025(min_num_digits:int=1000) -> int:
+    i = 0
+    fib_nums = nu.fibonnaci_numbers()
+    num_digits = -math.inf
+    while num_digits<min_num_digits:
+        fib_num = next(fib_nums)
+        num_digits = len(str(fib_num))
+        i += 1
+    return i
