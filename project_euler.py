@@ -152,6 +152,12 @@ def solution_020(n:int=100) -> int:
 def solution_021(n:int=1e4) -> int:
     return sum(n for pair in nu.amicable_pairs(max_val=n) for n in pair)
 
+def solution_023(n:int=28123) -> int:
+    abundant_numbers = filter(lambda x:x<nu.get_sum_proper_divisors(x), range(1, 1+n))
+    abundant_pairs = it.combinations_with_replacement(iterable=abundant_numbers, r=2)
+    abundant_pair_sums = set(map(sum, abundant_pairs))
+    return sum(i for i in range(1, n+1) if i not in abundant_pair_sums)
+
 def solution_022(file:str='data/project_euler/p022_names.txt') -> int:
     with open(file=file, mode='r') as file_handle:
         text = file_handle.read()
@@ -175,3 +181,6 @@ def solution_025(min_num_digits:int=1000) -> int:
         num_digits = len(str(fib_num))
         i += 1
     return i
+
+def solution_028(spiral_dim:int=1001) -> int:
+    return 1+sum(16*n**2+4*n+4 for n in range(1+(spiral_dim-1)//2))
