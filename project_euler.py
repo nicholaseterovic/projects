@@ -125,7 +125,7 @@ def solution_017(n:int=1000) -> int:
     num_char_count = sum(num_char_counts)
     return num_char_count
 
-def solution_018(file:str='data/project_euler/p018_triangle_matrix.txt') -> int:
+def solution_018(file:str='data/project_euler/p018_triangle.txt') -> int:
     with open(file=file, mode='r') as file_handle:
         triangle_str = file_handle.read()
     triangle_matrix = [
@@ -184,3 +184,12 @@ def solution_025(min_num_digits:int=1000) -> int:
 
 def solution_028(spiral_dim:int=1001) -> int:
     return 1+sum(16*n**2+4*n+4 for n in range(1+(spiral_dim-1)//2))
+
+def solution_029(a_max:int=100, b_max:int=100) -> int:
+    B = range(2, 1+b_max)
+    A = map(nu.get_prime_decomposition, range(2, 1+a_max))
+    ApB = (sorted(a*b) for a, b in it.product(A, B))
+    return len(set(map(tuple, ApB)))
+
+def solution_067(file:str='data/project_euler/p067_triangle.txt') -> int:
+    return solution_018(file=file)
