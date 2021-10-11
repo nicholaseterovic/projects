@@ -295,3 +295,20 @@ def fibonnaci_numbers(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generato
             else:
                 yield val
         idx += 1
+
+def perfect_numbers(max_idx:int=math.inf, max_val:int=math.inf, compare:tp.Callable[[int, int], bool]=int.__eq__) -> tp.Generator:
+    """
+    > Yield perfect numbers.
+    """
+    idx = 1
+    val = 1
+    exceeded_max = False
+    while not exceeded_max:
+        if idx>max_idx:
+            exceeded_max = True
+        elif val>max_val:
+            exceeded_max = True
+        elif compare(val, get_sum_proper_divisors(val)):
+            idx += 1
+            yield val
+        val += 1       
