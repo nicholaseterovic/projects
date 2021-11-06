@@ -17,19 +17,8 @@ import dash_bootstrap_components as dbc
 ####################################################################################################
 
 class BoidSimulation(object):
-
-    @classmethod
-    def from_random_state(
-        cls,
-        num_boids:int=100,
-        loc:float=0,
-        scale:float=1,
-        **kwargs:dict,
-    ) -> object:
-        dims = 2
-        data = np.random.normal(size=(num_boids, dims*2), loc=loc, scale=scale)
-        state = pd.DataFrame(data=data, columns=['px', 'py', 'vx', 'vy'])
-        return cls(state=state, **kwargs)
+    
+    _dims = 2,
 
     def __init__(
         self,
@@ -94,6 +83,7 @@ class BoidSimulation(object):
             alignment=self.alignment,
             visibility=self.visibility,
             dimensions=self._dims,
+            step=self.step,
         )
         self.state = state
         self._n += 1
@@ -107,6 +97,7 @@ class BoidSimulation(object):
         alignment:float,
         visibility:float,
         dimensions:tp.List[str],
+        step:float,
     ) -> pd.DataFrame:
 
         # Self-cross-product Boids for all (center, neighbor) pairs.
@@ -132,15 +123,12 @@ class BoidSimulation(object):
             for i in dimensions
         ]
         p, v, np, nv, nd = map(list, zip(*cols))
-
-        # Nullify pairs for which the center and neighbor are the same.
-        pairs.loc[pairs['i']==pairs['ni'], [*np, *nv]] = None
-
+        
         # For each dimension:
         for pi, npi, ndi in zip(p, np, nd):
             # Compute neighbor-to-center translations.
             pairs[ndi] = pairs[pi] - pairs[npi]
-    
+
         # Compute neighbor-to-center distances.
         ndmag = pairs[nd].pow(2).sum(axis=1).pow(0.5)
 
@@ -161,8 +149,21 @@ class BoidSimulation(object):
             pairs[nvi] /= nvmag
             pairs[nvi].where(cond=nvmag.gt(0), other=0, inplace=True)
 
+        # Nullify neighbors that are centers.
+        pairs.loc[pairs['i']==pairs['ni'], [*np, *nv, *nd]] = None
+        
+        # Augment repulsor behaviour.
+        centers = pairs['t'].eq('repulsor')
+        pairs.loc[centers, np] = None
+        pairs.loc[centers, nv] = None
+        pairs.loc[centers, nd] = None
+        neighbors = pairs['nt'].eq('repulsor')
+        pairs.loc[neighbors, np] = None
+        pairs.loc[neighbors, nv] = None
+        pairs.loc[neighbors, nd] *= 30
+
         # Aggregate neighbor information per center Boid.
-        agg_last = {col:'last' for col in (*p, *v)}
+        agg_last = {col:'last' for col in ('t', *p, *v)}
         agg_mean = {col:'mean' for col in (*np, *nv, *nd)}
         agg = {**agg_last, **agg_mean}
         groups = pairs.groupby(by='i', as_index=False, sort=False)
@@ -172,7 +173,7 @@ class BoidSimulation(object):
         for pi, npi in zip(p, np):
             # Transform mean-neighbor positions to center-to-mean-neighbor translations.
             state[npi] -= state[pi]
-        
+
         # For each dimension:
         for pi, vi, npi, nvi, ndi in zip(p, v, np, nv, nd):
             # Compute accelerations.
@@ -181,9 +182,31 @@ class BoidSimulation(object):
             ai += cohesion * state.pop(npi).where(cond=pd.notnull, other=0)
             ai += alignment * state.pop(nvi).where(cond=pd.notnull, other=0)
             # Update velocities and positions.
-            state[vi] += ai
-            state[pi] += state[vi]
+            state[vi] += ai * step**2
+            state[pi] += state[vi] * step
 
+        return state
+
+    @staticmethod
+    def get_random_boids_state(num_boids:int=100, loc:float=0, scale:float=1) -> pd.DataFrame:
+        dims = 2
+        data = np.random.normal(size=(num_boids, dims), loc=loc, scale=scale)
+        state = pd.DataFrame(data=data, columns=['px', 'py'])
+        state['vx'] = 0
+        state['vy'] = 0
+        state['t'] = 'boid'
+        return state
+
+    @staticmethod
+    def get_circle_repulsor_state(num_repulsors:int=100, loc:float=0, radius:float=1) -> pd.DataFrame:
+        dims = 2
+        theta = np.linspace(start=0, stop=2*np.pi, num=num_repulsors, endpoint=False)
+        x = radius*np.cos(theta)
+        y = radius*np.sin(theta)
+        state = pd.DataFrame({'px':x, 'py':y})
+        state['vx'] = 0
+        state['vy'] = 0
+        state['t'] = 'repulsor'
         return state
 
 ####################################################################################################
@@ -259,6 +282,28 @@ empty_boids_figure = {
 
 app_layout = [
     dbc.Card([
+        dbc.CardBody([
+            dcc.Markdown('''
+                # Who Let the Boids Out?
+                ***
+
+                ### Introduction
+                ***
+
+                  This project originated in the Summer of 2020
+                with a sudden motivation to learn how to solve a **Rubik's cube**.
+                Little did I know of how deep the cubing rabbit's hole goes!
+
+                  As I sat fiddling and memorizing the various algorithms needed to assemble colors,
+                I decided that a better way to learn the cube's intricacies was instead to *code it up*.
+
+                  The result is a *virtual cube* that I am proud to share with you.
+                If you are curious,
+                I have documented below my modelling and implementation approach.
+            '''),
+        ]),
+    ]),
+    dbc.Card([
         dbc.CardHeader([
             dbc.InputGroup(
                 size='sm',
@@ -318,14 +363,27 @@ def register_app_callbacks(app:dash.Dash) -> None:
         [ddp.State('graph-boids-sim', 'figure')]
     )
     def reset_graph(n_clicks:int, figure:dict) -> dict:
+        
+        dt = 0.3
+        duration = 1000*dt
 
-        states = BoidSimulation.from_random_state(
-            num_boids=100,
-            loc=0,
-            scale=1,
-            seperation=0,
-            cohesion = 1,
-            visibility=100,
+        ranges = (figure['layout'][axis]['range'] for axis in ['xaxis', 'yaxis'])
+        diameters = map(lambda range:range[-1]-range[0], ranges)
+        radius = 0.5*min(diameters)
+
+        initial_boids = BoidSimulation.get_random_boids_state(num_boids=50, scale=0.5)
+        initial_repulsors = BoidSimulation.get_circle_repulsor_state(num_repulsors=100, radius=radius)
+        initial_state = pd.concat(ignore_index=True, objs=[
+            initial_boids,
+            initial_repulsors,
+        ])
+
+        states = BoidSimulation(
+            state=initial_state,
+            seperation=0.3,
+            cohesion=0.6,
+            alignment=0.01,
+            visibility=3,
         )
 
         figure['frames'] = [
@@ -335,23 +393,34 @@ def register_app_callbacks(app:dash.Dash) -> None:
                     'x':state['px'],
                     'y':state['py'],
                     'mode':'markers',
+                    'marker_symbol':np.where(
+                        state['vx'].abs().lt(1) & state['vy'].abs().lt(1),
+                        'circle',
+                        'x',
+                    ),
                 }],
             }
             for n, state in enumerate(states)
         ]
-
         figure['data'] = figure['frames'][0]['data']
-        figure['layout']['sliders'][0]['step'] = [
+
+        button = figure['layout']['updatemenus'][0]['buttons'][0]
+        slider = figure['layout']['sliders'][0]
+        
+        button['args'][-1]['frame']['duration'] = duration
+        slider['transition']['duration'] = duration
+        slider['step'] = [
             {
                 "label": frame['name'],
                 "method": "animate",
                 "args": [
                     [frame['name']],
-                    {"frame": {"duration": 1000, "redraw": False},
+                    {"frame": {"duration": duration, "redraw": False},
                     "mode": "immediate",
-                    "transition": {"duration": 1000}}
+                    "transition": {"duration": duration}}
                 ],
                 }
             for frame in figure['frames']
         ]
+    
         return figure
