@@ -50,6 +50,7 @@ Pygments==2.7.3
 pykalman==0.9.5
 pylint==2.6.0
 pyparsing==2.4.7
+pyinstrument==4.0.4
 python-dateutil==2.8.1
 pytz==2020.1
 PyWavelets==1.1.1

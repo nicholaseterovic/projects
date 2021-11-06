@@ -64,11 +64,11 @@ projects = {
     'home':{'label':'Home', 'icon':'fas fa-home', 'module':home},
     'rubik':{'label':'Rubik\'s Cube', 'icon':'fas fa-cube', 'module':rubiks_cube},
     'fractal':{'label':'Self-Similar Fractals', 'icon':'fas fa-wave-square', 'module':fractal},
-    'gol':{'label':'Conway\'s Game of Life', 'icon':'fas fa-heart', 'module':game_of_life},
     'kca':{'label':'Kinetic Component Analysis', 'icon':'fas fa-chart-line', 'module':kca},
+    'geometry':{'label':'Geometry', 'icon':'fas fa-shapes', 'module':geometry},
+    'gol':{'label':'Conway\'s Game of Life', 'icon':'fas fa-heart', 'module':game_of_life},
     'pivot':{'label':'Pivot Table', 'icon':'fas fa-ruler-combined', 'module':pivot_table},
     'boids':{'label':'Boids', 'icon':'fas fa-crow', 'module':boids},
-    'geometry':{'label':'Geometry', 'icon':'fas fa-shapes', 'module':geometry},
 }
 
 app.layout = dhc.Div(

@@ -76,6 +76,7 @@ dependencies:
     - pillow==8.0.0
     - plotly==4.2.1
     - pyparsing==2.4.7
+    - pyinstrument==4.0.4
     - pytz==2020.1
     - pywavelets==1.1.1
     - retrying==1.3.3
