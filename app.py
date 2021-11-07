@@ -30,6 +30,7 @@ import geometry
 import rubiks_cube
 import pivot_table
 import game_of_life
+import project_euler
 
 ####################################################################################################
 # APPLICATION
@@ -69,6 +70,7 @@ projects = {
     'gol':{'label':'Conway\'s Game of Life', 'icon':'fas fa-heart', 'module':game_of_life},
     'pivot':{'label':'Pivot Table', 'icon':'fas fa-ruler-combined', 'module':pivot_table},
     'boids':{'label':'Boids', 'icon':'fas fa-crow', 'module':boids},
+    'euler':{'label':'Project Euler Profiling', 'icon':'fas fa-hourglass-start', 'module':project_euler},
 }
 
 app.layout = dhc.Div(

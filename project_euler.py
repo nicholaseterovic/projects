@@ -15,6 +15,13 @@ import utils.temporal as tu
 from utils.tree import Node
 from utils.collatz import CollatzTree
 
+# Dash packages.
+import dash
+import dash.exceptions as dex
+import dash.dependencies as ddp
+import dash_core_components as dcc
+import dash_bootstrap_components as dbc
+
 ####################################################################################################
 
 def solution_001(n:int=1000, K:tp.List[int]=[3, 5], agg=sum) -> int:
@@ -193,3 +200,16 @@ def solution_029(a_max:int=100, b_max:int=100) -> int:
 
 def solution_067(file:str='data/project_euler/p067_triangle.txt') -> int:
     return solution_018(file=file)
+
+####################################################################################################
+# LAYOUT
+
+app_layout = [
+
+]
+
+####################################################################################################
+# CALLBACKS
+
+def register_app_callbacks(app:dash.Dash) -> None:
+    return
