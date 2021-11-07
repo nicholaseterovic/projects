@@ -38,7 +38,6 @@ def even_fibonnaci_numbers(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Gen
             else:
                 yield val
         idx += 1
-    raise StopIteration
 
 def primes(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
     """

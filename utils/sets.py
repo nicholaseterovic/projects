@@ -4,14 +4,20 @@
 # Open-source packages.
 import typing as tp
 import functools as ft
+import itertools as it
 
 ####################################################################################################
+
+def get_intersection(sets:tp.List[set]) -> set:
+    """
+    > Intersect <sets>.
+    """
+    return ft.reduce(set.intersection, sets, set())
 
 def get_set_union_agg(sets:tp.List[set], agg:tp.Callable=len) -> int:
     """
     > Aggregate <sets> using the inclusion-exclusion principle.
     """
-    get_intersection = lambda sets:ft.reduce(set.intersection, sets, set())
     n = len(sets)
     I = range(1, n+1)
     count = 0
