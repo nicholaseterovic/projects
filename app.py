@@ -64,13 +64,13 @@ links = {
 projects = {
     'home':{'label':'Home', 'icon':'fas fa-home', 'module':home},
     'rubik':{'label':'Rubik\'s Cube', 'icon':'fas fa-cube', 'module':rubiks_cube},
+    'euler':{'label':'Project Euler Profiling', 'icon':'fas fa-hourglass', 'module':project_euler},
     'fractal':{'label':'Self-Similar Fractals', 'icon':'fas fa-wave-square', 'module':fractal},
-    'kca':{'label':'Kinetic Component Analysis', 'icon':'fas fa-chart-line', 'module':kca},
-    'geometry':{'label':'Geometry', 'icon':'fas fa-shapes', 'module':geometry},
     'gol':{'label':'Conway\'s Game of Life', 'icon':'fas fa-heart', 'module':game_of_life},
+    'kca':{'label':'Kinetic Component Analysis', 'icon':'fas fa-chart-line', 'module':kca},
     'pivot':{'label':'Pivot Table', 'icon':'fas fa-ruler-combined', 'module':pivot_table},
     'boids':{'label':'Boids', 'icon':'fas fa-crow', 'module':boids},
-    'euler':{'label':'Project Euler Profiling', 'icon':'fas fa-hourglass-start', 'module':project_euler},
+    'geometry':{'label':'Geometry', 'icon':'fas fa-shapes', 'module':geometry},
 }
 
 app.layout = dhc.Div(

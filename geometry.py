@@ -312,7 +312,7 @@ app_layout = [
                         ),
                     ),
                 ],
-            )
+            ),
         ]),
         dbc.CardBody([
             dcc.Graph(

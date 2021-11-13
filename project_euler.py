@@ -2,11 +2,15 @@
 ####################################################################################################
 
 # Open-source packages.
+import sys
+import json
 import math
-import num2words
+import inspect
+import num2words 
 import typing as tp
 import functools as ft
 import itertools as it
+import pyinstrument as pi
 
 # In-house packages.
 import utils.sets as su
@@ -26,7 +30,7 @@ import dash_bootstrap_components as dbc
 
 def solution_001(n:int=1000, K:tp.List[int]=[3, 5], agg=sum) -> int:
     sets = [set(range(k, n, k)) for k in K]
-    solution = su.get_set_union_agg(sets=sets, agg=agg)
+    solution = su.get_agg_union_sets(sets=sets, agg=agg)
     return solution
 
 def solution_002(max_val:int=4e6) -> int:
@@ -205,11 +209,78 @@ def solution_067(file:str='data/project_euler/p067_triangle.txt') -> int:
 # LAYOUT
 
 app_layout = [
-
+    dbc.Card([
+        dbc.CardHeader([
+            dbc.InputGroup(
+                size="sm",
+                children=[
+                    dbc.InputGroupAddon(
+                        children="Solution:",
+                    ),
+                    dbc.Select(
+                        id="select-solution-number",
+                        value=None,
+                        options=[
+                            {'label':name.rsplit(sep='_', maxsplit=1)[-1], 'value':name}
+                            for name, obj in inspect.getmembers(
+                                object=sys.modules[__name__],
+                                predicate=inspect.isfunction,
+                            )
+                        ],
+                    ),
+                    dbc.InputGroupAddon(
+                        addon_type="append",
+                        children=dbc.Button(
+                            id="button-solution-profile",
+                            children="Profile",
+                            n_clicks=0,
+                            color="primary",
+                        ),
+                    ),
+                ],
+            ),
+        ]),
+        dcc.Store(
+            id='store-solution-profile',
+            data={},
+        ),
+        dbc.CardBody([
+            dcc.Graph(
+                id='graph-solution-profile',
+                figure={},
+            ),
+        ]),
+    ]),
 ]
 
 ####################################################################################################
 # CALLBACKS
 
 def register_app_callbacks(app:dash.Dash) -> None:
-    return
+
+    @app.callback(
+        ddp.Output("store-solution-profile", "data"),
+        [ddp.Input("button-solution-profile", "n_clicks")],
+        [ddp.State("select-solution-number", "value")],
+    )
+    def profile_solution(n_clicks:int, name:str) -> int:
+        if not name:
+            return {}
+        func = getattr(sys.modules[__name__], name)
+        with pi.Profiler() as profiler:
+            func()
+        profile_str = profiler.output(renderer=pi.renderers.JSONRenderer(show_all=False))
+        profile_dict = json.loads(s=profile_str)
+        return profile_dict
+
+    @app.callback(
+        ddp.Output("graph-solution-profile", "figure"),
+        [ddp.Input("store-solution-profile", "data")],
+    )
+    def visualize_profile(data:dict) -> int:
+        if not data:
+            return {}
+        
+        root_frame = data.pop('root_frame')
+        print(root_frame)
+        return {}
