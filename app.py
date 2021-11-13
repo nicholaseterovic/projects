@@ -5,8 +5,8 @@
 import dash
 import dash.exceptions as dex
 import dash.dependencies as ddp
-import dash_core_components as dcc
-import dash_html_components as dhc
+from dash import dcc
+from dash import html as dhc
 import dash_trich_components as dtc
 import dash_bootstrap_components as dbc
 import dash_extensions.javascript as djs

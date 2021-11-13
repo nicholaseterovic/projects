@@ -23,7 +23,7 @@ from utils.collatz import CollatzTree
 import dash
 import dash.exceptions as dex
 import dash.dependencies as ddp
-import dash_core_components as dcc
+from dash import dcc
 import dash_bootstrap_components as dbc
 
 ####################################################################################################
@@ -214,7 +214,7 @@ app_layout = [
             dbc.InputGroup(
                 size="sm",
                 children=[
-                    dbc.InputGroupAddon(
+                    dbc.InputGroupText(
                         children="Solution:",
                     ),
                     dbc.Select(
@@ -228,14 +228,11 @@ app_layout = [
                             )
                         ],
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type="append",
-                        children=dbc.Button(
-                            id="button-solution-profile",
-                            children="Profile",
-                            n_clicks=0,
-                            color="primary",
-                        ),
+                    dbc.Button(
+                        id="button-solution-profile",
+                        children="Profile",
+                        n_clicks=0,
+                        color="primary",
                     ),
                 ],
             ),

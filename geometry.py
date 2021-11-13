@@ -18,7 +18,7 @@ import utils.graphic as gu
 import dash
 import dash.exceptions as dex
 import dash.dependencies as ddp
-import dash_core_components as dcc
+from dash import dcc
 import dash_bootstrap_components as dbc
 
 ####################################################################################################
@@ -254,18 +254,14 @@ app_layout = [
             dbc.InputGroup(
                 size="sm",
                 children=[
-                    dbc.InputGroupAddon(
-                        addon_type="prepend",
-                        children=dbc.Button(
-                            id="button-geometry-spiral-reset",
-                            children="Reset",
-                            n_clicks=0,
-                            color="primary",
-                        ),
+                    dbc.Button(
+                        id="button-geometry-spiral-reset",
+                        children="Reset",
+                        n_clicks=0,
+                        color="primary",
                     ),
-                    dbc.InputGroupAddon(
+                    dbc.InputGroupText(
                         children="Seed Count:",
-                        style={"font-weight":"bold"},
                     ),
                     dbc.Input(
                         id="input-geometry-spiral-snum",
@@ -273,7 +269,7 @@ app_layout = [
                         type="numeric",
                         disabled=True,
                     ),
-                    dbc.InputGroupAddon(
+                    dbc.InputGroupText(
                         children="Rotation Space:",
                     ),
                     dbc.Input(
@@ -290,26 +286,23 @@ app_layout = [
                         type="numeric",
                         disabled=True,
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type="prepend",
+                    dbc.InputGroupText(
                         children="Draw Lines:",
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type="prepend",
-                        children=dbc.Checkbox(
-                            id="checkbox-geometry-spiral-mode",
-                            checked=True,
-                        ), 
+                    dbc.InputGroupText(
+                        children=[
+                            dbc.Checkbox(
+                                id="checkbox-geometry-spiral-mode",
+                                value=True,
+                            ),
+                        ],
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type="append",
-                        children=dbc.Button(
-                            id="button-geometry-spiral-plot",
-                            children="Generate",
-                            n_clicks=0,
-                            color="primary",
-                            disabled=False,
-                        ),
+                    dbc.Button(
+                        id="button-geometry-spiral-plot",
+                        children="Generate",
+                        n_clicks=0,
+                        color="primary",
+                        disabled=False,
                     ),
                 ],
             ),
@@ -410,7 +403,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
             ddp.Output("input-geometry-spiral-tmin", "value"),
             ddp.Output("input-geometry-spiral-tmax", "value"),
             ddp.Output("input-geometry-spiral-tnum", "value"),
-            ddp.Output("checkbox-geometry-spiral-mode", "checked"),
+            ddp.Output("checkbox-geometry-spiral-mode", "value"),
         ],
         [ddp.Input("button-geometry-spiral-reset", "n_clicks"),],
     )
@@ -432,7 +425,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
             ddp.State("input-geometry-spiral-tmin", "value"),
             ddp.State("input-geometry-spiral-tmax", "value"),
             ddp.State("input-geometry-spiral-tnum", "value"),
-            ddp.State("checkbox-geometry-spiral-mode", "checked"),
+            ddp.State("checkbox-geometry-spiral-mode", "value"),
         ],
     )
     def plot_spiral(n_clicks:int, figure:dict, snum:int, tmin:float, tmax:float, tnum:int, lines:bool) -> dict:

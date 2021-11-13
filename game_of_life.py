@@ -9,7 +9,7 @@ import itertools as it
 import dash
 import dash.exceptions as dex
 import dash.dependencies as ddp
-import dash_core_components as dcc
+from dash import dcc
 import dash_bootstrap_components as dbc
 
 ####################################################################################################
@@ -182,20 +182,14 @@ app_layout = [
             dbc.InputGroup(
                 size='sm',
                 children=[
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
-                        children=dbc.Button(
-                            id='button-gol-clear',
-                            children='Clear',
-                            n_clicks=0,
-                            color='primary',
-                            disabled=False,
-                        ),
+                    dbc.Button(
+                        id='button-gol-clear',
+                        children='Clear',
+                        n_clicks=0,
+                        color='primary',
+                        disabled=False,
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
-                        children='Rows:',
-                    ),
+                    dbc.InputGroupText('Rows:'),
                     dbc.Select(
                         id='select-gol-rows',
                         value=default_rows,
@@ -204,10 +198,7 @@ app_layout = [
                             for dim in [10, 25, 50, 75, 100]
                         ]
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
-                        children='Cols:',
-                    ),
+                    dbc.InputGroupText('Cols:'),
                     dbc.Select(
                         id='select-gol-cols',
                         value=default_cols,
@@ -216,10 +207,7 @@ app_layout = [
                             for dim in [10, 25, 50, 75, 100]
                         ]
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
-                        children='Duration:',
-                    ),
+                    dbc.InputGroupText('Duration:'),
                     dbc.Select(
                         id='select-gol-tdur',
                         value=default_tdur,
@@ -228,25 +216,19 @@ app_layout = [
                             for dur in [100, 300, 500, 1000]
                         ]
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='append',
-                        children=dbc.Button(
-                            id='button-gol-state',
-                            children='Play',
-                            n_clicks=0,
-                            color='primary',
-                            disabled=False,
-                        ),
+                    dbc.Button(
+                        id='button-gol-state',
+                        children='Play',
+                        n_clicks=0,
+                        color='primary',
+                        disabled=False,
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='append',
-                        children=dbc.Button(
-                            id='icon-gol-state',
-                            className='fa fa-cog',
-                            n_clicks=0,
-                            color='link',
-                            disabled=True,
-                        ),
+                    dbc.Button(
+                        id='icon-gol-state',
+                        className='fa fa-cog',
+                        n_clicks=0,
+                        color='link',
+                        disabled=True,
                     ),
                 ],
             ),

@@ -11,7 +11,7 @@ import itertools as it
 import dash
 import dash.exceptions as dex
 import dash.dependencies as ddp
-import dash_core_components as dcc
+from dash import dcc
 import dash_bootstrap_components as dbc
 
 ####################################################################################################
@@ -308,19 +308,14 @@ app_layout = [
             dbc.InputGroup(
                 size='sm',
                 children=[
-                    dbc.InputGroupAddon(addon_type='prepend', children=[
-                        dbc.Button(
-                            id='button-boids-reset',
-                            children='Reset',
-                            n_clicks=0,
-                            color='primary',
-                            disabled=False,
-                        ),
-                    ]),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
-                        children='Seperation:',
+                    dbc.Button(
+                        id='button-boids-reset',
+                        children='Reset',
+                        n_clicks=0,
+                        color='primary',
+                        disabled=False,
                     ),
+                    dbc.InputGroupText('Seperation:'),
                     dbc.Input(
                         id='input-boids-seperation',
                         min=0,

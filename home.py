@@ -5,8 +5,8 @@
 import dash
 import dash_tabulator as dtb
 import dash.dependencies as ddp
-import dash_core_components as dcc
-import dash_html_components as dhc
+from dash import dcc
+from dash import html as dhc
 import dash_bootstrap_components as dbc
 
 ####################################################################################################
@@ -14,7 +14,7 @@ import dash_bootstrap_components as dbc
 
 app_layout = [
     dbc.Row(
-        no_gutters=True,
+        class_name="g-0",
         style={'height':'100vh', 'background-color':'#2f4f4f'},
         children=[
             dbc.Col(width=7, children=[

@@ -15,7 +15,7 @@ import constants
 import dash
 import dash.exceptions as dex
 import dash.dependencies as ddp
-import dash_core_components as dcc
+from dash import dcc
 import dash_bootstrap_components as dbc
 
 ####################################################################################################
@@ -236,23 +236,18 @@ app_layout = [
             '''),
         ]),
     ]),
-    dbc.Row(no_gutters=True, children=[
+    dbc.Row(class_name="g-0", children=[
         dbc.Col(width=6, children=[
             dbc.Card([
                 dbc.CardHeader([
                     dbc.InputGroup(
                         size='sm',
                         children=[
-                            dbc.InputGroupAddon(
-                                addon_type='prepend',
-                                children=[
-                                    dbc.Button(
-                                        id=f'button-fractal-{path}-clear',
-                                        children='Clear',
-                                        color='warning',
-                                        n_clicks=0,
-                                    ),
-                                ],
+                            dbc.Button(
+                                id=f'button-fractal-{path}-clear',
+                                children='Clear',
+                                color='warning',
+                                n_clicks=0,
                             ),
                             dbc.DropdownMenu(
                                 id=f'dropdownmenu-fractal-{path}',
@@ -279,30 +274,20 @@ app_layout = [
                                 value='Custom Linear Shape',
                                 disabled=False,
                             ),
-                            dbc.InputGroupAddon(
-                                addon_type='prepend',
-                                children=[
-                                    dbc.Button(
-                                        id=f'button-fractal-{path}-undo',
-                                        children='Undo',
-                                        color='primary',
-                                        n_clicks=0,
-                                    ),
-                                ],
+                            dbc.Button(
+                                id=f'button-fractal-{path}-undo',
+                                children='Undo',
+                                color='primary',
+                                n_clicks=0,
                             ),
-                            dbc.InputGroupAddon(
+                            dbc.InputGroupText(
                                 children='Modifying:',
                             ),
-                            dbc.InputGroupAddon(
-                                addon_type='prepend',
-                                children=[
-                                    dbc.Button(
-                                        id=f'button-fractal-{path}-mod',
-                                        children=fractal_segment_datum['name'],
-                                        color='primary',
-                                        n_clicks=1,
-                                    ),
-                                ],
+                            dbc.Button(
+                                id=f'button-fractal-{path}-mod',
+                                children=fractal_segment_datum['name'],
+                                color='primary',
+                                n_clicks=1,
                             ),
                         ],
                     ),
@@ -337,16 +322,11 @@ app_layout = [
                     dbc.InputGroup(
                         size='sm',
                         children=[
-                            dbc.InputGroupAddon(
-                                addon_type='append',
-                                children=[
-                                    dbc.Button(
-                                        id='button-fractal-iterate',
-                                        children='Iterate',
-                                        color='warning',
-                                        n_clicks=0,
-                                    ),
-                                ],
+                            dbc.Button(
+                                id='button-fractal-iterate',
+                                children='Iterate',
+                                color='warning',
+                                n_clicks=0,
                             ),
                         ],
                     ),

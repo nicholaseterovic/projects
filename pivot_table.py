@@ -7,8 +7,8 @@ import dash_tabulator as dtb
 import dash.exceptions as dex
 import dash_pivottable as dpv
 import dash.dependencies as ddp
-import dash_core_components as dcc
-import dash_html_components as dhc
+from dash import dcc
+from dash import html as dhc
 import dash_bootstrap_components as dbc
 
 # Open-source packages

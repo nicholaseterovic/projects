@@ -18,10 +18,10 @@ import constants
 
 # Dash imports.
 import dash
+from dash import dcc
+from dash import html as dhc
 import dash.exceptions as dex
 import dash.dependencies as ddp
-import dash_core_components as dcc
-import dash_html_components as dhc
 import dash_bootstrap_components as dbc
 
 ####################################################################################################
@@ -118,8 +118,7 @@ app_layout = [
             dbc.InputGroup(
                 size='sm',
                 children=[
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
+                    dbc.InputGroupText(
                         children='Trade Data:',
                     ),
                     dbc.Select(
@@ -131,8 +130,7 @@ app_layout = [
                         value=None,
                         placeholder='<Select Asset>',
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
+                    dbc.InputGroupText(
                         children='Volume per Bar:',
                     ),
                     dbc.Select(
@@ -144,8 +142,7 @@ app_layout = [
                         value=100,
                         placeholder='<Select VBAR>',
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
+                    dbc.InputGroupText(
                         children='View Analysis In:',
                     ),
                     dbc.Select(
@@ -156,51 +153,46 @@ app_layout = [
                         ],
                         value='VBAR',
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
+                    dbc.InputGroupText(
                         children='Log Price?',
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
+                    dbc.InputGroupText(
                         children=dbc.Checkbox(
                             id='checkbox-kca-bars-plog',
-                            checked=False,
+                            value=False,
                             disabled=False,
                         ), 
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
+                    dbc.InputGroupText(
                         children='Price Difference?',
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
-                        children=dbc.Checkbox(
-                            id='checkbox-kca-bars-diff',
-                            checked=False,
-                            disabled=False,
-                        ), 
+                    dbc.InputGroupText(
+                        children=[
+                            dbc.Checkbox(
+                                id='checkbox-kca-bars-diff',
+                                value=False,
+                                disabled=False,
+                            ),
+                        ],
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
+                    dbc.InputGroupText(
                         children='Cumulate Volume?',
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
-                        children=dbc.Checkbox(
-                            id='checkbox-kca-bars-cums',
-                            checked=False,
-                            disabled=False,
-                        ), 
+                    dbc.InputGroupText(
+                        children=[
+                            dbc.Checkbox(
+                                id='checkbox-kca-bars-cums',
+                                value=False,
+                                disabled=False,
+                            ),
+                        ],
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='append',
-                        children=dbc.Button(
-                            id='button-kca-bars-load',
-                            children='Load',
-                            n_clicks=0,
-                            color='primary',
-                            disabled=True,
-                        ),
+                    dbc.Button(
+                        id='button-kca-bars-load',
+                        children='Load',
+                        n_clicks=0,
+                        color='primary',
+                        disabled=True,
                     ),
                 ],
             ),
@@ -278,8 +270,7 @@ app_layout = [
             dbc.InputGroup(
                 size='sm',
                 children=[
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
+                    dbc.InputGroupText(
                         children='Degree:',
                     ),
                     dbc.Input(
@@ -291,8 +282,7 @@ app_layout = [
                         max=2,
                         step=1,
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
+                    dbc.InputGroupText(
                         children='State Covariance Seed:',
                     ),
                     dbc.Input(
@@ -301,8 +291,7 @@ app_layout = [
                         value=1e-3,
                         type='number',
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='prepend',
+                    dbc.InputGroupText(
                         children='EM Iterations:',
                     ),
                     dbc.Input(
@@ -313,15 +302,12 @@ app_layout = [
                         min=1,
                         step=1,
                     ),
-                    dbc.InputGroupAddon(
-                        addon_type='append',
-                        children=dbc.Button(
-                            id='button-kca-filt-fit',
-                            children='Fit',
-                            n_clicks=0,
-                            color='primary',
-                            disabled=True,
-                        ),
+                    dbc.Button(
+                        id='button-kca-filt-fit',
+                        children='Fit',
+                        n_clicks=0,
+                        color='primary',
+                        disabled=True,
                     ),
                 ],
             ),
@@ -333,7 +319,7 @@ app_layout = [
                 value='',
                 placeholder='VWAP Series Required',
                 spellCheck=False,
-                bs_size='sm',
+                size='sm',
                 disabled=True,
                 style={'height':'50vh'},
             ),
@@ -619,9 +605,9 @@ def register_app_callbacks(app:dash.Dash) -> None:
             ddp.State('select-kca-data-code', 'value'),
             ddp.State('select-kca-bars-delv', 'value'),
             ddp.State('select-kca-bars-time', 'value'),
-            ddp.State('checkbox-kca-bars-plog', 'checked'),
-            ddp.State('checkbox-kca-bars-diff', 'checked'),
-            ddp.State('checkbox-kca-bars-cums', 'checked'),
+            ddp.State('checkbox-kca-bars-plog', 'value'),
+            ddp.State('checkbox-kca-bars-diff', 'value'),
+            ddp.State('checkbox-kca-bars-cums', 'value'),
             ddp.State('graph-kca-bars-vwap', 'figure'),
             ddp.State('graph-kca-bars-volume', 'figure'),
         ],

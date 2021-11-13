@@ -11,10 +11,10 @@ import itertools as it
 
 # Dash imports.
 import dash
+from dash import dcc
 import dash_tabulator as dtb
 import dash.exceptions as dex
 import dash.dependencies as ddp
-import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 
 # In-house packages.
@@ -505,24 +505,20 @@ app_layout = [
             dbc.InputGroup(
                 size='sm',
                 children=[
-                    dbc.InputGroupAddon(addon_type='prepend', children=[
-                        dbc.Button(
-                            id='rubik-button-clear',
-                            children='Clear',
-                            n_clicks=0,
-                            color='warning',
-                            disabled=False,
-                        ),
-                    ]),
-                    dbc.InputGroupAddon(addon_type='prepend', children=[
-                        dbc.Button(
-                            id='rubik-button-reset',
-                            children='Reset',
-                            n_clicks=0,
-                            color='primary',
-                            disabled=False,
-                        ),
-                    ]),
+                    dbc.Button(
+                        id='rubik-button-clear',
+                        children='Clear',
+                        n_clicks=0,
+                        color='warning',
+                        disabled=False,
+                    ),
+                    dbc.Button(
+                        id='rubik-button-reset',
+                        children='Reset',
+                        n_clicks=0,
+                        color='primary',
+                        disabled=False,
+                    ),
                     dbc.Select(
                         id='rubik-select-dim',
                         value=3,
@@ -531,7 +527,9 @@ app_layout = [
                             for n in range(1, 6)
                         ],
                     ),
-                    dbc.InputGroupAddon(addon_type='prepend', children='On face click:'),
+                    dbc.InputGroupText(
+                        children='On face click:',
+                    ),
                     dbc.Select(
                         id='rubik-select-layer',
                         value=1,
@@ -540,15 +538,13 @@ app_layout = [
                             for layer in range(1, 4)
                         ],
                     ),
-                    dbc.InputGroupAddon(addon_type='prepend', children=[
-                        dbc.Button(
-                            id='rubik-button-scramble',
-                            children='Scramble',
-                            n_clicks=0,
-                            color='primary',
-                            disabled=True,
-                        ),
-                    ]),
+                    dbc.Button(
+                        id='rubik-button-scramble',
+                        children='Scramble',
+                        n_clicks=0,
+                        color='primary',
+                        disabled=True,
+                    ),
                     dbc.Select(
                         id='rubik-select-scramble',
                         value=10,
@@ -557,15 +553,13 @@ app_layout = [
                             for n in [5, 10, 20, 30, 50, 100]
                         ],
                     ),
-                    dbc.InputGroupAddon(addon_type='append', children=[
-                        dbc.Button(
-                            id='rubik-button-solve',
-                            children='Solve',
-                            n_clicks=0,
-                            color='primary',
-                            disabled=False,
-                        ),
-                    ]),
+                    dbc.Button(
+                        id='rubik-button-solve',
+                        children='Solve',
+                        n_clicks=0,
+                        color='primary',
+                        disabled=False,
+                    ),
                 ],
             ),
         ]),
