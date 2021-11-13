@@ -56,7 +56,8 @@ pip==20.3.3
 plotly==5.3.1
 prompt-toolkit==3.0.8
 Pygments==2.7.3
-pyinstrument==4.0.4
+pyinstrument==3.4.2 # Latest accepted by Heroku
+pyinstrument-cext==0.2.4
 pykalman==0.9.5
 pylint==2.6.0
 pyparsing==2.4.7
