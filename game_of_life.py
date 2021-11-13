@@ -7,10 +7,13 @@ import itertools as it
 
 # Dash imports.
 import dash
+from dash import dcc
 import dash.exceptions as dex
 import dash.dependencies as ddp
-from dash import dcc
 import dash_bootstrap_components as dbc
+
+# In-house imports.
+import constants
 
 ####################################################################################################
 
@@ -159,7 +162,7 @@ default_figure = {
         'connectgaps':False,
         'showscale':False,
         'autocolorscale':False,
-        'colorscale':[[0, 'whitesmoke'], [1, '#2f4f4f']],
+        'colorscale':[[0, 'whitesmoke'], [1, constants.NAVBAR_COLOR]],
         **dict(zip(
             ['x', 'y', 'z'],
             zip(*it.product(range(default_cols), range(default_rows), [0])),

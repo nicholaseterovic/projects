@@ -1,7 +1,7 @@
 # Nicholas Eterovic 2021Q3
 ####################################################################################################
 
-# Open-source packages.
+# Open-source imports.
 import abc
 import math
 import inspect
@@ -10,15 +10,15 @@ import typing as tp
 import functools as ft
 import itertools as it
 
-# In-house packages.
+# In-house imports.
 import constants
 import utils.graphic as gu
 
-# Dash packages.
+# Dash imports.
 import dash
+from dash import dcc
 import dash.exceptions as dex
 import dash.dependencies as ddp
-from dash import dcc
 import dash_bootstrap_components as dbc
 
 ####################################################################################################
@@ -434,7 +434,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
         tnum = int(tnum)
         snum = int(snum)
         mode = "markers+lines" if lines else "markers"
-        rgb = gu.hex_to_rgb(constants.bg_color)
+        rgb = gu.hex_to_rgb(constants.NAVBAR_COLOR)
         figure["frames"] = []
         for t in np.linspace(start=tmin, stop=tmax, num=tnum):
             mesh = t*2*math.pi*np.linspace(start=1, stop=snum, num=snum)

@@ -3,11 +3,14 @@
 
 # Dash imports.
 import dash
-import dash_tabulator as dtb
-import dash.dependencies as ddp
 from dash import dcc
 from dash import html as dhc
+import dash_tabulator as dtb
+import dash.dependencies as ddp
 import dash_bootstrap_components as dbc
+
+# In-house imports.
+import constants
 
 ####################################################################################################
 # LAYOUT
@@ -15,7 +18,7 @@ import dash_bootstrap_components as dbc
 app_layout = [
     dbc.Row(
         class_name="g-0",
-        style={'height':'100vh', 'background-color':'#2f4f4f'},
+        style={'height':'100vh', 'background-color':constants.NAVBAR_COLOR},
         children=[
             dbc.Col(width=7, children=[
                 dbc.Card(style={'height':'100%', 'border-radius':'0px'}, children=[

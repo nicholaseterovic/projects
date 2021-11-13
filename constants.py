@@ -1,6 +1,6 @@
-bg_color = '#2f4f4f'
+NAVBAR_COLOR = '#23395d'
 
-empty_figure = {
+EMPTY_FIGURE = {
     'data':[],
     'layout':{
         'scene':{'aspectmode':'data'},

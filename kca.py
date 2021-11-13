@@ -523,7 +523,7 @@ app_layout = [
             dcc.Graph(
                 id='graph-kca-error-all',
                 config={'displayModeBar':False, 'displaylogo':False},
-                figure=constants.empty_figure,
+                figure=constants.EMPTY_FIGURE,
             ),
         ]),
     ]),
@@ -1019,7 +1019,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
         vwap = [datum for datum in pred['data'] if datum['legendgroup']=='VWAP']
         pred = [datum for datum in pred['data'] if datum['legendgroup']==0 and datum['name'].endswith('Mean')]
         if not vwap or not pred:
-            return (*figures, constants.empty_figure)
+            return (*figures, constants.EMPTY_FIGURE)
         figures[0]['data'].extend([
             {
                 'type':'histogram',
@@ -1103,7 +1103,7 @@ def register_app_callbacks(app:dash.Dash) -> None:
                 'type':'table',
                 'header':{
                     'values':[f'<b>{val}</b>' for val in ['Model', 'Hit Rate Rank', 'CAE Rank', 'CSE Rank', 'Total Ranks']],
-                    'fill':{'color':'#2f4f4f'},
+                    'fill':{'color':constants.NAVBAR_COLOR},
                     'font':{'color':'whitesmoke'},
                 },
                 'cells':{

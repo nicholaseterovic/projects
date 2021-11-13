@@ -13,9 +13,9 @@ import constants
 
 # Dash packages.
 import dash
+from dash import dcc
 import dash.exceptions as dex
 import dash.dependencies as ddp
-from dash import dcc
 import dash_bootstrap_components as dbc
 
 ####################################################################################################

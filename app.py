@@ -1,23 +1,23 @@
 # Nicholas Eterovic 2020Q4
 ####################################################################################################
 
-# Open-source Dash packages.
+# Open-source Dash imports.
 import dash
-import dash.exceptions as dex
-import dash.dependencies as ddp
 from dash import dcc
 from dash import html as dhc
+import dash.exceptions as dex
+import dash.dependencies as ddp
 import dash_trich_components as dtc
 import dash_bootstrap_components as dbc
 import dash_extensions.javascript as djs
 
-# Open-source miscellanous packages.
+# Open-source imports.
 import numpy as np
 import pandas as pd
 import typing as tp
 import sklearn.utils as sku
 
-# In-house packages.
+# In-house imports.
 import constants
 import utils.system as su
 
@@ -42,8 +42,7 @@ app = dash.Dash(
     prevent_initial_callbacks=True,
     external_stylesheets=[
         dbc.themes.BOOTSTRAP,
-        # Font Awesome for icons.
-        'https://use.fontawesome.com/releases/v5.15.0/css/all.css',
+        dbc.icons.FONT_AWESOME,
     ],
     external_scripts=[
         # Mathjax for formulae.
@@ -64,7 +63,7 @@ links = {
 projects = {
     'home':{'label':'Home', 'icon':'fas fa-home', 'module':home},
     'rubik':{'label':'Rubik\'s Cube', 'icon':'fas fa-cube', 'module':rubiks_cube},
-    'euler':{'label':'Project Euler Profiling', 'icon':'fas fa-hourglass', 'module':project_euler},
+    'euler':{'label':'Project Euler Profiling', 'icon':'fas fa-hourglass-half', 'module':project_euler},
     'fractal':{'label':'Self-Similar Fractals', 'icon':'fas fa-wave-square', 'module':fractal},
     'gol':{'label':'Conway\'s Game of Life', 'icon':'fas fa-heart', 'module':game_of_life},
     'kca':{'label':'Kinetic Component Analysis', 'icon':'fas fa-chart-line', 'module':kca},
@@ -77,7 +76,7 @@ app.layout = dhc.Div(
     style={'position':'relative'},
     children=[
         dtc.SideBar(
-            bg_color=constants.bg_color,
+            bg_color=constants.NAVBAR_COLOR,
             children=[
                 dhc.Div(
                     style={'margin-left':'20px'},
@@ -124,7 +123,7 @@ app.layout = dhc.Div(
                             dbc.NavbarSimple(
                                 brand='Projects > '+params['label'],
                                 brand_href=project,
-                                color='#2f4f4f',
+                                color=constants.NAVBAR_COLOR,
                                 dark=True,
                                 children=[],
                             ),
