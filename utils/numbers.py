@@ -38,6 +38,7 @@ def even_fibonnaci_numbers(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Gen
             else:
                 yield val
         idx += 1
+    raise StopIteration
 
 def primes(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
     """
@@ -159,7 +160,7 @@ def get_max_adj_prod(
             for di, dj in directions:
                 if 0<=i+(adj_num-1)*di<I and 0<=j+(adj_num-1)*dj<J:
                     adj = (matrix[i+step*di][j+step*dj] for step in range(adj_num))
-                    adj_prod = nu.prod(adj)
+                    adj_prod = prod(adj)
                     if adj_prod>max_adj_prod:
                         max_adj_prod = adj_prod
     return max_adj_prod
