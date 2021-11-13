@@ -1,4 +1,4 @@
-NAVBAR_COLOR = '#23395d'
+NAVBAR_COLOR = '#292b2c'
 
 EMPTY_FIGURE = {
     'data':[],
