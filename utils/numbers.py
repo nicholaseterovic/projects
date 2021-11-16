@@ -57,7 +57,7 @@ def primes(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
             exceeded_max = True
         elif val>max_val:
             exceeded_max = True
-        elif not any(val%prime==0 for prime in primes):
+        elif all(val%prime!=0 for prime in filter(int(val**.5).__ge__, primes)):
             primes.append(val)
             idx += 1
             yield val
