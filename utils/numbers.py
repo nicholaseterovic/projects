@@ -38,7 +38,6 @@ def even_fibonnaci_numbers(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Gen
             else:
                 yield val
         idx += 1
-    raise StopIteration
 
 def primes(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
     """
@@ -57,10 +56,19 @@ def primes(max_idx:int=math.inf, max_val:int=math.inf) -> tp.Generator:
             exceeded_max = True
         elif val>max_val:
             exceeded_max = True
-        elif all(val%prime!=0 for prime in filter(int(val**.5).__ge__, primes)):
-            primes.append(val)
-            idx += 1
-            yield val
+        else:
+            divisible = False
+            max_divisor = int(val**.5)
+            for prime in primes:
+                if prime>max_divisor:
+                    break
+                if val%prime==0:
+                    divisible = True
+                    break
+            if not divisible:
+                primes.append(val)
+                idx += 1
+                yield val
         val += 1
 
 def get_prime_decomposition(n:int) -> tp.List[int]:
