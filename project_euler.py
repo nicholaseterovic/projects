@@ -11,6 +11,7 @@ import typing as tp
 import functools as ft
 import itertools as it
 import pyinstrument as pi
+import more_itertools as mit
 
 # In-house packages.
 import utils.sets as su
@@ -18,13 +19,6 @@ import utils.numbers as nu
 import utils.temporal as tu
 from utils.tree import Node
 from utils.collatz import CollatzTree
-
-# Dash packages.
-import dash
-from dash import dcc
-import dash.exceptions as dex
-import dash.dependencies as ddp
-import dash_bootstrap_components as dbc
 
 ####################################################################################################
 
@@ -65,8 +59,8 @@ def solution_007(i:int=10001) -> int:
         pass
     return prime
 
-def solution_008(n:int=13, file:str='data/project_euler/p008_number.txt') -> int:
-    with open(file=file, mode='r') as file_handle:
+def solution_008(n:int=13, file:str="data/project_euler/p008_number.txt") -> int:
+    with open(file=file, mode="r") as file_handle:
         num_str = file_handle.read()
     num_str = "".join(num_str.split())
     num_list = [int(num) for num in num_str]
@@ -89,8 +83,8 @@ def solution_009(perimeter:int=1000) -> int:
 def solution_010(n:int=2e6) -> int:
     return sum(nu.primes(max_val=n))
 
-def solution_011(adj_num:int=4, file:str='data/project_euler/p011_matrix.txt') -> int:
-    with open(file=file, mode='r') as file_handle:
+def solution_011(adj_num:int=4, file:str="data/project_euler/p011_matrix.txt") -> int:
+    with open(file=file, mode="r") as file_handle:
         matrix_str = file_handle.read()
     matrix = [
         [int(num_str) for num_str in row_str.strip().split(" ")]
@@ -105,8 +99,8 @@ def solution_012(min_num_divisors:int=500) -> int:
         if num_divisors>min_num_divisors:
             return triangle_number
     
-def solution_013(num_first_digits:int=10, file:str='data/project_euler/p013_numbers.txt') -> int:
-    with open(file=file, mode='r') as file_handle:
+def solution_013(num_first_digits:int=10, file:str="data/project_euler/p013_numbers.txt") -> int:
+    with open(file=file, mode="r") as file_handle:
         numbers_str = file_handle.read()
     digit_lists = [
         [int(digit_str) for digit_str in number_str]
@@ -122,7 +116,7 @@ def solution_014(max_num:int=1e6) -> int:
     return max(nums, key=collatz_tree.get_length)
     
 def solution_015(grid_length:int=20) -> int:
-    moves = grid_length*['DOWN', 'RIGHT']
+    moves = grid_length*["DOWN", "RIGHT"]
     return nu.get_num_permutations(moves)
 
 def solution_016(n:int=2**1000) -> int:
@@ -136,8 +130,8 @@ def solution_017(n:int=1000) -> int:
     num_char_count = sum(num_char_counts)
     return num_char_count
 
-def solution_018(file:str='data/project_euler/p018_triangle.txt') -> int:
-    with open(file=file, mode='r') as file_handle:
+def solution_018(file:str="data/project_euler/p018_triangle.txt") -> int:
+    with open(file=file, mode="r") as file_handle:
         triangle_str = file_handle.read()
     triangle_matrix = [
         [int(num_str) for num_str in row_str.split()]
@@ -169,16 +163,16 @@ def solution_023(n:int=28123) -> int:
     abundant_pair_sums = set(map(sum, abundant_pairs))
     return sum(i for i in range(1, n+1) if i not in abundant_pair_sums)
 
-def solution_022(file:str='data/project_euler/p022_names.txt') -> int:
-    with open(file=file, mode='r') as file_handle:
+def solution_022(file:str="data/project_euler/p022_names.txt") -> int:
+    with open(file=file, mode="r") as file_handle:
         text = file_handle.read()
-    names = sorted(text.replace('"', "").split(","))
-    offset = ord('A')-1
+    names = sorted(text.replace("'", "").split(","))
+    offset = ord("A")-1
     scores = (i*(sum(map(ord, name))-len(name)*offset) for i, name in enumerate(names, 1))
     return sum(scores)
 
-def solution_024(digits_str:str='0123456789', i:int=1000000) -> str:
-    perms = map(''.join, it.permutations(iterable=digits_str, r=len(digits_str)))
+def solution_024(digits_str:str="0123456789", i:int=1000000) -> str:
+    perms = map("".join, it.permutations(iterable=digits_str, r=len(digits_str)))
     lex_perms = sorted(perms)
     lex_perm = lex_perms[i-1]
     return lex_perm
@@ -202,13 +196,51 @@ def solution_029(a_max:int=100, b_max:int=100) -> int:
     ApB = (sorted(a*b) for a, b in it.product(A, B))
     return len(set(map(tuple, ApB)))
 
-def solution_067(file:str='data/project_euler/p067_triangle.txt') -> int:
+def solution_035(n:int=1e6) -> int:
+    return
+
+def solution_067(file:str="data/project_euler/p067_triangle.txt") -> int:
     return solution_018(file=file)
 
 ####################################################################################################
 # LAYOUT
 
+# Dash packages.
+import dash
+import dash_ace as dac
+from dash import dcc
+import dash.exceptions as dex
+import dash.dependencies as ddp
+import dash_bootstrap_components as dbc
+
 app_layout = [
+    dbc.Row(className="g-0", children=[
+        dbc.Col(width=6, children=[
+            dbc.Card([
+                dbc.CardHeader([
+                    "Problem",
+                ]),
+                dbc.CardBody([
+                    
+                ]),
+            ]),
+        ]),
+        dbc.Col(width=6, children=[
+            dbc.Card([
+                dbc.CardHeader([
+                    "Solution",
+                ]),
+                dbc.CardBody([
+                    dac.DashAceEditor(
+                        id="editor-euler-solution",
+                        placeholder="Select a problem to view solution",
+                        mode="python",
+                        theme="monokai",
+                    ),
+                ]),
+            ]),
+        ]),
+    ]),
     dbc.Card([
         dbc.CardHeader([
             dbc.InputGroup(
@@ -221,7 +253,7 @@ app_layout = [
                         id="select-solution-number",
                         value=None,
                         options=[
-                            {'label':name.rsplit(sep='_', maxsplit=1)[-1], 'value':name}
+                            {"label":name.rsplit(sep="_", maxsplit=1)[-1], "value":name}
                             for name, obj in inspect.getmembers(
                                 object=sys.modules[__name__],
                                 predicate=inspect.isfunction,
@@ -238,12 +270,12 @@ app_layout = [
             ),
         ]),
         dcc.Store(
-            id='store-solution-profile',
+            id="store-solution-profile",
             data={},
         ),
         dbc.CardBody([
             dcc.Graph(
-                id='graph-solution-profile',
+                id="graph-solution-profile",
                 figure={},
             ),
         ]),
@@ -264,6 +296,8 @@ def register_app_callbacks(app:dash.Dash) -> None:
         if not name:
             return {}
         func = getattr(sys.modules[__name__], name)
+
+        print(inspect.getsource(func))
         with pi.Profiler() as profiler:
             func()
         profile_str = profiler.output(renderer=pi.renderers.JSONRenderer(show_all=False))
@@ -278,6 +312,5 @@ def register_app_callbacks(app:dash.Dash) -> None:
         if not data:
             return {}
         
-        root_frame = data.pop('root_frame')
-        print(root_frame)
+        root_frame = data.pop("root_frame")
         return {}

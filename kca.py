@@ -30,7 +30,7 @@ import dash_bootstrap_components as dbc
 app_layout = [
     dbc.Card([
         dbc.CardBody([
-            dcc.Markdown('''
+            dcc.Markdown("""
                 # Kinetic Component Analysis (KCA)
                 ***
 
@@ -46,11 +46,11 @@ app_layout = [
                 of noisy measurements by applying a Kalman Filter on a Taylor expansion
                 of a stochastic process"*.  
 
-                  For long I've been interested in the application of Kalman Filters in finance,
+                  For long I"ve been interested in the application of Kalman Filters in finance,
                 an industry infamous for exhibiting low signal-to-noise ratio in its data.
 
                   Moreover, I find the model pleasingly interpretable -
-                decomposing an asset price's dynamics into familiar concepts:
+                decomposing an asset price"s dynamics into familiar concepts:
                 position, velocity, and acceleration.
 
                   Practitioners of technical analysis often speak of *trend* and *momentum*,
@@ -62,20 +62,20 @@ app_layout = [
                   From here on it is assumed the reader has read the paper
                 and is familiar with the model specification.
 
-                  Let's begin!
-            '''),
+                  Let"s begin!
+            """),
         ]),
     ]),
     dbc.Card([
         dbc.CardBody([
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ### Preparing the Data
                 ***
 
                   The raw data set consists of trades in two assets: **MCU30** and **HGN9**,
                 including the fields: `TIMESTAMP`, `PRICE`, and `SIZE`.
 
-                  The objective is to forecast the assets' price evolution -
+                  The objective is to forecast the assets" price evolution -
                 the first step is to establish the precise time series.
                 
                   The decided-on approach is to resample the trades into *volume bars*,
@@ -103,142 +103,142 @@ app_layout = [
                   * *Price-changes are less interpretable*. The model views price evolving in volume - not chronological - time.
 
                   * *Price-forecasts will require volume-forecasts*. A seperate model for volume (bars) will be necessary.
-            '''),
+            """),
         ]),
     ]),
     dbc.Card([
         dbc.CardHeader([
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ### Visualizing the VWAP Series
                 ***
 
                 The resampled volume bars are viewable below, after **selecting an asset** and **clicking Load**.
                  Please allow for up to 30 seconds for the data to load.
-            '''),
+            """),
             dbc.InputGroup(
-                size='sm',
+                size="sm",
                 children=[
                     dbc.InputGroupText(
-                        children='Trade Data:',
+                        children="Trade Data:",
                     ),
                     dbc.Select(
-                        id='select-kca-data-code',
+                        id="select-kca-data-code",
                         options=[
-                            {'label':'MCU30', 'value':'MCU30'},
-                            {'label':'HGN9', 'value':'HGN9'},
+                            {"label":"MCU30", "value":"MCU30"},
+                            {"label":"HGN9", "value":"HGN9"},
                         ],
                         value=None,
-                        placeholder='<Select Asset>',
+                        placeholder="<Select Asset>",
                     ),
                     dbc.InputGroupText(
-                        children='Volume per Bar:',
+                        children="Volume per Bar:",
                     ),
                     dbc.Select(
-                        id='select-kca-bars-delv',
+                        id="select-kca-bars-delv",
                         options=[
-                            {'label':f'{delv} Contracts', 'value':delv}
+                            {"label":f"{delv} Contracts", "value":delv}
                             for delv in (100, 250, 500)
                         ],
                         value=100,
-                        placeholder='<Select VBAR>',
+                        placeholder="<Select VBAR>",
                     ),
                     dbc.InputGroupText(
-                        children='View Analysis In:',
+                        children="View Analysis In:",
                     ),
                     dbc.Select(
-                        id='select-kca-bars-time',
+                        id="select-kca-bars-time",
                         options=[
-                            {'label':'Volume Time', 'value':'VBAR'},
-                            {'label':'Chronological Time', 'value':'TIMESTAMP_last'},
+                            {"label":"Volume Time", "value":"VBAR"},
+                            {"label":"Chronological Time", "value":"TIMESTAMP_last"},
                         ],
-                        value='VBAR',
+                        value="VBAR",
                     ),
                     dbc.InputGroupText(
-                        children='Log Price?',
+                        children="Log Price?",
                     ),
                     dbc.InputGroupText(
                         children=dbc.Checkbox(
-                            id='checkbox-kca-bars-plog',
+                            id="checkbox-kca-bars-plog",
                             value=False,
                             disabled=False,
                         ), 
                     ),
                     dbc.InputGroupText(
-                        children='Price Difference?',
+                        children="Price Difference?",
                     ),
                     dbc.InputGroupText(
                         children=[
                             dbc.Checkbox(
-                                id='checkbox-kca-bars-diff',
+                                id="checkbox-kca-bars-diff",
                                 value=False,
                                 disabled=False,
                             ),
                         ],
                     ),
                     dbc.InputGroupText(
-                        children='Cumulate Volume?',
+                        children="Cumulate Volume?",
                     ),
                     dbc.InputGroupText(
                         children=[
                             dbc.Checkbox(
-                                id='checkbox-kca-bars-cums',
+                                id="checkbox-kca-bars-cums",
                                 value=False,
                                 disabled=False,
                             ),
                         ],
                     ),
                     dbc.Button(
-                        id='button-kca-bars-load',
-                        children='Load',
+                        id="button-kca-bars-load",
+                        children="Load",
                         n_clicks=0,
-                        color='primary',
+                        color="primary",
                         disabled=True,
                     ),
                 ],
             ),
         ]),
-        dcc.Store(id='store-kca-bars', data=[]),
+        dcc.Store(id="store-kca-bars", data=[]),
         dbc.CardBody([
             dbc.Row([
                 dbc.Col(width=6, children=[
                     dcc.Graph(
-                        id='graph-kca-bars-vwap',
-                        config={'displayModeBar':False, 'displaylogo':False},
+                        id="graph-kca-bars-vwap",
+                        config={"displayModeBar":False, "displaylogo":False},
                         figure=psp.make_subplots(
                             rows=1,
                             cols=2,
                             shared_yaxes=False,
                             column_widths=[2/3, 1/3],
-                            x_title='Time',
-                            y_title='VWAP',
+                            x_title="Time",
+                            y_title="VWAP",
                             subplot_titles=[
-                                '<b>Volume-Weighted-Average-Price (VWAP) by Time</b>',
-                                '<b>Distribution</b>',
+                                "<b>Volume-Weighted-Average-Price (VWAP) by Time</b>",
+                                "<b>Distribution</b>",
                             ],
                         ),
                     ),
                 ]),
                 dbc.Col(width=6, children=[
                     dcc.Graph(
-                        id='graph-kca-bars-volume',
-                        config={'displayModeBar':False, 'displaylogo':False},
+                        id="graph-kca-bars-volume",
+                        config={"displayModeBar":False, "displaylogo":False},
                         figure=psp.make_subplots(
                             rows=1,
                             cols=2,
                             shared_yaxes=False,
                             column_widths=[2/3, 1/3],
                             horizontal_spacing=0.05,
-                            x_title='Time',
-                            y_title='Volume',
+                            x_title="Time",
+                            y_title="Volume",
                             subplot_titles=[
-                                '<b>Volume by Time</b>',
-                                '<b>Distribution</b>',
+                                "<b>Volume by Time</b>",
+                                "<b>Distribution</b>",
                             ],
                         ),
                     ),
                 ]),
             ]),
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ##### Notes:
                 ***
 
@@ -254,77 +254,77 @@ app_layout = [
                 * The chosen **Volume per Bar** is a *target* -
                   the resulting **Volume by Time** series almost, but not perfectly, tracks the target.
                   The terminal value is relatively small - an artifact of the final volume-bar exhausting remaining trades.
-            '''),
+            """),
         ]),
     ]),
     dbc.Card([
         dbc.CardHeader([
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ### Fitting the KCA Model
                 ***
 
                 The fitted KCA model specification is viewable below, after **loading a VWAP series** and **clicking Fit**.
                  Please allow for up to 30 seconds for the model to fit.
                   
-            '''),
+            """),
             dbc.InputGroup(
-                size='sm',
+                size="sm",
                 children=[
                     dbc.InputGroupText(
-                        children='Degree:',
+                        children="Degree:",
                     ),
                     dbc.Input(
-                        id='input-kca-filt-pow',
+                        id="input-kca-filt-pow",
                         debounce=False,
                         value=1,
-                        type='number',
+                        type="number",
                         min=0,
                         max=2,
                         step=1,
                     ),
                     dbc.InputGroupText(
-                        children='State Covariance Seed:',
+                        children="State Covariance Seed:",
                     ),
                     dbc.Input(
-                        id='input-kca-filt-seed',
+                        id="input-kca-filt-seed",
                         debounce=False,
                         value=1e-3,
-                        type='number',
+                        type="number",
                     ),
                     dbc.InputGroupText(
-                        children='EM Iterations:',
+                        children="EM Iterations:",
                     ),
                     dbc.Input(
-                        id='input-kca-filt-iter',
+                        id="input-kca-filt-iter",
                         debounce=False,
                         value=1,
-                        type='number',
+                        type="number",
                         min=1,
                         step=1,
                     ),
                     dbc.Button(
-                        id='button-kca-filt-fit',
-                        children='Fit',
+                        id="button-kca-filt-fit",
+                        children="Fit",
                         n_clicks=0,
-                        color='primary',
+                        color="primary",
                         disabled=True,
                     ),
                 ],
             ),
         ]),
-        dcc.Store(id='store-kca-filt', data={}),
+        dcc.Store(id="store-kca-filt", data={}),
         dbc.CardBody([
             dbc.Textarea(
-                id='textarea-kca-filt',
-                value='',
-                placeholder='VWAP Series Required',
+                id="textarea-kca-filt",
+                value="",
+                placeholder="VWAP Series Required",
                 spellCheck=False,
-                size='sm',
+                size="sm",
                 disabled=True,
-                style={'height':'50vh'},
+                style={"height":"50vh"},
             ),
             dhc.Br(),
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ##### Notes:
                 ***
 
@@ -355,84 +355,84 @@ app_layout = [
                 * Adjusting the **EM Iterations** impacts the *stability* of state and observation covariance estimates;
                   increasing will reduce the risk of locally-maximizing the log-likelihood,
                   with increased compute time as the only downside.
-            '''),
+            """),
         ]),
     ]),
     dbc.Card([
         dbc.CardHeader([
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ### Visualizing the KCA State Estimates
                 ***
 
                 The fitted KCA model **Smoothed, Filtered, and Predicted States** are viewable below.
-            '''),
+            """),
         ]),
         dbc.CardBody([
             dcc.Graph(
-                id='graph-kca-smooth',
-                config={'displayModeBar':False, 'displaylogo':False},
+                id="graph-kca-smooth",
+                config={"displayModeBar":False, "displaylogo":False},
                 figure=psp.make_subplots(
                     rows=1,
                     cols=2,
                     shared_yaxes=False,
                     column_widths=[2/3, 1/3],
-                    x_title='Time',
-                    y_title='Smoothed State',
+                    x_title="Time",
+                    y_title="Smoothed State",
                     subplot_titles=[
-                        '<b>Smoothed States by Time</b>',
-                        '<b>Distribution</b>',
+                        "<b>Smoothed States by Time</b>",
+                        "<b>Distribution</b>",
                     ],
                 ),
             ),
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ##### Notes:
                 ***
 
                 * The **Smoothed States** are estimates using the entire dataset;
                   they are appropriate for use in *backward-looking estimates*.
 
-            '''),
+            """),
             dcc.Graph(
-                id='graph-kca-filter',
-                config={'displayModeBar':False, 'displaylogo':False},
+                id="graph-kca-filter",
+                config={"displayModeBar":False, "displaylogo":False},
                 figure=psp.make_subplots(
                     rows=1,
                     cols=2,
                     shared_yaxes=False,
                     column_widths=[2/3, 1/3],
-                    x_title='Time',
-                    y_title='Filtered State',
+                    x_title="Time",
+                    y_title="Filtered State",
                     subplot_titles=[
-                        '<b>Filtered States by Time</b>',
-                        '<b>Distribution</b>',
+                        "<b>Filtered States by Time</b>",
+                        "<b>Distribution</b>",
                     ],
                 ),
             ),
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ##### Notes:
                 ***
 
                 * The **Filtered States** are estimates using an expanding dataset
                   up to and including the current VWAP observation;
                   they are appropriate for *contemporaneous estimates*.
-            '''),
+            """),
             dcc.Graph(
-                id='graph-kca-pred',
-                config={'displayModeBar':False, 'displaylogo':False},
+                id="graph-kca-pred",
+                config={"displayModeBar":False, "displaylogo":False},
                 figure=psp.make_subplots(
                     rows=1,
                     cols=2,
                     shared_yaxes=False,
                     column_widths=[2/3, 1/3],
-                    x_title='Time',
-                    y_title='Predicted State',
+                    x_title="Time",
+                    y_title="Predicted State",
                     subplot_titles=[
-                        '<b>Predicted States by Time</b>',
-                        '<b>Distribution</b>',
+                        "<b>Predicted States by Time</b>",
+                        "<b>Distribution</b>",
                     ],
                 ),
             ),
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ##### Notes:
                 ***
 
@@ -443,48 +443,48 @@ app_layout = [
                 * The one-standard-deviation *confidence intervals* are significantly wider
                   than those for the smoothed and filtered states;
                   they make use of a smaller information set.
-            '''),
+            """),
         ]),
     ]),
     dbc.Card([
         dbc.CardHeader([
-            dcc.Markdown('''
-                ### Diagnosing the KCA Model's Predictive Power
+            dcc.Markdown("""
+                ### Diagnosing the KCA Model"s Predictive Power
                 ***
 
                 The fitted KCA model yields one-step ahead predictions for the VWAP (observation) series.
                 A natural benchmark is the *martingale model* which forecasts the next value using the current value.
 
                 Prediction error diagnostics are viewable below.
-            '''),
+            """),
         ]),
         dbc.CardBody([
             dbc.Row([
                 dbc.Col(width=6, children=[
                     dcc.Graph(
-                        id='graph-kca-error-dist',
-                        config={'displayModeBar':False, 'displaylogo':False},
+                        id="graph-kca-error-dist",
+                        config={"displayModeBar":False, "displaylogo":False},
                         figure={
-                            'data':[],
-                            'layout':{
-                                'title':'<b>Error Distribution</b>',
-                                'yaxis':{'title':'Error Bin Count'},
-                                'xaxis':{'title':'Error Bin ($)'},
-                                'barmode':'overlay',
+                            "data":[],
+                            "layout":{
+                                "title":"<b>Error Distribution</b>",
+                                "yaxis":{"title":"Error Bin Count"},
+                                "xaxis":{"title":"Error Bin ($)"},
+                                "barmode":"overlay",
                             },
                         },
                     ),
                 ]),
                 dbc.Col(width=6, children=[
                     dcc.Graph(
-                        id='graph-kca-error-chr',
-                        config={'displayModeBar':False, 'displaylogo':False},
+                        id="graph-kca-error-chr",
+                        config={"displayModeBar":False, "displaylogo":False},
                         figure={
-                            'data':[],
-                            'layout':{
-                                'title':'<b>Cumulative Hit Rate</b>',
-                                'yaxis':{'title':'Hit Rate (%)'},
-                                'xaxis':{'title':'Time'},
+                            "data":[],
+                            "layout":{
+                                "title":"<b>Cumulative Hit Rate</b>",
+                                "yaxis":{"title":"Hit Rate (%)"},
+                                "xaxis":{"title":"Time"},
                             },
                         },
                     ),
@@ -493,43 +493,43 @@ app_layout = [
             dbc.Row([
                 dbc.Col(width=6, children=[
                     dcc.Graph(
-                        id='graph-kca-error-cae',
-                        config={'displayModeBar':False, 'displaylogo':False},
+                        id="graph-kca-error-cae",
+                        config={"displayModeBar":False, "displaylogo":False},
                         figure={
-                            'data':[],
-                            'layout':{
-                                'title':'<b>Cumulative Sum of Absolute Errors</b>',
-                                'yaxis':{'title':'CAE (|$|)'},
-                                'xaxis':{'title':'Time'},
+                            "data":[],
+                            "layout":{
+                                "title":"<b>Cumulative Sum of Absolute Errors</b>",
+                                "yaxis":{"title":"CAE (|$|)"},
+                                "xaxis":{"title":"Time"},
                             },
                         },
                     ),
                 ]),
                 dbc.Col(width=6, children=[
                     dcc.Graph(
-                        id='graph-kca-error-cse',
-                        config={'displayModeBar':False, 'displaylogo':False},
+                        id="graph-kca-error-cse",
+                        config={"displayModeBar":False, "displaylogo":False},
                         figure={
-                            'data':[],
-                            'layout':{
-                                'title':'<b>Cumulative Sum of Squared Errors</b>',
-                                'yaxis':{'title':'CSE ($^2)'},
-                                'xaxis':{'title':'Time'},
+                            "data":[],
+                            "layout":{
+                                "title":"<b>Cumulative Sum of Squared Errors</b>",
+                                "yaxis":{"title":"CSE ($^2)"},
+                                "xaxis":{"title":"Time"},
                             },
                         },
                     ),
                 ]),
             ]),
             dcc.Graph(
-                id='graph-kca-error-all',
-                config={'displayModeBar':False, 'displaylogo':False},
+                id="graph-kca-error-all",
+                config={"displayModeBar":False, "displaylogo":False},
                 figure=constants.EMPTY_FIGURE,
             ),
         ]),
     ]),
     dbc.Card([
         dbc.CardBody([
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ### Concluding Remarks
                 ***
 
@@ -537,14 +537,14 @@ app_layout = [
 
                 To recap, this project began with asset trade data and implemented
                   **Kinetic Component Analysis (KCA)**
-                  to decompose the assets' VWAP series into position, velocity, and acceleration.
+                  to decompose the assets" VWAP series into position, velocity, and acceleration.
 
                 For each degree $d = 0, 1, 2$ a $KCA(d)$ model was fitted and produced:
                   * *Smoothed states*, backwards-looking estimates.
                   * *Filtered states*, contemporaneous estimates.
                   * *Predicted states*, forward-looking estimates.
                 
-                Each model's predictions were evaluated using a total-ranking system,
+                Each model"s predictions were evaluated using a total-ranking system,
                   and it was found that the $KCA(0)$ and $KCA(1)$ models tied first;
                   the $KCA(0)$ is a smoothed position model and
                   the $KCA(1)$ model is a smoothed position and velocity model.
@@ -566,8 +566,8 @@ app_layout = [
                     - Using the confidence-intervals in addition to point-estimates to weight bets.
                     - Accelerating/decelerating the rate of acquisition/liquidation in an execution algorithm.
 
-                *That's all folks!*
-            '''),
+                *That"s all folks!*
+            """),
         ]),
     ]),
 ]
@@ -579,37 +579,37 @@ def register_app_callbacks(app:dash.Dash) -> None:
 
     @app.callback(
         [
-            ddp.Output('button-kca-bars-load', 'children'),
-            ddp.Output('button-kca-bars-load', 'color'),
-            ddp.Output('button-kca-bars-load', 'disabled'),
+            ddp.Output("button-kca-bars-load", "children"),
+            ddp.Output("button-kca-bars-load", "color"),
+            ddp.Output("button-kca-bars-load", "disabled"),
         ],
         [
-            ddp.Input('select-kca-data-code', 'value'),
-            ddp.Input('select-kca-bars-delv', 'value'),
-            ddp.Input('select-kca-bars-time', 'value'),
+            ddp.Input("select-kca-data-code", "value"),
+            ddp.Input("select-kca-bars-delv", "value"),
+            ddp.Input("select-kca-bars-time", "value"),
         ],
     )
     def set_load_state(*args:tp.Tuple[str]) -> tp.Tuple[str, str, bool]:
         if not all(args):
-            return 'Load', 'primary', True
-        return 'Load', 'primary', False
+            return "Load", "primary", True
+        return "Load", "primary", False
 
     @app.callback(
         [
-            ddp.Output('store-kca-bars', 'data'),
-            ddp.Output('graph-kca-bars-vwap', 'figure'),
-            ddp.Output('graph-kca-bars-volume', 'figure'),
+            ddp.Output("store-kca-bars", "data"),
+            ddp.Output("graph-kca-bars-vwap", "figure"),
+            ddp.Output("graph-kca-bars-volume", "figure"),
         ],
-        [ddp.Input('button-kca-bars-load', 'n_clicks')],
+        [ddp.Input("button-kca-bars-load", "n_clicks")],
         [
-            ddp.State('select-kca-data-code', 'value'),
-            ddp.State('select-kca-bars-delv', 'value'),
-            ddp.State('select-kca-bars-time', 'value'),
-            ddp.State('checkbox-kca-bars-plog', 'value'),
-            ddp.State('checkbox-kca-bars-diff', 'value'),
-            ddp.State('checkbox-kca-bars-cums', 'value'),
-            ddp.State('graph-kca-bars-vwap', 'figure'),
-            ddp.State('graph-kca-bars-volume', 'figure'),
+            ddp.State("select-kca-data-code", "value"),
+            ddp.State("select-kca-bars-delv", "value"),
+            ddp.State("select-kca-bars-time", "value"),
+            ddp.State("checkbox-kca-bars-plog", "value"),
+            ddp.State("checkbox-kca-bars-diff", "value"),
+            ddp.State("checkbox-kca-bars-cums", "value"),
+            ddp.State("graph-kca-bars-vwap", "figure"),
+            ddp.State("graph-kca-bars-volume", "figure"),
         ],
     )
     def load_data(
@@ -625,56 +625,56 @@ def register_app_callbacks(app:dash.Dash) -> None:
         if not n_clicks:
             raise dex.PreventUpdate
         for figure in figures:
-            figure.update({'data':[]})
+            figure.update({"data":[]})
         if not code or not delv or not time:
             return ([], *figures)
         try:
-            bars_file = os.path.join('data', 'ticks', f'{code}.bars.{delv}.gz')
+            bars_file = os.path.join("data", "ticks", f"{code}.bars.{delv}.gz")
             if os.path.exists(path=bars_file):
                 # Load pre-aggregated volume-bar data.
                 dtype = {
-                    'VBAR':'int',
-                    'TIMESTAMP_first':'datetime64[ns]',
-                    'TIMESTAMP_last':'datetime64[ns]',
-                    'NOTIONAL_sum':'float',
-                    'SIZE_sum':'int',
-                    'VWAP':'float',
+                    "VBAR":"int",
+                    "TIMESTAMP_first":"datetime64[ns]",
+                    "TIMESTAMP_last":"datetime64[ns]",
+                    "NOTIONAL_sum":"float",
+                    "SIZE_sum":"int",
+                    "VWAP":"float",
                 }
                 usecols = list(dtype.keys())
                 bars = pd.read_csv(filepath_or_buffer=bars_file, usecols=usecols)
-                bars = bars.astype(dtype=dtype, errors='raise')
+                bars = bars.astype(dtype=dtype, errors="raise")
             else:
                 # Load trade data.
-                trd2_file = os.path.join('data', 'ticks', f'{code}.trd2.gz')
-                usecols = ['TIMESTAMP', 'PRICE', 'SIZE']
+                trd2_file = os.path.join("data", "ticks", f"{code}.trd2.gz")
+                usecols = ["TIMESTAMP", "PRICE", "SIZE"]
                 trd2 = pd.read_csv(filepath_or_buffer=trd2_file, usecols=usecols)
-                trd2 = trd2.loc[lambda df:df['TIMESTAMP'].ne(f'DATA_QUALITY_CHANGE:{code}')]
+                trd2 = trd2.loc[lambda df:df["TIMESTAMP"].ne(f"DATA_QUALITY_CHANGE:{code}")]
                 # Enforce data types.
                 delv = int(delv)
-                trd2['PRICE'] = trd2['PRICE'].astype(float)
-                trd2['SIZE'] = trd2['SIZE'].astype(int)
-                trd2['TIMESTAMP'] = pd.to_datetime(arg=trd2['TIMESTAMP'].astype(str), format='%Y%m%d%H%M%S.%f')
+                trd2["PRICE"] = trd2["PRICE"].astype(float)
+                trd2["SIZE"] = trd2["SIZE"].astype(int)
+                trd2["TIMESTAMP"] = pd.to_datetime(arg=trd2["TIMESTAMP"].astype(str), format="%Y%m%d%H%M%S.%f")
                 # Resample trade data into volume-bars.
-                trd2['NOTIONAL'] = trd2['PRICE']*trd2['SIZE']
-                by = trd2['SIZE'].cumsum().floordiv(delv).mul(delv).rename('VBAR')
-                func = {'TIMESTAMP':['first', 'last'], 'NOTIONAL':'sum', 'SIZE':'sum'}
+                trd2["NOTIONAL"] = trd2["PRICE"]*trd2["SIZE"]
+                by = trd2["SIZE"].cumsum().floordiv(delv).mul(delv).rename("VBAR")
+                func = {"TIMESTAMP":["first", "last"], "NOTIONAL":"sum", "SIZE":"sum"}
                 bars = trd2.groupby(by=by).agg(func=func)
-                bars.columns = bars.columns.map('_'.join)
-                bars.reset_index(level='VBAR', drop=False, inplace=True)
-                bars['VWAP'] = bars['NOTIONAL_sum']/bars['SIZE_sum']
+                bars.columns = bars.columns.map("_".join)
+                bars.reset_index(level="VBAR", drop=False, inplace=True)
+                bars["VWAP"] = bars["NOTIONAL_sum"]/bars["SIZE_sum"]
                 # Save aggregated volume-bar data.
                 bars.to_csv(path_or_buf=bars_file, index=False)
 
             # Return volume-bar records.
-            records = bars.to_dict(orient='records')
+            records = bars.to_dict(orient="records")
             colors = pcl.DEFAULT_PLOTLY_COLORS
-            for i, (col, figure) in enumerate(zip(['VWAP', 'SIZE_sum'], figures)):
+            for i, (col, figure) in enumerate(zip(["VWAP", "SIZE_sum"], figures)):
                 # Extract data.
                 y = bars[col]
                 x = bars[time]
                 color = colors[i%len(colors)]
                 # Apply transformations.
-                if col=='VWAP':
+                if col=="VWAP":
                     if plog:
                         y = np.log(y)
                     if diff:
@@ -683,54 +683,54 @@ def register_app_callbacks(app:dash.Dash) -> None:
                     if cums:
                         y = y.cumsum()
                 # Visualize data.
-                figure.update({'data':[
+                figure.update({"data":[
                     {
-                        'type':'scatter',
-                        'y':y,
-                        'x':x,
-                        'xaxis':'x',
-                        'yaxis':'y',
-                        'name':col.split('_')[0],
-                        'legendgroup':col,
-                        'showlegend':True,
-                        'connectgaps':False,
-                        'line':{'color':color},
+                        "type":"scatter",
+                        "y":y,
+                        "x":x,
+                        "xaxis":"x",
+                        "yaxis":"y",
+                        "name":col.split("_")[0],
+                        "legendgroup":col,
+                        "showlegend":True,
+                        "connectgaps":False,
+                        "line":{"color":color},
                     },
                     {
-                        'type':'box',
-                        'y':y,
-                        'xaxis':'x2',
-                        'yaxis':'y2',
-                        'name':col.split('_')[0],
-                        'legendgroup':col,
-                        'showlegend':False,
-                        'boxmean':'sd',
-                        'boxpoints':False,
-                        'line':{'color':color},
-                        'marker':{'color':color},
+                        "type":"box",
+                        "y":y,
+                        "xaxis":"x2",
+                        "yaxis":"y2",
+                        "name":col.split("_")[0],
+                        "legendgroup":col,
+                        "showlegend":False,
+                        "boxmean":"sd",
+                        "boxpoints":False,
+                        "line":{"color":color},
+                        "marker":{"color":color},
                     },
                 ]})
                 # Reset layout.
-                figure['layout'].update({'template':None, 'shapes':[]})
-                for axis in ('xaxis', 'yaxis'):
-                    for key in ('type', 'range', 'autorange'):
-                        figure['layout'][axis].pop(key, None)
+                figure["layout"].update({"template":None, "shapes":[]})
+                for axis in ("xaxis", "yaxis"):
+                    for key in ("type", "range", "autorange"):
+                        figure["layout"][axis].pop(key, None)
                 # Shade in dates.
                 if pd.api.types.is_datetime64_any_dtype(arr_or_dtype=x):
                     dates = set(x.dt.normalize())
-                    figure['layout']['shapes'].extend(
+                    figure["layout"]["shapes"].extend(
                         {
-                            'type':'rect',
-                            'xref':'x1',
-                            'x0':date,
-                            'x1':date+pd.Timedelta(days=1),
-                            'yref':'paper',
-                            'y0':0,
-                            'y1':1,
-                            'layer':'below',
-                            'line':{'width':0},
-                            'fillcolor':color,
-                            'opacity':0.25,
+                            "type":"rect",
+                            "xref":"x1",
+                            "x0":date,
+                            "x1":date+pd.Timedelta(days=1),
+                            "yref":"paper",
+                            "y0":0,
+                            "y1":1,
+                            "layer":"below",
+                            "line":{"width":0},
+                            "fillcolor":color,
+                            "opacity":0.25,
                         }
                         for date in dates
                     )
@@ -741,53 +741,53 @@ def register_app_callbacks(app:dash.Dash) -> None:
 
     @app.callback(
         [
-            ddp.Output('button-kca-filt-fit', 'children'),
-            ddp.Output('button-kca-filt-fit', 'color'),
-            ddp.Output('button-kca-filt-fit', 'disabled'),
+            ddp.Output("button-kca-filt-fit", "children"),
+            ddp.Output("button-kca-filt-fit", "color"),
+            ddp.Output("button-kca-filt-fit", "disabled"),
         ],
         [
-            ddp.Input('store-kca-bars', 'data'),
-            ddp.Input('input-kca-filt-pow', 'value'),
-            ddp.Input('input-kca-filt-seed', 'value'),
-            ddp.Input('input-kca-filt-iter', 'value'),
+            ddp.Input("store-kca-bars", "data"),
+            ddp.Input("input-kca-filt-pow", "value"),
+            ddp.Input("input-kca-filt-seed", "value"),
+            ddp.Input("input-kca-filt-iter", "value"),
         ],
     )
     def set_fit_state(records:tp.List[dict], pow:int, seed:float, iter:str) -> tp.Tuple[str, str, bool]:
         if not all([records, seed, iter]) or not isinstance(pow, int) or not isinstance(iter, int):
-            return 'Fit', 'primary', True
-        return 'Fit', 'primary', False
+            return "Fit", "primary", True
+        return "Fit", "primary", False
 
     @app.callback(
         [
-            ddp.Output('store-kca-filt', 'data'),
-            ddp.Output('textarea-kca-filt', 'value'),
+            ddp.Output("store-kca-filt", "data"),
+            ddp.Output("textarea-kca-filt", "value"),
         ],
-        [ddp.Input('button-kca-filt-fit', 'n_clicks')],
+        [ddp.Input("button-kca-filt-fit", "n_clicks")],
         [
-            ddp.State('store-kca-bars', 'data'),
-            ddp.State('select-kca-bars-time', 'value'),
-            ddp.State('input-kca-filt-pow', 'value'),
-            ddp.State('input-kca-filt-seed', 'value'),
-            ddp.State('input-kca-filt-iter', 'value'),
+            ddp.State("store-kca-bars", "data"),
+            ddp.State("select-kca-bars-time", "value"),
+            ddp.State("input-kca-filt-pow", "value"),
+            ddp.State("input-kca-filt-seed", "value"),
+            ddp.State("input-kca-filt-iter", "value"),
         ],
     )
     def fit_filt(n_clicks:int, records:tp.List[dict], time:str, pow:int, seed:float, iter:int) -> dict:
         if not n_clicks:
             raise dex.PreventUpdate
         if not all([records, seed, iter]) or not isinstance(pow, int) or not isinstance(iter, int):
-            return {}, ''
+            return {}, ""
         try:
             # Retrieve VWAP and VBAR data.
             bars = pd.DataFrame(data=records)
-            dv = bars['SIZE_sum'].mean()
-            X = bars[['VWAP']]
+            dv = bars["SIZE_sum"].mean()
+            X = bars[["VWAP"]]
             # Specify Kalman Filter model.
             states = range(pow+1)
             A = [[0 if i>j else dv**(j-i)/math.factorial(j-i) for j in states] for i in states]
             C = [[1 if i==0 else 0 for i in states]]
             Q = [[0 if i!=j else seed**i if seed<0 else seed**-i if i==j else 0 for j in states] for i in states]
             z = [X.iloc[0, 0] if i==0 else 0 for i in states]
-            em_vars = ['transition_covariance', 'observation_covariance']
+            em_vars = ["transition_covariance", "observation_covariance"]
             kf = pk.KalmanFilter(
                 transition_matrices=A,
                 transition_covariance=None,
@@ -805,73 +805,73 @@ def register_app_callbacks(app:dash.Dash) -> None:
             return filt, text
         except Exception as exception:
             print(str(exception))
-            return {}, ''
+            return {}, ""
 
     @app.callback(
         [
-            ddp.Output('graph-kca-smooth', 'figure'),
-            ddp.Output('graph-kca-filter', 'figure'),
-            ddp.Output('graph-kca-pred', 'figure'),
+            ddp.Output("graph-kca-smooth", "figure"),
+            ddp.Output("graph-kca-filter", "figure"),
+            ddp.Output("graph-kca-pred", "figure"),
         ],
-        [ddp.Input('store-kca-filt', 'data')],
+        [ddp.Input("store-kca-filt", "data")],
         [
-            ddp.State('store-kca-bars', 'data'),
-            ddp.State('select-kca-bars-time', 'value'),
-            ddp.State('graph-kca-smooth', 'figure'),
-            ddp.State('graph-kca-filter', 'figure'),
-            ddp.State('graph-kca-pred', 'figure'),
+            ddp.State("store-kca-bars", "data"),
+            ddp.State("select-kca-bars-time", "value"),
+            ddp.State("graph-kca-smooth", "figure"),
+            ddp.State("graph-kca-filter", "figure"),
+            ddp.State("graph-kca-pred", "figure"),
         ],
     )
     def plot_filt(cfg:dict, records:tp.List[dict], time:str, *figures:tp.List[dict]) -> dict:
         if not cfg:
             raise dex.PreventUpdate
         for figure in figures:
-            figure.update({'data':[]})
+            figure.update({"data":[]})
         if not all([records, time]):
             return figures
         try:
             # Retrieve VWAP and VBAR data.
             bars = pd.DataFrame(data=records)
-            X = bars[['VWAP']]
+            X = bars[["VWAP"]]
             # Specify Kalman Filter model.
             kf = pk.KalmanFilter(**cfg)
             # Clean figures.
             colors = pcl.DEFAULT_PLOTLY_COLORS
             for figure in figures:
                 # Reset layout.
-                figure['layout'].update({'template':None})
-                for axis in ('xaxis', 'yaxis'):
-                    for key in ('type', 'range', 'autorange'):
-                        figure['layout'][axis].pop(key, None)
+                figure["layout"].update({"template":None})
+                for axis in ("xaxis", "yaxis"):
+                    for key in ("type", "range", "autorange"):
+                        figure["layout"][axis].pop(key, None)
                 # Renew data.
                 color = colors[0]
-                figure.update({'data':[
+                figure.update({"data":[
                     {
-                        'type':'scatter',
-                        'y':bars['VWAP'],
-                        'x':bars[time],
-                        'xaxis':'x',
-                        'yaxis':'y',
-                        'name':'Observed VWAP',
-                        'legendgroup':'VWAP',
-                        'showlegend':True,
-                        'connectgaps':False,
-                        'line':{'color':color},
-                        'hoverlabel':{'namelength':-1},
+                        "type":"scatter",
+                        "y":bars["VWAP"],
+                        "x":bars[time],
+                        "xaxis":"x",
+                        "yaxis":"y",
+                        "name":"Observed VWAP",
+                        "legendgroup":"VWAP",
+                        "showlegend":True,
+                        "connectgaps":False,
+                        "line":{"color":color},
+                        "hoverlabel":{"namelength":-1},
                     },
                     {
-                        'type':'box',
-                        'y':bars['VWAP'],
-                        'xaxis':'x2',
-                        'yaxis':'y2',
-                        'name':'Observed VWAP',
-                        'legendgroup':'VWAP',
-                        'showlegend':False,
-                        'boxmean':'sd',
-                        'boxpoints':False,
-                        'line':{'color':color},
-                        'marker':{'color':color},
-                        'hoverlabel':{'namelength':-1},
+                        "type":"box",
+                        "y":bars["VWAP"],
+                        "xaxis":"x2",
+                        "yaxis":"y2",
+                        "name":"Observed VWAP",
+                        "legendgroup":"VWAP",
+                        "showlegend":False,
+                        "boxmean":"sd",
+                        "boxpoints":False,
+                        "line":{"color":color},
+                        "marker":{"color":color},
+                        "hoverlabel":{"namelength":-1},
                     },
                 ]})
             # Construct smoothed state figures.
@@ -879,38 +879,38 @@ def register_app_callbacks(app:dash.Dash) -> None:
             V = np.array(list(map(np.diag, V)))
             for i, (z, v) in enumerate(zip(Z.T, V.T)):
                 color = colors[(i+1)%len(colors)]
-                figures[0]['data'].extend([
+                figures[0]["data"].extend([
                     {
-                        'type':'scatter',
-                        'fill':'tonexty',
-                        'y':z+dev*v**.5,
-                        'x':bars[time],
-                        'xaxis':'x',
-                        'yaxis':'y',
-                        'name':f'Smoothed Degree {i} Mean'+(f' {dev:+.0f} Std. Dev.' if dev!=0 else ''),
-                        'legendgroup':i,
-                        'showlegend':dev==0,
-                        'visible':True if i==0 else 'legendonly',
-                        'connectgaps':False,
-                        'line':{'color':color},
-                        'hoverlabel':{'namelength':-1},
+                        "type":"scatter",
+                        "fill":"tonexty",
+                        "y":z+dev*v**.5,
+                        "x":bars[time],
+                        "xaxis":"x",
+                        "yaxis":"y",
+                        "name":f"Smoothed Degree {i} Mean"+(f" {dev:+.0f} Std. Dev." if dev!=0 else ""),
+                        "legendgroup":i,
+                        "showlegend":dev==0,
+                        "visible":True if i==0 else "legendonly",
+                        "connectgaps":False,
+                        "line":{"color":color},
+                        "hoverlabel":{"namelength":-1},
                     }
                     for dev in (-1, 0, 1)
                 ] + [
                     {
-                        'type':'box',
-                        'y':z,
-                        'xaxis':'x2',
-                        'yaxis':'y2',
-                        'name':f'Smoothed Degree {i}',
-                        'legendgroup':i,
-                        'showlegend':False,
-                        'visible':True if i==0 else 'legendonly',
-                        'boxmean':'sd',
-                        'boxpoints':False,
-                        'line':{'color':color},
-                        'marker':{'color':color},
-                        'hoverlabel':{'namelength':-1},
+                        "type":"box",
+                        "y":z,
+                        "xaxis":"x2",
+                        "yaxis":"y2",
+                        "name":f"Smoothed Degree {i}",
+                        "legendgroup":i,
+                        "showlegend":False,
+                        "visible":True if i==0 else "legendonly",
+                        "boxmean":"sd",
+                        "boxpoints":False,
+                        "line":{"color":color},
+                        "marker":{"color":color},
+                        "hoverlabel":{"namelength":-1},
                     },
                 ])
             # Construct filtered state figures.
@@ -918,38 +918,38 @@ def register_app_callbacks(app:dash.Dash) -> None:
             V = np.array(list(map(np.diag, V)))
             for i, (z, v) in enumerate(zip(Z.T, V.T)):
                 color = colors[(i+1)%len(colors)]
-                figures[1]['data'].extend([
+                figures[1]["data"].extend([
                     {
-                        'type':'scatter',
-                        'fill':'tonexty',
-                        'y':z+dev*v**.5,
-                        'x':bars[time],
-                        'xaxis':'x',
-                        'yaxis':'y',
-                        'name':f'Filtered Degree {i} Mean'+(f' {dev:+.0f} Std. Dev.' if dev!=0 else ''),
-                        'legendgroup':i,
-                        'showlegend':dev==0,
-                        'visible':True if i==0 else 'legendonly',
-                        'connectgaps':False,
-                        'line':{'color':color},
-                        'hoverlabel':{'namelength':-1},
+                        "type":"scatter",
+                        "fill":"tonexty",
+                        "y":z+dev*v**.5,
+                        "x":bars[time],
+                        "xaxis":"x",
+                        "yaxis":"y",
+                        "name":f"Filtered Degree {i} Mean"+(f" {dev:+.0f} Std. Dev." if dev!=0 else ""),
+                        "legendgroup":i,
+                        "showlegend":dev==0,
+                        "visible":True if i==0 else "legendonly",
+                        "connectgaps":False,
+                        "line":{"color":color},
+                        "hoverlabel":{"namelength":-1},
                     }
                     for dev in (-1, 0, +1)
                 ] + [
                     {
-                        'type':'box',
-                        'y':z,
-                        'xaxis':'x2',
-                        'yaxis':'y2',
-                        'name':f'Filtered Degree {i}',
-                        'legendgroup':i,
-                        'showlegend':False,
-                        'visible':True if i==0 else 'legendonly',
-                        'boxmean':'sd',
-                        'boxpoints':False,
-                        'line':{'color':color},
-                        'marker':{'color':color},
-                        'hoverlabel':{'namelength':-1},
+                        "type":"box",
+                        "y":z,
+                        "xaxis":"x2",
+                        "yaxis":"y2",
+                        "name":f"Filtered Degree {i}",
+                        "legendgroup":i,
+                        "showlegend":False,
+                        "visible":True if i==0 else "legendonly",
+                        "boxmean":"sd",
+                        "boxpoints":False,
+                        "line":{"color":color},
+                        "marker":{"color":color},
+                        "hoverlabel":{"namelength":-1},
                     },
                 ])
             # Construct predicted state figures.
@@ -957,38 +957,38 @@ def register_app_callbacks(app:dash.Dash) -> None:
             Z = np.array(list(map(A.dot, Z)))
             for i, (z, v) in enumerate(zip(Z.T, V.T)):
                 color = colors[(i+1)%len(colors)]
-                figures[2]['data'].extend([
+                figures[2]["data"].extend([
                     {
-                        'type':'scatter',
-                        'fill':'tonexty',
-                        'y':z+dev*v**.5,
-                        'x':bars[time],
-                        'xaxis':'x',
-                        'yaxis':'y',
-                        'name':f'Predicted Degree {i} Mean'+(f' {dev:+.0f} Std. Dev.' if dev!=0 else ''),
-                        'legendgroup':i,
-                        'showlegend':dev==0,
-                        'visible':True if i==0 else 'legendonly',
-                        'connectgaps':False,
-                        'line':{'color':color},
-                        'hoverlabel':{'namelength':-1},
+                        "type":"scatter",
+                        "fill":"tonexty",
+                        "y":z+dev*v**.5,
+                        "x":bars[time],
+                        "xaxis":"x",
+                        "yaxis":"y",
+                        "name":f"Predicted Degree {i} Mean"+(f" {dev:+.0f} Std. Dev." if dev!=0 else ""),
+                        "legendgroup":i,
+                        "showlegend":dev==0,
+                        "visible":True if i==0 else "legendonly",
+                        "connectgaps":False,
+                        "line":{"color":color},
+                        "hoverlabel":{"namelength":-1},
                     }
                     for dev in (-1, 0, 1)
                 ] + [
                     {
-                        'type':'box',
-                        'y':z,
-                        'xaxis':'x2',
-                        'yaxis':'y2',
-                        'name':f'Predicted Degree {i}',
-                        'legendgroup':i,
-                        'showlegend':False,
-                        'visible':True if i==0 else 'legendonly',
-                        'boxmean':'sd',
-                        'boxpoints':False,
-                        'line':{'color':color},
-                        'marker':{'color':color},
-                        'hoverlabel':{'namelength':-1},
+                        "type":"box",
+                        "y":z,
+                        "xaxis":"x2",
+                        "yaxis":"y2",
+                        "name":f"Predicted Degree {i}",
+                        "legendgroup":i,
+                        "showlegend":False,
+                        "visible":True if i==0 else "legendonly",
+                        "boxmean":"sd",
+                        "boxpoints":False,
+                        "line":{"color":color},
+                        "marker":{"color":color},
+                        "hoverlabel":{"namelength":-1},
                     },
                 ])
             return figures
@@ -998,123 +998,123 @@ def register_app_callbacks(app:dash.Dash) -> None:
 
     @app.callback(
         [
-            ddp.Output('graph-kca-error-dist', 'figure'),
-            ddp.Output('graph-kca-error-chr', 'figure'),
-            ddp.Output('graph-kca-error-cae', 'figure'),
-            ddp.Output('graph-kca-error-cse', 'figure'),
-            ddp.Output('graph-kca-error-all', 'figure'),
+            ddp.Output("graph-kca-error-dist", "figure"),
+            ddp.Output("graph-kca-error-chr", "figure"),
+            ddp.Output("graph-kca-error-cae", "figure"),
+            ddp.Output("graph-kca-error-cse", "figure"),
+            ddp.Output("graph-kca-error-all", "figure"),
         ],
-        [ddp.Input('graph-kca-pred', 'figure')],
+        [ddp.Input("graph-kca-pred", "figure")],
         [
-            ddp.State('graph-kca-error-dist', 'figure'),
-            ddp.State('graph-kca-error-chr', 'figure'),
-            ddp.State('graph-kca-error-cae', 'figure'),
-            ddp.State('graph-kca-error-cse', 'figure'),
+            ddp.State("graph-kca-error-dist", "figure"),
+            ddp.State("graph-kca-error-chr", "figure"),
+            ddp.State("graph-kca-error-cae", "figure"),
+            ddp.State("graph-kca-error-cse", "figure"),
         ],
     )
     def load_error(pred:dict, *figures:tp.List[dict]) -> dict:
-        pred.setdefault('data', [])
+        pred.setdefault("data", [])
         for figure in figures:
-            figure.update({'data':[]})
-        vwap = [datum for datum in pred['data'] if datum['legendgroup']=='VWAP']
-        pred = [datum for datum in pred['data'] if datum['legendgroup']==0 and datum['name'].endswith('Mean')]
+            figure.update({"data":[]})
+        vwap = [datum for datum in pred["data"] if datum["legendgroup"]=="VWAP"]
+        pred = [datum for datum in pred["data"] if datum["legendgroup"]==0 and datum["name"].endswith("Mean")]
         if not vwap or not pred:
             return (*figures, constants.EMPTY_FIGURE)
-        figures[0]['data'].extend([
+        figures[0]["data"].extend([
             {
-                'type':'histogram',
-                'x':np.subtract(vwap[0]['y'][:-1], vwap[0]['y'][1:]),
-                'name':'Martingale Prediction (Benchmark)',
-                'hoverlabel':{'namelength':-1},
-                'opacity':0.5,
+                "type":"histogram",
+                "x":np.subtract(vwap[0]["y"][:-1], vwap[0]["y"][1:]),
+                "name":"Martingale Prediction (Benchmark)",
+                "hoverlabel":{"namelength":-1},
+                "opacity":0.5,
             },
             {
-                'type':'histogram',
-                'x':np.subtract(pred[0]['y'][1:], vwap[0]['y'][1:]),
-                'name':pred[0]['name'],
-                'hoverlabel':{'namelength':-1},
-                'opacity':0.5,
+                "type":"histogram",
+                "x":np.subtract(pred[0]["y"][1:], vwap[0]["y"][1:]),
+                "name":pred[0]["name"],
+                "hoverlabel":{"namelength":-1},
+                "opacity":0.5,
             },
         ])
-        figures[1]['data'].extend([
+        figures[1]["data"].extend([
             {
-                'type':'scatter',
-                'x':vwap[0]['x'][1:],
-                'y':np.full(shape=len(vwap[0]['x'][1:]), fill_value=50),
-                'name':'Martingale Prediction (Benchmark)',
-                'hoverlabel':{'namelength':-1},
-                'fill':'tozeroy',
+                "type":"scatter",
+                "x":vwap[0]["x"][1:],
+                "y":np.full(shape=len(vwap[0]["x"][1:]), fill_value=50),
+                "name":"Martingale Prediction (Benchmark)",
+                "hoverlabel":{"namelength":-1},
+                "fill":"tozeroy",
             },
             {
-                'type':'scatter',
-                'x':vwap[0]['x'][1:],
-                'y':100*np.cumsum(np.equal(
+                "type":"scatter",
+                "x":vwap[0]["x"][1:],
+                "y":100*np.cumsum(np.equal(
                     # Predicted sign change.
-                    np.sign(np.subtract(pred[0]['y'][1:], vwap[0]['y'][1:])),
+                    np.sign(np.subtract(pred[0]["y"][1:], vwap[0]["y"][1:])),
                     # Realized sign change.
-                    np.sign(np.subtract(vwap[0]['y'][1:], vwap[0]['y'][:1])),
-                ))/np.arange(start=1, stop=1+len(vwap[0]['x'][1:])),
-                'name':pred[0]['name'],
-                'hoverlabel':{'namelength':-1},
-                'fill':'tozeroy',
+                    np.sign(np.subtract(vwap[0]["y"][1:], vwap[0]["y"][:1])),
+                ))/np.arange(start=1, stop=1+len(vwap[0]["x"][1:])),
+                "name":pred[0]["name"],
+                "hoverlabel":{"namelength":-1},
+                "fill":"tozeroy",
             },
         ])
-        figures[2]['data'].extend([
+        figures[2]["data"].extend([
             {
-                'type':'scatter',
-                'x':vwap[0]['x'][1:],
-                'y':np.cumsum(np.abs(np.subtract(vwap[0]['y'][:-1], vwap[0]['y'][1:]))),
-                'name':'Martingale Prediction (Benchmark)',
-                'hoverlabel':{'namelength':-1},
-                'fill':'tozeroy',
+                "type":"scatter",
+                "x":vwap[0]["x"][1:],
+                "y":np.cumsum(np.abs(np.subtract(vwap[0]["y"][:-1], vwap[0]["y"][1:]))),
+                "name":"Martingale Prediction (Benchmark)",
+                "hoverlabel":{"namelength":-1},
+                "fill":"tozeroy",
             },
             {
-                'type':'scatter',
-                'x':vwap[0]['x'][1:],
-                'y':np.cumsum(np.abs(np.subtract(pred[0]['y'][1:], vwap[0]['y'][1:]))),
-                'name':pred[0]['name'],
-                'hoverlabel':{'namelength':-1},
-                'fill':'tozeroy',
+                "type":"scatter",
+                "x":vwap[0]["x"][1:],
+                "y":np.cumsum(np.abs(np.subtract(pred[0]["y"][1:], vwap[0]["y"][1:]))),
+                "name":pred[0]["name"],
+                "hoverlabel":{"namelength":-1},
+                "fill":"tozeroy",
             },
         ])
-        figures[3]['data'].extend([
+        figures[3]["data"].extend([
             {
-                'type':'scatter',
-                'x':vwap[0]['x'][1:],
-                'y':np.cumsum(np.abs(np.subtract(vwap[0]['y'][:-1], vwap[0]['y'][1:]))),
-                'name':'Martingale Prediction (Benchmark)',
-                'hoverlabel':{'namelength':-1},
-                'fill':'tozeroy',
+                "type":"scatter",
+                "x":vwap[0]["x"][1:],
+                "y":np.cumsum(np.abs(np.subtract(vwap[0]["y"][:-1], vwap[0]["y"][1:]))),
+                "name":"Martingale Prediction (Benchmark)",
+                "hoverlabel":{"namelength":-1},
+                "fill":"tozeroy",
             },
             {
-                'type':'scatter',
-                'x':vwap[0]['x'][1:],
-                'y':np.cumsum(np.square(np.subtract(pred[0]['y'][1:], vwap[0]['y'][1:]))),
-                'name':pred[0]['name'],
-                'hoverlabel':{'namelength':-1},
-                'fill':'tozeroy',
+                "type":"scatter",
+                "x":vwap[0]["x"][1:],
+                "y":np.cumsum(np.square(np.subtract(pred[0]["y"][1:], vwap[0]["y"][1:]))),
+                "name":pred[0]["name"],
+                "hoverlabel":{"namelength":-1},
+                "fill":"tozeroy",
             },
         ])
         ranks = {
-            'layout':{
-                'title':'<b>Model Ranking (Less is Better)</b>',
+            "layout":{
+                "title":"<b>Model Ranking (Less is Better)</b>",
             },
-            'data':[{
-                'type':'table',
-                'header':{
-                    'values':[f'<b>{val}</b>' for val in ['Model', 'Hit Rate Rank', 'CAE Rank', 'CSE Rank', 'Total Ranks']],
-                    'fill':{'color':constants.NAVBAR_COLOR},
-                    'font':{'color':'whitesmoke'},
+            "data":[{
+                "type":"table",
+                "header":{
+                    "values":[f"<b>{val}</b>" for val in ["Model", "Hit Rate Rank", "CAE Rank", "CSE Rank", "Total Ranks"]],
+                    "fill":{"color":constants.NAVBAR_COLOR},
+                    "font":{"color":"whitesmoke"},
                 },
-                'cells':{
-                    'values':[
-                        [f'<b>{val}</b>' for val in ['Martingale', 'KCA(0)', 'KCA(1)', 'KCA(2)']],
+                "cells":{
+                    "values":[
+                        [f"<b>{val}</b>" for val in ["Martingale", "KCA(0)", "KCA(1)", "KCA(2)"]],
                         [3, 4, 1, 2],
                         [3, 1, 2, 4],
                         [2, 1, 3, 4],
-                        [f'<b>{val}</b>' for val in [8, 6, 6, 8]],
+                        [f"<b>{val}</b>" for val in [8, 6, 6, 8]],
                     ],
-                    'fill':{'color':'whitesmoke'},
+                    "fill":{"color":"whitesmoke"},
                 },
             }],
         }

@@ -14,13 +14,6 @@ import itertools as it
 import constants
 import utils.graphic as gu
 
-# Dash imports.
-import dash
-from dash import dcc
-import dash.exceptions as dex
-import dash.dependencies as ddp
-import dash_bootstrap_components as dbc
-
 ####################################################################################################
 
 class Shape(abc.ABC):
@@ -223,10 +216,17 @@ class Spiral(Shape):
 ####################################################################################################
 # LAYOUT
 
+# Dash imports.
+import dash
+from dash import dcc
+import dash.exceptions as dex
+import dash.dependencies as ddp
+import dash_bootstrap_components as dbc
+
 app_layout = [
     dbc.Card([
         dbc.CardBody([
-            dcc.Markdown('''
+            dcc.Markdown("""
                 # Geometry
                 ***
 
@@ -235,22 +235,22 @@ app_layout = [
 
                   This page is a home to my *computational geometry* projects,
                 modelling shapes and patterns of various kind and dimension.
-            '''),
+            """),
         ]),
     ]),
     dbc.Card([
         dbc.CardHeader([
-            dcc.Markdown('''
+            dcc.Markdown("""
                 ### Sunflower Seeds and the Golden Ratio
                 ***
 
                   Perhaps one of the strongest examples of how mathematics underpins nature
                 is the **golden ratio** $ \phi = (1+\sqrt{5})/2$. This constant can be found
-                in many of nature's designs. Here, an example is given by modelling
+                in many of nature"s designs. Here, an example is given by modelling
                 an arrangement of **sunflower seeds** using a spiral; at every $\phi$ turns
                 of the spiral a seed is grown.
                   
-            '''),
+            """),
             dbc.InputGroup(
                 size="sm",
                 children=[
@@ -310,7 +310,7 @@ app_layout = [
         dbc.CardBody([
             dcc.Graph(
                 id="graph-geometry-spiral",
-                config={'displayModeBar':False, 'displaylogo':False},
+                config={"displayModeBar":False, "displaylogo":False},
                 figure={
                     "data":[],
                     "frames":[],
@@ -318,7 +318,7 @@ app_layout = [
                         "hovermode":"closest",
                         "xaxis":{"visible":True, "range":[-1, 1], "autorange":False},
                         "yaxis":{"visible":True, "range":[-1, 1], "autorange":False, "scaleanchor":"x"},
-                        'margin':{'t':0, 'b':0, 'l':0, 'r':0, 'pad':0},
+                        "margin":{"t":0, "b":0, "l":0, "r":0, "pad":0},
                         "updatemenus":[
                             {
                                 "type": "buttons",

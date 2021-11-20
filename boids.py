@@ -30,11 +30,11 @@ class BoidSimulation(object):
         time:float=60,
         step:float=1,
     ) -> object:
-        '''
+        """
         > Initialize an iterator that yields iterations of a Boid simulation. 
         
         Arguments:
-            state: Dataframe with columns 'px', 'py, ..., 'vx', 'vy', ... encoding initial Boids.
+            state: Dataframe with columns "px", "py, ..., "vx", "vy", ... encoding initial Boids.
                    (px, py, ...) encodes the position of a Boid.
                    (vx, vy, ...) encodes the velocity of a Boid.
             visibility: Radius in which a Boid perceives its neighbors.
@@ -45,7 +45,7 @@ class BoidSimulation(object):
             step: Length of iteration, in seconds.
         Returns:
             Iterable yielding Boid simulation iterations.
-        '''
+        """
         # Check types.
 
         # Set public attributes.
@@ -58,7 +58,7 @@ class BoidSimulation(object):
         self.step = step
 
         # Set internal attributes.
-        self._dims:tp.List[str] = ['x', 'y']
+        self._dims:tp.List[str] = ["x", "y"]
         self._N:int = self.time//self.step
         self._n:int = 0
 
@@ -66,14 +66,14 @@ class BoidSimulation(object):
         return self
     
     def __next__(self) -> pd.DataFrame:
-        '''
+        """
         > Return the next iteration of the Boid simulation.
         
         Arguments:
             None
         Returns:
             List-of-pairs [(x, y), ...] coordinates of next live cells. 
-        '''
+        """
         if self._n  >= self._N:
             raise StopIteration
         state = BoidSimulation._get_next_state(
@@ -101,24 +101,24 @@ class BoidSimulation(object):
     ) -> pd.DataFrame:
 
         # Self-cross-product Boids for all (center, neighbor) pairs.
-        state['i'] = range(len(state))
-        state['j'] = 0
+        state["i"] = range(len(state))
+        state["j"] = 0
         pairs = pd.merge(
             left=state,
-            right=state.add_prefix(prefix='n'),
-            left_on='j',
-            right_on='nj',
-            how='outer',
+            right=state.add_prefix(prefix="n"),
+            left_on="j",
+            right_on="nj",
+            how="outer",
         )
 
         # Unpack columns.
         cols = [
             (
-                f'p{i}', # Positions
-                f'v{i}', # Velocitys
-                f'np{i}', # Neighbor positions.
-                f'nv{i}', # Neighbor velocitys.
-                f'nd{i}', # Neighbor distances.
+                f"p{i}", # Positions
+                f"v{i}", # Velocitys
+                f"np{i}", # Neighbor positions.
+                f"nv{i}", # Neighbor velocitys.
+                f"nd{i}", # Neighbor distances.
             )
             for i in dimensions
         ]
@@ -150,24 +150,24 @@ class BoidSimulation(object):
             pairs[nvi].where(cond=nvmag.gt(0), other=0, inplace=True)
 
         # Nullify neighbors that are centers.
-        pairs.loc[pairs['i']==pairs['ni'], [*np, *nv, *nd]] = None
+        pairs.loc[pairs["i"]==pairs["ni"], [*np, *nv, *nd]] = None
         
         # Augment repulsor behaviour.
-        centers = pairs['t'].eq('repulsor')
+        centers = pairs["t"].eq("repulsor")
         pairs.loc[centers, np] = None
         pairs.loc[centers, nv] = None
         pairs.loc[centers, nd] = None
-        neighbors = pairs['nt'].eq('repulsor')
+        neighbors = pairs["nt"].eq("repulsor")
         pairs.loc[neighbors, np] = None
         pairs.loc[neighbors, nv] = None
         pairs.loc[neighbors, nd] *= 30
 
         # Aggregate neighbor information per center Boid.
-        agg_last = {col:'last' for col in ('t', *p, *v)}
-        agg_mean = {col:'mean' for col in (*np, *nv, *nd)}
+        agg_last = {col:"last" for col in ("t", *p, *v)}
+        agg_mean = {col:"mean" for col in (*np, *nv, *nd)}
         agg = {**agg_last, **agg_mean}
-        groups = pairs.groupby(by='i', as_index=False, sort=False)
-        state = groups.agg(func=agg).drop(columns='i')
+        groups = pairs.groupby(by="i", as_index=False, sort=False)
+        state = groups.agg(func=agg).drop(columns="i")
 
         # For each dimension:
         for pi, npi in zip(p, np):
@@ -191,10 +191,10 @@ class BoidSimulation(object):
     def get_random_boids_state(num_boids:int=100, loc:float=0, scale:float=1) -> pd.DataFrame:
         dims = 2
         data = np.random.normal(size=(num_boids, dims), loc=loc, scale=scale)
-        state = pd.DataFrame(data=data, columns=['px', 'py'])
-        state['vx'] = 0
-        state['vy'] = 0
-        state['t'] = 'boid'
+        state = pd.DataFrame(data=data, columns=["px", "py"])
+        state["vx"] = 0
+        state["vy"] = 0
+        state["t"] = "boid"
         return state
 
     @staticmethod
@@ -203,24 +203,24 @@ class BoidSimulation(object):
         theta = np.linspace(start=0, stop=2*np.pi, num=num_repulsors, endpoint=False)
         x = radius*np.cos(theta)
         y = radius*np.sin(theta)
-        state = pd.DataFrame({'px':x, 'py':y})
-        state['vx'] = 0
-        state['vy'] = 0
-        state['t'] = 'repulsor'
+        state = pd.DataFrame({"px":x, "py":y})
+        state["vx"] = 0
+        state["vy"] = 0
+        state["t"] = "repulsor"
         return state
 
 ####################################################################################################
 # LAYOUT
 
 empty_boids_figure = {
-    'data':[],
-    'frames':[],
-    'layout':{
-        'dragmode':False,
-        'hovermode':'closest',
-        'xaxis':{'range':[-10, 10], 'autorange':False},
-        'yaxis':{'range':[-10, 10], 'autorange':False, 'scaleanchor':'x'},
-        'updatemenus':[
+    "data":[],
+    "frames":[],
+    "layout":{
+        "dragmode":False,
+        "hovermode":"closest",
+        "xaxis":{"range":[-10, 10], "autorange":False},
+        "yaxis":{"range":[-10, 10], "autorange":False, "scaleanchor":"x"},
+        "updatemenus":[
             {
                 "type": "buttons",
                 "direction": "left",
@@ -258,7 +258,7 @@ empty_boids_figure = {
                 ],
             },
         ],
-        'sliders':[
+        "sliders":[
             {
                 "active": 0,
                 "yanchor": "top",
@@ -283,7 +283,7 @@ empty_boids_figure = {
 app_layout = [
     dbc.Card([
         dbc.CardBody([
-            dcc.Markdown('''
+            dcc.Markdown("""
                 # Who Let the Boids Out?
                 ***
 
@@ -291,35 +291,35 @@ app_layout = [
                 ***
 
                   This project originated in the Summer of 2020
-                with a sudden motivation to learn how to solve a **Rubik's cube**.
-                Little did I know of how deep the cubing rabbit's hole goes!
+                with a sudden motivation to learn how to solve a **Rubik"s cube**.
+                Little did I know of how deep the cubing rabbit"s hole goes!
 
                   As I sat fiddling and memorizing the various algorithms needed to assemble colors,
-                I decided that a better way to learn the cube's intricacies was instead to *code it up*.
+                I decided that a better way to learn the cube"s intricacies was instead to *code it up*.
 
                   The result is a *virtual cube* that I am proud to share with you.
                 If you are curious,
                 I have documented below my modelling and implementation approach.
-            '''),
+            """),
         ]),
     ]),
     dbc.Card([
         dbc.CardHeader([
             dbc.InputGroup(
-                size='sm',
+                size="sm",
                 children=[
                     dbc.Button(
-                        id='button-boids-reset',
-                        children='Reset',
+                        id="button-boids-reset",
+                        children="Reset",
                         n_clicks=0,
-                        color='primary',
+                        color="primary",
                         disabled=False,
                     ),
-                    dbc.InputGroupText('Seperation:'),
+                    dbc.InputGroupText("Seperation:"),
                     dbc.Input(
-                        id='input-boids-seperation',
+                        id="input-boids-seperation",
                         min=0,
-                        placeholder='<Non-negative number>',
+                        placeholder="<Non-negative number>",
                         value=1,
                         disabled=False,
                     ),
@@ -328,10 +328,10 @@ app_layout = [
         ]),
         dbc.CardBody([
             dcc.Graph(
-                id='graph-boids-sim',
-                config={'displayModeBar':False, 'displaylogo':False},
+                id="graph-boids-sim",
+                config={"displayModeBar":False, "displaylogo":False},
                 figure=empty_boids_figure,
-                style={'height':'80vh'},
+                style={"height":"80vh"},
             ),
         ]),
     ]),
@@ -343,26 +343,26 @@ app_layout = [
 def register_app_callbacks(app:dash.Dash) -> None:
 
     @app.callback(
-        ddp.Output('button-boids-reset', 'n_clicks'),
-        [ddp.Input('tabs-projects', 'value')],
-        [ddp.State('button-boids-reset', 'n_clicks')],
+        ddp.Output("button-boids-reset", "n_clicks"),
+        [ddp.Input("tabs-projects", "value")],
+        [ddp.State("button-boids-reset", "n_clicks")],
     )
     def click_reset(tab:str, n_clicks:int) -> int:
-        if tab != 'boids' or n_clicks > 0:
+        if tab != "boids" or n_clicks > 0:
             raise dex.PreventUpdate
         return n_clicks + 1
 
     @app.callback(
-        ddp.Output('graph-boids-sim', 'figure'),
-        [ddp.Input('button-boids-reset', 'n_clicks')],
-        [ddp.State('graph-boids-sim', 'figure')]
+        ddp.Output("graph-boids-sim", "figure"),
+        [ddp.Input("button-boids-reset", "n_clicks")],
+        [ddp.State("graph-boids-sim", "figure")]
     )
     def reset_graph(n_clicks:int, figure:dict) -> dict:
         
         dt = 0.3
         duration = 1000*dt
 
-        ranges = (figure['layout'][axis]['range'] for axis in ['xaxis', 'yaxis'])
+        ranges = (figure["layout"][axis]["range"] for axis in ["xaxis", "yaxis"])
         diameters = map(lambda range:range[-1]-range[0], ranges)
         radius = 0.5*min(diameters)
 
@@ -381,41 +381,41 @@ def register_app_callbacks(app:dash.Dash) -> None:
             visibility=3,
         )
 
-        figure['frames'] = [
+        figure["frames"] = [
             {
-                'name':n,
-                'data':[{
-                    'x':state['px'],
-                    'y':state['py'],
-                    'mode':'markers',
-                    'marker_symbol':np.where(
-                        state['vx'].abs().lt(1) & state['vy'].abs().lt(1),
-                        'circle',
-                        'x',
+                "name":n,
+                "data":[{
+                    "x":state["px"],
+                    "y":state["py"],
+                    "mode":"markers",
+                    "marker_symbol":np.where(
+                        state["vx"].abs().lt(1) & state["vy"].abs().lt(1),
+                        "circle",
+                        "x",
                     ),
                 }],
             }
             for n, state in enumerate(states)
         ]
-        figure['data'] = figure['frames'][0]['data']
+        figure["data"] = figure["frames"][0]["data"]
 
-        button = figure['layout']['updatemenus'][0]['buttons'][0]
-        slider = figure['layout']['sliders'][0]
+        button = figure["layout"]["updatemenus"][0]["buttons"][0]
+        slider = figure["layout"]["sliders"][0]
         
-        button['args'][-1]['frame']['duration'] = duration
-        slider['transition']['duration'] = duration
-        slider['step'] = [
+        button["args"][-1]["frame"]["duration"] = duration
+        slider["transition"]["duration"] = duration
+        slider["step"] = [
             {
-                "label": frame['name'],
+                "label": frame["name"],
                 "method": "animate",
                 "args": [
-                    [frame['name']],
+                    [frame["name"]],
                     {"frame": {"duration": duration, "redraw": False},
                     "mode": "immediate",
                     "transition": {"duration": duration}}
                 ],
                 }
-            for frame in figure['frames']
+            for frame in figure["frames"]
         ]
     
         return figure

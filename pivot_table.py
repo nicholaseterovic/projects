@@ -23,94 +23,124 @@ import sklearn.datasets as skd
 # LAYOUT
 
 datasets = {
-    'sklearn':{
+    "sklearn":{
         source:[func for func in dir(skd) if func.startswith(source)]
-        for source in ['load', 'fetch', 'make']
+        for source in ["load", "fetch", "make"]
     },
-    'plotly':{
-        'load':[func for func in dir(ptd) if not func.startswith('_')],
+    "plotly":{
+        "load":[func for func in dir(ptd) if not func.startswith("_")],
     },
 }
 
 app_layout = [
     dbc.Card([
+        dbc.CardBody([
+            dcc.Markdown(f"""
+                # The Powerful Pivot Table
+                ***
+
+                ### Introduction
+                ***
+
+                  This project is simple: combine the data aggregation of the pivot table
+                with interactive data visualization.
+            """),
+        ]),
+    ]),
+    dbc.Card([
         dbc.CardHeader([
+            dcc.Markdown("""
+                ### The Raw Data
+            """),
+        ]),
+        dbc.CardBody([
             dbc.InputGroup(
-                size='sm',
+                size="sm",
                 children=[
                     dbc.DropdownMenu(
-                        label='Load',
-                        color='primary',
-                        direction='right',
-                        addon_type='append',
+                        label="Import",
+                        size="sm",
+                        color="dark",
+                        menu_variant="dark",
+                        direction="right",
+                        addon_type="prepend",
                         children=[
                             dbc.DropdownMenuItem(
-                                children='Upload',
+                                children="Upload",
                                 n_clicks=0,
                                 disabled=True,
                             ),
                         ] + [
-                            dbc.DropdownMenu(
-                                label=library.capitalize(),
-                                direction='right',
-                                color='link',
-                                disabled=(library=='sklearn'),
-                                children=[
-                                    dbc.DropdownMenu(
-                                        label=source.capitalize(),
-                                        direction='right',
-                                        color='link',
-                                        children=[
-                                            dbc.DropdownMenuItem(
-                                                id=f'pivot-dmi-{library}-{source}-{func}',
-                                                children=func.split('_', maxsplit=1)[-1],
-                                                disabled=(source=='fetch'),
-                                                n_clicks=0,
-                                            )
-                                            for func in funcs
-                                        ],
-                                    )
-                                    for source, funcs in sources.items()
-                                ],
-                            )
+                            dhc.Div([
+                                dbc.DropdownMenu(
+                                    label=library.capitalize(),
+                                    size="sm",
+                                    color="dark",
+                                    menu_variant="dark",
+                                    direction="right",
+                                    disabled=(library=="sklearn"),
+                                    children=[
+                                        dbc.DropdownMenu(
+                                            label=source.capitalize(),
+                                            size="sm",
+                                            color="dark",
+                                            menu_variant="dark",
+                                            direction="right",
+                                            children=[
+                                                dbc.DropdownMenuItem(
+                                                    id=f"dmi-pivot-{library}-{source}-{func}",
+                                                    children=func.split("_", maxsplit=1)[-1],
+                                                    disabled=(source=="fetch"),
+                                                    n_clicks=0,
+                                                )
+                                                for func in funcs
+                                            ],
+                                        )
+                                        for source, funcs in sources.items()
+                                    ],
+                                )
+                            ])
                             for library, sources in datasets.items()
                         ],
                     ),
                     dbc.Input(
-                        type='text',
+                        type="text",
                         disabled=True,
                     ),
                 ],
             ),
-        ]),
-        dbc.CardBody([
             dtb.DashTabulator(
-                id='pivot-tabulator-raw',
+                id="tabulator-pivot-raw",
                 data=[],
                 columns=[{
-                    'title':'',
-                    'field':'none',
-                    'hozAlign':'center',
-                    'headerSort':False,
+                    "title":"",
+                    "field":"none",
+                    "hozAlign":"center",
+                    "headerSort":False,
                 }],
                 options={
-                    'placeholder':'None',
-                    'layout':'fitDataStretch',
-                    'layoutColumnsOnNewData':False,
-                    'minHeigh':'50vh',
-                    'maxHeight':'50vh',
-                    'height':'50vh',
-                    'pagination':'local',
-                    'selectable':False,
+                    "placeholder":"None",
+                    "layout":"fitDataStretch",
+                    "layoutColumnsOnNewData":False,
+                    "minHeight":"50vh",
+                    "maxHeight":"50vh",
+                    "height":"50vh",
+                    "pagination":"local",
+                    "selectable":False,
                 },
             ),
         ]),
     ]),
     dbc.Card([
-        dbc.CardBody([
-            dhc.Div(id='pivot-div-agg', children=[]),
+        dbc.CardHeader([
+            dcc.Markdown("""
+                ### The Pivot Table
+            """),
         ]),
-    ]),
+        dbc.CardBody([
+            dhc.Div(id="div-pivot-agg", children=[]),
+        ]),
+    ])
 ]
 
 ####################################################################################################
@@ -126,22 +156,22 @@ def register_app_callbacks(app:dash.Dash) -> None:
         for func in funcs
     ][0]
     @app.callback(
-        ddp.Output(f'pivot-dmi-{library}-{source}-{func}', 'n_clicks'),
-        [ddp.Input('tabs-projects', 'value')],
-        [ddp.State(f'pivot-dmi-{library}-{source}-{func}', 'n_clicks')],
+        ddp.Output(f"dmi-pivot-{library}-{source}-{func}", "n_clicks"),
+        [ddp.Input("tabs-projects", "value")],
+        [ddp.State(f"dmi-pivot-{library}-{source}-{func}", "n_clicks")],
     )
     def click(tab:str, n_clicks:int) -> int:
-        if tab!='pivot' or n_clicks>0:
+        if tab!="pivot" or n_clicks>0:
             raise dex.PreventUpdate
         return n_clicks+1
 
     @app.callback(
         [
-            ddp.Output('pivot-tabulator-raw', 'data'),
-            ddp.Output('pivot-tabulator-raw', 'columns'),
+            ddp.Output("tabulator-pivot-raw", "data"),
+            ddp.Output("tabulator-pivot-raw", "columns"),
         ],
         [
-            ddp.Input(f'pivot-dmi-{library}-{source}-{func}', 'n_clicks')
+            ddp.Input(f"dmi-pivot-{library}-{source}-{func}", "n_clicks")
             for library, sources in datasets.items()
             for source, funcs in sources.items()
             for func in funcs
@@ -149,15 +179,15 @@ def register_app_callbacks(app:dash.Dash) -> None:
     )
     def load_raw_data(*n_clicks:tp.List[str]) -> tp.List[dict]:
         trigger = dash.callback_context.triggered[0]
-        if not trigger['value']:
+        if not trigger["value"]:
             raise dex.PreventUpdate
         
-        comp = trigger['prop_id'].rsplit('.', maxsplit=1)[0]
-        *_, library, source, func = comp.split('-')
+        comp = trigger["prop_id"].rsplit(".", maxsplit=1)[0]
+        *_, library, source, func = comp.split("-")
 
-        if library=='plotly':
+        if library=="plotly":
             data = getattr(ptd, func)()
-        elif library=='sklearn':
+        elif library=="sklearn":
             output = getattr(skd, func)()
             if isinstance(output, sku.Bunch):
                 
@@ -165,28 +195,32 @@ def register_app_callbacks(app:dash.Dash) -> None:
                 if len(Xdat.shape)==1:
                     Xdat = Xdat[:, np.newaxis]
 
-                Xcol = output.get('feature_names', range(Xdat.shape[1]))
+                Xcol = output.get("feature_names", range(Xdat.shape[1]))
 
                 X = dict(zip(Xcol, Xdat.T))
             data = pd.DataFrame(X)
         else:
             data = pd.DataFrame()
 
-        records = data.to_dict(orient='records')
+        records = data.to_dict(orient="records")
         columns = [
             {
-                'title':col,
-                'field':col,
-                'hozAlign':'center',
+                "title":col,
+                "field":col,
+                "hozAlign":"center",
             }
             for col in data.columns
         ]
         return records, columns
 
     @app.callback(
-        ddp.Output('pivot-div-agg', 'children'),
-        [ddp.Input('pivot-tabulator-raw', 'data')],
+        ddp.Output("div-pivot-agg", "children"),
+        [ddp.Input("tabulator-pivot-raw", "data")],
     )
     def load_agg_data(records:tp.List[dict]) -> dpv.PivotTable:
         n = sum(len(col) for col in records[0])
-        return dpv.PivotTable(id=str(pd.Timestamp.now()), data=records, unusedOrientationCutoff=n+1)
+        return dpv.PivotTable(
+            id=str(pd.Timestamp.now()),
+            data=records,
+            unusedOrientationCutoff=n+1,
+        )
