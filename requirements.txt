@@ -56,7 +56,7 @@ Pillow==8.0.0
 pip==20.3.3
 plotly==5.3.1
 prompt-toolkit==3.0.8
-Pygments==2.7.3
+Pygments==2.7.4
 pyinstrument==3.4.2 # Latest accepted by Heroku
 pyinstrument-cext==0.2.4
 pykalman==0.9.5
