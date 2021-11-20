@@ -56,9 +56,11 @@ ns = djs.Namespace("dapp", "tabulator")
 # LAYOUT
 
 links = {
+    "instagram":{"icon":"fab fa-instagram", "href":"https://www.instagram.com/nicholaseterovic"},
     "github":{"icon":"fab fa-github", "href":"https://github.com/NicholasEterovic"},
     "linkedin":{"icon":"fab fa-linkedin", "href":"https://www.linkedin.com/in/nicholaseterovic"},
     "instagram":{"icon":"fab fa-instagram", "href":"https://www.instagram.com/nicholaseterovic"},
+    "heroku":{"icon":"fa fa-server", "href":"https://dashboard.heroku.com/apps/nicholas-eterovic"},
 }
 projects = {
     "home":{"label":"Home", "icon":"fas fa-home", "module":home},
@@ -78,6 +80,15 @@ app.layout = dhc.Div(
         dtc.SideBar(
             bg_color=constants.NAVBAR_COLOR,
             children=[
+                dtc.SideBarItem(
+                    id=f"sidebaritem-{project}",
+                    icon=params["icon"],
+                    label=params["label"],
+                )
+                for project, params in projects.items()
+            ] + [
+                dhc.Hr(),
+            ] + [
                 dhc.Div(
                     style={"margin-left":"20px"},
                     children=[
@@ -95,15 +106,6 @@ app.layout = dhc.Div(
                     ],
                 )
                 for link, params in links.items()
-            ] + [
-                dhc.Hr(),
-            ] + [
-                dtc.SideBarItem(
-                    id=f"sidebaritem-{project}",
-                    icon=params["icon"],
-                    label=params["label"],
-                )
-                for project, params in projects.items()
             ] + [
                 dhc.Hr(),
             ],
