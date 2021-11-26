@@ -39,6 +39,8 @@ class Shape(abc.ABC):
 
 class Point(Shape):
     def __init__(self:object, *coordinates:tp.Tuple[float, ...]) -> object:
+        if not all(isinstance(coord, (int, float)) for coord in coordinates):
+            raise ValueError(f"Coordinates must be numeric")
         self.coordinates = coordinates
     
     @classmethod
@@ -85,6 +87,8 @@ class Point(Shape):
 
 class Line(Shape):
     def __init__(self:object, p:Point, q:Point) -> object:
+        if not isinstance(p, Point) or not isinstance(q, Point):
+            raise ValueError(f"Start and end points are required.")
         self.p = p
         self.q = q
 
@@ -118,7 +122,11 @@ class Line(Shape):
         return trace
 
 class Polygon(Shape):
-    def __init__(self:object, points:tp.Container[Point]) -> object:
+    def __init__(self:object, points:tp.Tuple[Point, ...]) -> object:
+        if not all(isinstance(point, Point) for point in points):
+            raise ValueError("Points are required")
+        if len(points) < 3:
+            raise ValueError("At least three points are required.")
         self.points = points
 
     @property
@@ -143,6 +151,12 @@ class Polygon(Shape):
 
 class RegularPolygon(Polygon):
     def __init__(self:object, sides:int, center:Point=Point.origin()) -> object:
+        if not isinstance(sides, int):
+            raise ValueError("An integer number of sides are required.")
+        if sides < 3:
+            raise ValueError("At least three sides are required.")
+        if not isinstance(center, Point):
+            raise ValueError("The center must be a Point.")
         angles = np.linspace(start=0, stop=2*math.pi, num=sides, endpoint=False)
         points = [
             center+Point(math.cos(angle), math.sin(angle))
@@ -153,7 +167,7 @@ class RegularPolygon(Polygon):
 class Triangle(Polygon):
     def __init__(self:object, points:tp.Container[Point]) -> object:
         if len(points)!=3:
-            raise ValueError(points)
+            raise ValueError("Three points are required.")
         self.points = points
     
     @classmethod
@@ -169,9 +183,23 @@ class Triangle(Polygon):
         lengths = (semiperimeter-line.length for line in self.lines)
         area = (semiperimeter*ft.reduce(float.__mul__, lengths))**0.5
         return area
+
+class EquilateralTriangle(RegularPolygon, Triangle):
+    def __init__(self:object, center:Point=Point.origin()) -> object:
+        return super().__init__(sides=3, center=center)
+
+class Quadrilateral(Polygon):
+    def __init__(self:object, points:tp.Container[Point]) -> object:
+        if len(points)!=4:
+            raise ValueError("Four points are required.")
+        self.points = points
     
 class Ellipse(Shape):
     def __init__(self:object, line:Line, diameter:float) -> object:
+        if not isinstance(line, Line):
+            raise ValueError("Line is required")
+        if not isinstance(diameter, (int, float)):
+            raise ValueError("Diameter must be numeric")
         self.line = line
         self.diameter = diameter
 
@@ -180,6 +208,10 @@ class Ellipse(Shape):
 
 class Circle(Ellipse):
     def __init__(self:object, center:Point, radius:float) -> object:
+        if not isinstance(center, Point):
+            raise ValueError("Center must be a Point")
+        if not isinstance(radius, (int, float)):
+            raise ValueError("Radius must be numeric")
         self.center = center
         self.radius = radius
         super.__init__(line=Line(center, center), diameter=2*radius)
@@ -200,6 +232,10 @@ class Circle(Ellipse):
 
 class Spiral(Shape):
     def __init__(self:object, center:Point, radius:float) -> object:
+        if not isinstance(center, Point):
+            raise ValueError("Center must be a Point.")
+        if not isinstance(radius, (int, float)):
+            raise ValueError("Radius must be numeric")
         self.center = center
         self.radius = radius
 
