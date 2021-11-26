@@ -37,6 +37,9 @@ class Shape(abc.ABC):
         dimension = len(nonself_args)
         return dimension
 
+####################################################################################################
+# ZERO DIMENSIONS
+
 class Point(Shape):
     def __init__(self:object, *coordinates:tp.Tuple[float, ...]) -> object:
         if not all(isinstance(coord, (int, float)) for coord in coordinates):
@@ -85,6 +88,9 @@ class Point(Shape):
         trace = {axis:[coordinate] for axis, coordinate in pairs}
         return trace
 
+####################################################################################################
+# ONE DIMENSION
+
 class Line(Shape):
     def __init__(self:object, p:Point, q:Point) -> object:
         if not isinstance(p, Point) or not isinstance(q, Point):
@@ -120,6 +126,9 @@ class Line(Shape):
         q_trace = self.q.get_trace()
         trace = {axis:p_trace[axis]+q_trace[axis] for axis in Shape.axes}
         return trace
+
+####################################################################################################
+# TWO DIMENSIONS
 
 class Polygon(Shape):
     def __init__(self:object, points:tp.Tuple[Point, ...]) -> object:
@@ -165,7 +174,7 @@ class RegularPolygon(Polygon):
         return super().__init__(points=points)
 
 class Triangle(Polygon):
-    def __init__(self:object, points:tp.Container[Point]) -> object:
+    def __init__(self:object, points:tp.Tuple[Point, ...]) -> object:
         if len(points)!=3:
             raise ValueError("Three points are required.")
         self.points = points
@@ -189,7 +198,7 @@ class EquilateralTriangle(RegularPolygon, Triangle):
         return super().__init__(sides=3, center=center)
 
 class Quadrilateral(Polygon):
-    def __init__(self:object, points:tp.Container[Point]) -> object:
+    def __init__(self:object, points:tp.Tuple[Point, ...]) -> object:
         if len(points)!=4:
             raise ValueError("Four points are required.")
         self.points = points
@@ -248,6 +257,40 @@ class Spiral(Shape):
         cos = math.cos(radians)
         point = self.center+Point(cos, sin)*(self.radius*radians/math.pi/2)
         return point
+
+####################################################################################################
+# THREE DIMENSIONS
+
+class Polyhedron(Shape):
+    def __init__(self:object, polygons:tp.Tuple[Polygon, ...]) -> object:
+        self.polygons = polygons
+
+class RegularPolyhedron(Polyhedron):
+    pass
+
+class Tetrahedron(RegularPolygon):
+    def __init__(self:object) -> object:
+        polygons = []
+        raise NotImplementedError
+        super.__init__(polygons=polygons)
+
+class Tetrahedron(RegularPolygon):
+    def __init__(self:object) -> object:
+        polygons = []
+        raise NotImplementedError
+        super.__init__(polygons=polygons)
+
+class Tetrahedron(RegularPolygon):
+    def __init__(self:object) -> object:
+        polygons = []
+        raise NotImplementedError
+        super.__init__(polygons=polygons)
+
+class Tetrahedron(RegularPolygon):
+    def __init__(self:object) -> object:
+        polygons = []
+        raise NotImplementedError
+        super.__init__(polygons=polygons)
         
 ####################################################################################################
 # LAYOUT
@@ -282,7 +325,7 @@ app_layout = [
 
                   Perhaps one of the strongest examples of how mathematics underpins nature
                 is the **golden ratio** $ \phi = (1+\sqrt{5})/2$. This constant can be found
-                in many of nature"s designs. Here, an example is given by modelling
+                in many of nature'sdesigns. Here, an example is given by modelling
                 an arrangement of **sunflower seeds** using a spiral; at every $\phi$ turns
                 of the spiral a seed is grown.
                   

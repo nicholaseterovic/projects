@@ -50,7 +50,7 @@ app_layout = [
                 an industry infamous for exhibiting low signal-to-noise ratio in its data.
 
                   Moreover, I find the model pleasingly interpretable -
-                decomposing an asset price"s dynamics into familiar concepts:
+                decomposing an asset price'sdynamics into familiar concepts:
                 position, velocity, and acceleration.
 
                   Practitioners of technical analysis often speak of *trend* and *momentum*,
@@ -62,7 +62,7 @@ app_layout = [
                   From here on it is assumed the reader has read the paper
                 and is familiar with the model specification.
 
-                  Let"s begin!
+                  Let'sbegin!
             """),
         ]),
     ]),
@@ -449,7 +449,7 @@ app_layout = [
     dbc.Card([
         dbc.CardHeader([
             dcc.Markdown("""
-                ### Diagnosing the KCA Model"s Predictive Power
+                ### Diagnosing the KCA Model'sPredictive Power
                 ***
 
                 The fitted KCA model yields one-step ahead predictions for the VWAP (observation) series.
@@ -544,7 +544,7 @@ app_layout = [
                   * *Filtered states*, contemporaneous estimates.
                   * *Predicted states*, forward-looking estimates.
                 
-                Each model"s predictions were evaluated using a total-ranking system,
+                Each model'spredictions were evaluated using a total-ranking system,
                   and it was found that the $KCA(0)$ and $KCA(1)$ models tied first;
                   the $KCA(0)$ is a smoothed position model and
                   the $KCA(1)$ model is a smoothed position and velocity model.
@@ -566,7 +566,7 @@ app_layout = [
                     - Using the confidence-intervals in addition to point-estimates to weight bets.
                     - Accelerating/decelerating the rate of acquisition/liquidation in an execution algorithm.
 
-                *That"s all folks!*
+                *That'sall folks!*
             """),
         ]),
     ]),

@@ -216,7 +216,7 @@ app_layout = [
                 This project implements a simple method of creating fractals (rather, their finite approximations),
                   using two components:
 
-                * An initial **seed**, which is the fractal"s zeroth iteration;
+                * An initial **seed**, which is the fractal's zeroth iteration;
                 * An iterative **generator**, which is used to construct the next fractal iteration.
 
                 The algorithm is simple; given a fractal iteration, *interpolate every straight-line segment

@@ -32,10 +32,10 @@ app_layout = [
 
                               Greetings!
                               
-                              You"ve stumbled upon my humble personal website,
+                              You've stumbled upon my humble personal website,
                              home to some of my recreational math and coding projects.
 
-                              Feel free to take a look at what\"s available using the sidebar.
+                              Feel free to take a look at what's available using the sidebar.
                              For the best user experience, I recommend browsing with desktop Chrome.
                         """),
                         dcc.Markdown(style={"text-align":"right"}, children="""

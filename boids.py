@@ -291,11 +291,11 @@ app_layout = [
                 ***
 
                   This project originated in the Summer of 2020
-                with a sudden motivation to learn how to solve a **Rubik"s cube**.
-                Little did I know of how deep the cubing rabbit"s hole goes!
+                with a sudden motivation to learn how to solve a **Rubik'scube**.
+                Little did I know of how deep the cubing rabbit'shole goes!
 
                   As I sat fiddling and memorizing the various algorithms needed to assemble colors,
-                I decided that a better way to learn the cube"s intricacies was instead to *code it up*.
+                I decided that a better way to learn the cube'sintricacies was instead to *code it up*.
 
                   The result is a *virtual cube* that I am proud to share with you.
                 If you are curious,
