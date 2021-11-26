@@ -57,7 +57,7 @@ ns = djs.Namespace("dapp", "tabulator")
 
 links = {
     "instagram":{"icon":"fab fa-instagram", "href":"https://www.instagram.com/nicholaseterovic"},
-    "github":{"icon":"fab fa-github", "href":"https://github.com/NicholasEterovic"},
+    "github":{"icon":"fab fa-github", "href":"https://github.com/nicholaseterovic"},
     "linkedin":{"icon":"fab fa-linkedin", "href":"https://www.linkedin.com/in/nicholaseterovic"},
     "instagram":{"icon":"fab fa-instagram", "href":"https://www.instagram.com/nicholaseterovic"},
     "heroku":{"icon":"fa fa-server", "href":"https://dashboard.heroku.com/apps/nicholas-eterovic"},
