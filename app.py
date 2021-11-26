@@ -60,7 +60,7 @@ links = {
     "github":{"icon":"fab fa-github", "href":"https://github.com/nicholaseterovic"},
     "linkedin":{"icon":"fab fa-linkedin", "href":"https://www.linkedin.com/in/nicholaseterovic"},
     "instagram":{"icon":"fab fa-instagram", "href":"https://www.instagram.com/nicholaseterovic"},
-    "heroku":{"icon":"fa fa-server", "href":"https://dashboard.heroku.com/apps/nicholas-eterovic"},
+    "heroku":{"icon":"fa fa-server", "href":"https://dashboard.heroku.com/apps/nicholaseterovic"},
 }
 projects = {
     "home":{"label":"Home", "icon":"fas fa-home", "module":home},
