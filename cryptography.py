@@ -1,4 +1,4 @@
-# Nicholas Eterovic 2021Q3
+# Nicholas Eterovic 2021Q4
 ####################################################################################################
 
 # Open-source imports.
@@ -51,4 +51,4 @@ class CaeserCipher(SubstitutionCipher):
         chars_from = string.ascii_lowercase
         chars_to = chars_from[self._shift:] + chars_from[:self._shift]
         char_map = list(zip(chars_from, chars_to))
-        return super().__init__(char_map=char_map)
+        super().__init__(char_map=char_map)
