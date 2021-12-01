@@ -121,6 +121,13 @@ class Line(Shape):
     def length(self:object) -> float:
         return self.p.get_distance_to(self.q)
 
+    def get_intersection(self:object, other:object) -> Shape:
+        if isinstance(other, Point):
+            L = list(other-self.p, other-self.q, fillvalue=0)
+            return L
+        raise NotImplementedError
+
+
     def get_trace(self:object) -> dict:
         p_trace = self.p.get_trace()
         q_trace = self.q.get_trace()
@@ -459,6 +466,60 @@ app_layout = [
             ),
         ]),
     ]),
+    dbc.Card([
+        dbc.CardHeader([
+            dcc.Markdown("""
+                ### Polygons and their Properties
+                ***
+
+                  <Insert text here>
+                  
+            """),
+            dbc.InputGroup(
+                size="sm",
+                children=[
+                    dbc.Button(
+                        id="button-geometry-polygon-clear",
+                        children="Clear",
+                        n_clicks=0,
+                        color="warning",
+                    ),
+                    dbc.InputGroupText(
+                        children="Polygon With Sides:",
+                    ),
+                    dbc.Input(
+                        id="input-geometry-polygon-sides",
+                        value=3,
+                        type="numeric",
+                        min=3,
+                        max=100,
+                        step=1,
+                    ),
+                    dbc.Button(
+                        id="button-geometry-polygon-add",
+                        children="Add",
+                        n_clicks=0,
+                        color="primary",
+                    ),
+                ],
+            ),
+        ]),
+        dbc.CardBody([
+            dcc.Graph(
+                id="graph-geometry-polygon",
+                config={"displayModeBar":False, "displaylogo":False},
+                figure={
+                    "data":[],
+                    "layout":{
+                        "hovermode":"closest",
+                        "xaxis":{"visible":True, "range":[-1, 1], "autorange":False},
+                        "yaxis":{"visible":True, "range":[-1, 1], "autorange":False, "scaleanchor":"x"},
+                        "margin":{"t":0, "b":0, "l":0, "r":0, "pad":0},
+                    },
+                },
+            ),
+        ]),
+    ]),
 ]
 
 ####################################################################################################
@@ -548,4 +609,26 @@ def register_app_callbacks(app:dash.Dash) -> None:
                 }
             for frame in figure["frames"]
         ]
+        return figure
+
+    @app.callback(
+        ddp.Output("graph-geometry-polygon", "figure"),
+        [
+            ddp.Input("button-geometry-polygon-clear", "n_clicks"),
+            ddp.Input("button-geometry-polygon-add", "n_clicks"),
+        ],
+        [
+            ddp.State("input-geometry-polygon-sides", "value"),
+            ddp.State("graph-geometry-polygon", "figure"),
+        ],
+    )
+    def add_polygon(clear_clicks:int, add_clicks:int, sides:int, figure:dict) -> dict:
+        trigger = dash.callback_context.triggered[0]
+        if trigger['prop_id'].endswith('clear.n_clicks'):
+            figure['data'].clear()
+            return figure
+        sides = int(sides)
+        polygon = RegularPolygon(sides=sides)
+        trace = polygon.get_trace()
+        figure['data'].append(trace)
         return figure
