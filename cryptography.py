@@ -16,6 +16,11 @@ class Cipher(abc.ABC):
     def decrypt(self, ciphertext:str, *args:tp.Tuple[object], **kwargs:tp.Dict[object, object]) -> str:
         raise NotImplementedError
 
+class CryptAnalyzer(abc.ABC):
+
+    def crack(self, ciphertext:str, *args:tp.Tuple[object], **kwargs:tp.Dict[object, object]) -> str:
+        raise NotImplementedError
+
 ####################################################################################################
 
 class SubstitutionCipher(Cipher):
