@@ -65,7 +65,7 @@ links = {
 projects = {
     "home":{"label":"Home", "icon":"fas fa-home", "module":home},
     "rubik":{"label":"Rubik's Cube", "icon":"fas fa-cube", "module":rubiks_cube},
-    "euler":{"label":"Project Euler", "icon":"fas fa-hourglass-half", "module":project_euler},
+    #"euler":{"label":"Project Euler", "icon":"fas fa-hourglass-half", "module":project_euler},
     "fractal":{"label":"Self-Similar Fractals", "icon":"fas fa-wave-square", "module":fractal},
     "gol":{"label":"Conway's Game of Life", "icon":"fas fa-th", "module":game_of_life},
     "kca":{"label":"KCA", "icon":"fas fa-chart-line", "module":kca},
