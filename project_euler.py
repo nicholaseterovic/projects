@@ -2,10 +2,12 @@
 ####################################################################################################
 
 # Open-source packages.
+import ast
 import sys
 import json
 import math
 import inspect
+from dash_bootstrap_components._components.Accordion import Accordion
 import num2words 
 import typing as tp
 import functools as ft
@@ -209,76 +211,72 @@ def solution_067(file:str="data/project_euler/p067_triangle.txt") -> int:
 import dash
 import dash_ace as dac
 from dash import dcc
+from dash import html as dhc
 import dash.exceptions as dex
 import dash.dependencies as ddp
 import dash_bootstrap_components as dbc
 
 app_layout = [
-    dbc.Row(className="g-0", children=[
-        dbc.Col(width=6, children=[
-            dbc.Card([
-                dbc.CardHeader([
-                    "Problem",
-                ]),
-                dbc.CardBody([
-                    
-                ]),
-            ]),
-        ]),
-        dbc.Col(width=6, children=[
-            dbc.Card([
-                dbc.CardHeader([
-                    "Solution",
-                ]),
-                dbc.CardBody([
-                    dac.DashAceEditor(
-                        id="editor-euler-solution",
-                        placeholder="Select a problem to view solution",
-                        mode="python",
-                        theme="monokai",
-                    ),
-                ]),
-            ]),
-        ]),
-    ]),
-    dbc.Card([
-        dbc.CardHeader([
-            dbc.InputGroup(
-                size="sm",
-                children=[
-                    dbc.InputGroupText(
-                        children="Solution:",
-                    ),
-                    dbc.Select(
-                        id="select-solution-number",
-                        value=None,
-                        options=[
-                            {"label":name.rsplit(sep="_", maxsplit=1)[-1], "value":name}
-                            for name, obj in inspect.getmembers(
-                                object=sys.modules[__name__],
-                                predicate=inspect.isfunction,
-                            )
-                        ],
-                    ),
-                    dbc.Button(
-                        id="button-solution-profile",
-                        children="Profile",
-                        n_clicks=0,
-                        color="primary",
-                    ),
+    dbc.InputGroup(
+        size="sm",
+        children=[
+            dbc.InputGroupText(
+                children="Solution:",
+            ),
+            dbc.Select(
+                id="select-solution-number",
+                value=None,
+                options=[
+                    {"label":name.rsplit(sep="_", maxsplit=1)[-1], "value":name}
+                    for name, obj in inspect.getmembers(
+                        object=sys.modules[__name__],
+                        predicate=inspect.isfunction,
+                    )
                 ],
             ),
-        ]),
-        dcc.Store(
-            id="store-solution-profile",
-            data={},
-        ),
-        dbc.CardBody([
-            dcc.Graph(
-                id="graph-solution-profile",
-                figure={},
+            dbc.Button(
+                id="button-solution-profile",
+                children="Profile",
+                n_clicks=0,
+                color="primary",
             ),
-        ]),
+        ],
+    ),
+    dbc.Pagination(max_value=10, fully_expanded=False),
+    dbc.Accordion([
+        dbc.AccordionItem(
+            id='aitem-euler-problem',
+            title='Problem',
+            children=['None'],
+        ),
+        dbc.AccordionItem(
+            title='Solution',
+            children=[
+                dac.DashAceEditor(
+                    id="editor-euler-solution",
+                    value="",
+                    placeholder="Select a problem to view solution",
+                    mode="python",
+                    theme="monokai",
+                    readOnly=True,
+                    wrapEnabled=True,
+                    width='100%',
+                ),
+            ],
+        ),
+        dbc.AccordionItem(
+            title='Profile',
+            children=[
+                dcc.Store(
+                    id="store-solution-profile",
+                    data={},
+                ),
+                dcc.Graph(
+                    id="graph-solution-profile",
+                    figure={},
+                ),
+            ],
+        ),
     ]),
 ]
 
@@ -288,6 +286,33 @@ app_layout = [
 def register_app_callbacks(app:dash.Dash) -> None:
 
     @app.callback(
+        ddp.Output("editor-euler-solution", "value"),
+        [ddp.Input("select-solution-number", "value")],
+    )
+    def populate_solution_code(name:str) -> str:
+        if not name:
+            return ""
+        module = sys.modules[__name__]
+        func:tp.Callable = getattr(module, name)
+        code:str = inspect.getsource(func)
+        seen:tp.List[str] = []
+        root:ast.Module = ast.parse(source=code)
+        for node in ast.walk(node=root):
+            if not isinstance(node, ast.Call):
+                continue
+            if not hasattr(node.func, 'value') or not hasattr(node.func, 'attr'):
+                continue
+            if node.func.attr in seen:
+                continue
+            else:
+                seen.append(node.func.attr)
+            helper_module = getattr(module, node.func.value.id)
+            helper_func = getattr(helper_module, node.func.attr)
+            code += "\n"
+            code += inspect.getsource(helper_func)
+        return code
+
+    @app.callback(
         ddp.Output("store-solution-profile", "data"),
         [ddp.Input("button-solution-profile", "n_clicks")],
         [ddp.State("select-solution-number", "value")],
@@ -295,7 +320,8 @@ def register_app_callbacks(app:dash.Dash) -> None:
     def profile_solution(n_clicks:int, name:str) -> int:
         if not name:
             return {}
-        func = getattr(sys.modules[__name__], name)
+        module = sys.modules[__name__]
+        func = getattr(module, name)
 
         print(inspect.getsource(func))
         with pi.Profiler() as profiler:
