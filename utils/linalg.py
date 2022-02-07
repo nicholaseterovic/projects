@@ -16,6 +16,7 @@ class Vector(Container):
         return cls(data=data, validate=False)
 
     def __init__(self, data:tp.Iterator, validate:bool=True) -> int:
+        data = tuple(data)
         if validate:
             self._validate_data(data=data)
         self._data = tuple(data)
@@ -28,7 +29,9 @@ class Vector(Container):
         return len(self._data)
     
     @staticmethod
-    def _validate_data(data:tp.Iterator) -> None:
+    def _validate_data(data:tuple) -> None:
+        if not isinstance(data, tuple):
+            raise ValueError("Vector data must be a tuple")
         for val in data:
             if not isinstance(val, numeric_types):
                 raise ValueError("Vector data must be numeric")
