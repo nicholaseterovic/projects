@@ -4,9 +4,10 @@ import itertools as it
 from .container import Container, Numeric, numeric_types
 
 class Vector(Container):
-    def __init__(self, data:object, n:int=None):
+    def __init__(self, data:object, n:int=None, validate:bool=True):
         self.data = self._get_data(data=data, n=n)
-        self._validate()
+        if validate:
+            self._validate()
     
     @property
     def n(self) -> int:
@@ -39,7 +40,13 @@ class Vector(Container):
                 raise ValueError(f"Data {type(datum)} is not {numeric_types}")
 
     def __str__(self) -> str:
-        return "\n".join(map(self.value_frmt.format, self.data))
+        return "\n".join(map(self.value_frmt.format, self.data.values()))
+
+    def __mul__(self, other:object) -> object:
+        if isinstance(other, Vector):
+            if self.n != other.n:
+                raise ValueError(f"Lengths {self.n} and {other.n} are not equal")
+            return sum(self.data[i]*other.data[i] for i in self.I)
 
 class ConstantVector(Vector):
     def __init__(self, constant:Numeric, n:int):
