@@ -2,6 +2,7 @@ import typing as tp
 import itertools as it
 
 from .container import Container, Numeric, numeric_types
+from .vector import Vector
 
 ###################################################################################################
 
@@ -26,6 +27,12 @@ class Matrix(Container):
     def J(self) -> tp.Iterator[int]:
         return self.range(self.m)
     
+    @property
+    def rows(self) -> tp.Iterable[Vector]:
+        I = list(self.I)
+        J = list(self.J)
+        return (Vector(data=(self.data[(i, j)] for j in J)) for i in I)
+
     @property
     def T(self) -> object:
         keys = ((j, i) for i, j in self.data.keys())
@@ -76,6 +83,11 @@ class Matrix(Container):
             row_str = " ".join(map(self.value_frmt.format, row_values))
             matrix_str += row_str + "\n"
         return matrix_str
+
+    def __mul__(self, other) -> object:
+        if isinstance(other, Vector):
+            return Vector(data=(row*other for row in self.rows))
+        raise NotImplementedError(type(other))
 
 class IdentityMatrix(Matrix):
     def __init__(self, n:int, m:int=None):

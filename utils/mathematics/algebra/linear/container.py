@@ -1,9 +1,10 @@
 import typing as tp
+from ..expression import Expression
 
 ####################################################################################################
 
-numeric_types = (int, float, complex)
-Numeric = tp.Union[int, float, complex]
+numeric_types = (int, float, complex, Expression)
+Numeric = tp.Union[int, float, complex, Expression]
 
 class Container:
     value_frmt = "{:}"

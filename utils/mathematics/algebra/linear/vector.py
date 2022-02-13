@@ -47,6 +47,7 @@ class Vector(Container):
             if self.n != other.n:
                 raise ValueError(f"Lengths {self.n} and {other.n} are not equal")
             return sum(self.data[i]*other.data[i] for i in self.I)
+        raise NotImplementedError(type(other))
 
 class ConstantVector(Vector):
     def __init__(self, constant:Numeric, n:int):
