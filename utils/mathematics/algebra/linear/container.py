@@ -25,3 +25,7 @@ class Container:
 
     def _validate(self) -> None:
         raise NotImplementedError
+
+    def evaluate(self, **kwargs) -> object:
+        data = {key:val.evaluate(**kwargs) for key, val in self.data.items()}
+        return self.__class__(data=data)

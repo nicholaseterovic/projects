@@ -13,7 +13,7 @@ class Expression:
         return self.__class__(**children)
 
     def __eq__(self, other) -> bool:
-        raise NotImplementedError
+        return False
     
     def __neg__(self):
         return Negation(child=self)
@@ -133,6 +133,7 @@ class Multiplication(BinaryExpression):
         return self.left * self.right
 
     def __str__(self) -> str:
+        expression = super().evaluate()
         return f"{self.left} * {self.right}"
 
 ####################################################################################################

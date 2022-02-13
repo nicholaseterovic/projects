@@ -37,8 +37,8 @@ class Matrix(Container):
     @property
     def T(self) -> object:
         keys = ((j, i) for i, j in self.data.keys())
-        values = self.data.values()
-        data = dict(zip(keys, values))
+        vals = self.data.values()
+        data = dict(zip(keys, vals))
         return Matrix(data)
 
     def _get_data(self, data:object, n:int, m:int) -> tp.Dict[tp.Tuple[int, int], Numeric]:
