@@ -1,5 +1,7 @@
 import typing as tp
 import functools as ft
+
+from numpy import isin
 from ..expression import Expression
 
 ####################################################################################################
@@ -32,3 +34,7 @@ class Container:
 
     def validate(self) -> None:
         raise NotImplementedError
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Container):
+            return self.data == other.data

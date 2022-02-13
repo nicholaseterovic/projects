@@ -48,6 +48,9 @@ class Matrix(Container):
         data = dict(zip(keys, vals))
         return Matrix(data=data)
 
+    def is_symmetric(self) -> bool:
+        return self == self.T
+    
     @staticmethod
     def normalize_data(data:object) -> tp.Dict[tp.Tuple[int, int], Numeric]:
         if isinstance(data, dict):
