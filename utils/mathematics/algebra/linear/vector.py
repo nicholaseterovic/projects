@@ -5,10 +5,11 @@ from .container import Container, Numeric, numeric_types
 from ..expression import Variable
 
 class Vector(Container):
-    def __init__(self, data:object, n:int=None, validate:bool=True):
-        self.data = self._get_data(data=data, n=n)
+
+    def __init__(self, data:object, validate:bool=True):
+        self.data = self.normalize_data(data=data)
         if validate:
-            self._validate()
+            self.validate()
     
     @property
     def n(self) -> int:
@@ -18,18 +19,15 @@ class Vector(Container):
     def I(self) -> tp.Iterator[int]:
         return self.range(self.n)
     
-    def _get_data(self, data:object, n:int) -> tp.Dict[int, Numeric]:
-        if data is not None:
-            if isinstance(data, dict):
-                return data
-            if isinstance(data, tp.Iterable):
-                return {i:datum for i, datum in self.enumerate(data)}
-        if n is not None:
-            if isinstance(n, int):
-                return {i:self._get_datum(i) for i in self.range(n)}
+    @staticmethod
+    def normalize_data(data:object) -> tp.Dict[int, Numeric]:
+        if isinstance(data, dict):
+            return data
+        if isinstance(data, tp.Iterable):
+            return {i:datum for i, datum in Container.enumerate(data)}
         raise ValueError
     
-    def _validate(self) -> None:
+    def validate(self) -> None:
         if not isinstance(self.data, dict):
             raise ValueError(f"Data {type(self.data)} is not a dict")
         if not self.data:
@@ -41,7 +39,7 @@ class Vector(Container):
                 raise ValueError(f"Data {type(datum)} is not {numeric_types}")
 
     def __str__(self) -> str:
-        return "\n".join(map(self.value_frmt.format, self.data.values()))
+        return "\n".join(map(self._value_frmt.format, self.data.values()))
 
     def __mul__(self, other:object) -> object:
         if isinstance(other, Vector):
@@ -50,26 +48,20 @@ class Vector(Container):
             return sum(self.data[i]*other.data[i] for i in self.I)
         raise NotImplementedError(type(other))
 
-class VariableVector(Vector):
-    def __init__(self, name:str, n:int):
-        self.name = name
-        return super().__init__(data=None, n=n)
-    
-    def _get_datum(self, i:int) -> Variable:
-        return Variable(name=f"{self.name}_{i}")
+    @classmethod
+    def variable(cls, name:str, n:int):
+        data = {i:Variable(name=f"{name}_{i}") for i in cls.range(n)}
+        return cls(data=data, validate=False)
 
-class ConstantVector(Vector):
-    def __init__(self, constant:Numeric, n:int):
-        self._constant = constant
-        super().__init__(data=None, n=n)
+    @classmethod
+    def constant(cls, constant:Numeric, n:int):
+        data = {i:constant for i in cls.range(n)}
+        return cls(data=data, validate=False)
 
-    def _get_datum(self, i:int) -> Numeric:
-        return self._constant
+    @classmethod
+    def zero(cls, n:int):
+        return cls.constant(constant=0, n=0)
 
-class ZeroVector(ConstantVector):
-    def __init__(self, n:int):
-        return super().__init__(constant=0, n=n)
-
-class UnitVector(ConstantVector):
-    def __init__(self, n:int):
-        return super().__init__(constant=1, n=n)
+    @classmethod
+    def unit(cls, n:int):
+        return cls.constant(constant=1, n=0)

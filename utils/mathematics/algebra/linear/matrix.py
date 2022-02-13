@@ -8,9 +8,10 @@ from ..expression import Variable
 ###################################################################################################
 
 class Matrix(Container):
-    def __init__(self, data:object, n:int=None, m:int=None):
-        self.data = self._get_data(data=data, n=n, m=m)
-        self._validate()
+    def __init__(self, data:object, validate:bool=True):
+        self.data = self.normalize_data(data=data)
+        if validate:
+            self.validate()
     
     @property
     def n(self) -> int:
@@ -35,33 +36,32 @@ class Matrix(Container):
         return (Vector(data=(self.data[(i, j)] for j in J)) for i in I)
 
     @property
+    def cols(self) -> tp.Iterable[Vector]:
+        I = list(self.I)
+        J = list(self.J)
+        return (Vector(data=(self.data[(i, j)] for i in I)) for j in J)
+    
+    @property
     def T(self) -> object:
         keys = ((j, i) for i, j in self.data.keys())
         vals = self.data.values()
         data = dict(zip(keys, vals))
-        return Matrix(data)
+        return Matrix(data=data)
 
-    def _get_data(self, data:object, n:int, m:int) -> tp.Dict[tp.Tuple[int, int], Numeric]:
-        if data is not None:
-            if isinstance(data, dict):
-                return data
-            if isinstance(data, tp.Iterable):
-                if all(isinstance(row, tp.Iterable) for row in data):
-                    return {
-                        (i, j):datum
-                        for i, row in self.enumerate(data)
-                        for j, datum in self.enumerate(row)
-                    }
-        if n is not None:
-            if m is None:
-                m = n
-            keys = list(it.product(self.range(n), self.range(m)))
-            vals = it.starmap(self._get_datum, keys)
-            data = dict(zip(keys, vals))
+    @staticmethod
+    def normalize_data(data:object) -> tp.Dict[tp.Tuple[int, int], Numeric]:
+        if isinstance(data, dict):
             return data
-        raise ValueError
+        if isinstance(data, tp.Iterable):
+            if all(isinstance(row, tp.Iterable) for row in data):
+                return {
+                    (i, j):datum
+                    for i, row in Container.enumerate(data)
+                    for j, datum in Container.enumerate(row)
+                }
+        raise NotImplementedError(type(data))
 
-    def _validate(self) -> None:
+    def validate(self) -> None:
         if not isinstance(self.data, dict):
             raise ValueError
         for key, val in self.data.items():
@@ -81,7 +81,7 @@ class Matrix(Container):
         J = list(self.J)
         for i in I:
             row_values = (self.data[(i, j)] for j in J)
-            row_str = " ".join(map(self.value_frmt.format, row_values))
+            row_str = " ".join(map(self._value_frmt.format, row_values))
             matrix_str += row_str + "\n"
         return matrix_str
 
@@ -90,27 +90,46 @@ class Matrix(Container):
             return Vector(data=(row*other for row in self.rows))
         raise NotImplementedError(type(other))
 
-class VariableMatrix(Matrix):
-    def __init__(self, name:str, n:int, m:int=None):
-        self.name = name
-        return super().__init__(data=None, n=n, m=m)
-    
-    def _get_datum(self, i:int, j:int) -> Variable:
-        return Variable(name=f"{self.name}_{i}_{j}")
-    
-class IdentityMatrix(Matrix):
-    def __init__(self, n:int, m:int=None):
-        return super().__init__(data=None, n=n, m=m)
-    
-    def _get_datum(self, i:int, j:int) -> Numeric:
-        return int(i==j)
+    @classmethod
+    def variable(cls, name:str, n:int, m:int=None):
+        if m is None:
+            m = n
+        data = {}
+        for i, j in it.product(cls.range(n), cls.range(m)):
+            data[(i, j)] = Variable(name=f"{name}_{i}_{j}")
+        return cls(data=data, validate=False)
 
-class RowAdderMatrix(Matrix):
-    def __init__(self, constant:Numeric, i:int, j:int, n:int, m:int=None):
-        self._constant = constant
-        self._i = i
-        self._j = j
-        super().__init__(data=None, n=n, m=m)
-    
-    def _get_datum(self, i:int, j:int) -> Numeric:
-        return self._constant if (i, j)==(self._i, self._j) else int(i==j)
+    @classmethod
+    def identity(cls, n:int, m:int=None):
+        if m is None:
+            m = n
+        data = {}
+        for i, j in it.product(cls.range(n), cls.range(m)):
+            data[(i, j)] = int(i==j)
+        return cls(data=data, validate=False)
+
+    @classmethod
+    def row_permuter(cls, ri:int, rj:int, n:int, m:int=None):
+        if m is None:
+            m = n
+        data = {}
+        for i, j in it.product(cls.range(n), cls.range(m)):
+            if i == ri:
+                data[(i, j)] = int(j==rj)
+            elif i == rj:
+                data[(i, j)] = int(j==ri)
+            else:
+                data[(i, j)] = int(i==j)
+        return cls(data=data, validate=False)
+
+    @classmethod
+    def row_adder(cls, ri:int, rj:int, constant:Numeric, n:int, m:int=None):
+        if m is None:
+            m = n
+        data = {}
+        for i, j in it.product(cls.range(n), cls.range(m)):
+            if (i, j) == (ri, rj):
+                data[(i, j)] = constant
+            else:
+                data[(i, j)] = int(i==j)
+        return cls(data=data, validate=False)
