@@ -3,6 +3,7 @@ import itertools as it
 
 from .container import Container, Numeric, numeric_types
 from .vector import Vector
+from ..expression import Variable
 
 ###################################################################################################
 
@@ -89,6 +90,14 @@ class Matrix(Container):
             return Vector(data=(row*other for row in self.rows))
         raise NotImplementedError(type(other))
 
+class VariableMatrix(Matrix):
+    def __init__(self, name:str, n:int, m:int=None):
+        self.name = name
+        return super().__init__(data=None, n=n, m=m)
+    
+    def _get_datum(self, i:int, j:int) -> Variable:
+        return Variable(name=f"{self.name}_{i}_{j}")
+    
 class IdentityMatrix(Matrix):
     def __init__(self, n:int, m:int=None):
         return super().__init__(data=None, n=n, m=m)

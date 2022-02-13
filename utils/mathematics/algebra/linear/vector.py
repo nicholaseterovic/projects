@@ -2,6 +2,7 @@ import typing as tp
 import itertools as it
 
 from .container import Container, Numeric, numeric_types
+from ..expression import Variable
 
 class Vector(Container):
     def __init__(self, data:object, n:int=None, validate:bool=True):
@@ -48,6 +49,14 @@ class Vector(Container):
                 raise ValueError(f"Lengths {self.n} and {other.n} are not equal")
             return sum(self.data[i]*other.data[i] for i in self.I)
         raise NotImplementedError(type(other))
+
+class VariableVector(Vector):
+    def __init__(self, name:str, n:int):
+        self.name = name
+        return super().__init__(data=None, n=n)
+    
+    def _get_datum(self, i:int) -> Variable:
+        return Variable(name=f"{self.name}_{i}")
 
 class ConstantVector(Vector):
     def __init__(self, constant:Numeric, n:int):
