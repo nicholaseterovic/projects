@@ -2,21 +2,22 @@
 ####################################################################################################
 
 # Open-source imports.
+from multiprocessing.sharedctypes import Value
 import typing as tp
 import itertools as it
  
 # In-house imports.
-from .container import Container, Numeric, numeric_types
 from .vector import Vector
 from ..expression import Variable
+from .container import Container, Numeric, numeric_types
 
-###################################################################################################
+##################################################################################################
 
 class Matrix(Container):
     def __init__(self, data:object, validate:bool=True):
-        self.data = self.normalize_data(data=data)
+        self.data = self._normalize_data(data=data)
         if validate:
-            self.validate()
+            self._validate_data()
     
     @property
     def n(self) -> int:
@@ -51,13 +52,13 @@ class Matrix(Container):
         keys = ((j, i) for i, j in self.data.keys())
         vals = self.data.values()
         data = dict(zip(keys, vals))
-        return Matrix(data=data)
+        return self.__class__(data=data, validate=False)
 
     def is_symmetric(self) -> bool:
         return self == self.T
     
     @staticmethod
-    def normalize_data(data:object) -> tp.Dict[tp.Tuple[int, int], Numeric]:
+    def _normalize_data(data:object) -> tp.Dict[tp.Tuple[int, int], Numeric]:
         if isinstance(data, dict):
             return data
         if isinstance(data, tp.Iterable):
@@ -69,7 +70,7 @@ class Matrix(Container):
                 }
         raise NotImplementedError(type(data))
 
-    def validate(self) -> None:
+    def _validate_data(self) -> None:
         if not isinstance(self.data, dict):
             raise ValueError
         for key, val in self.data.items():
@@ -83,6 +84,21 @@ class Matrix(Container):
         if sorted(self.data.keys()) != sorted(it.product(self.I, self.J)):
             raise ValueError
     
+    def __getitem__(self, arg:tp.Tuple[tp.Union[int, slice]]) -> object:
+        i, j = arg
+        I = self.I[self.slice(i)]
+        J = self.J[self.slice(j)]
+        if isinstance(I, int):
+            if isinstance(J, int):
+                return self.data[(i, j)]
+            data = {j:self.data[(i, j)] for j in J}
+            return Vector(data=data, validate=False)
+        if isinstance(J, int):
+            data = {i:self.data[(i, j)] for i in I}
+            return Vector(data=data, validate=False)
+        data = {(i, j):self.data[(i, j)] for i in I for j in J}
+        return Matrix(data=data, validate=False)
+            
     def __str__(self) -> str:
         matrix_str = ""
         I = list(self.I)
@@ -141,3 +157,14 @@ class Matrix(Container):
             else:
                 data[(i, j)] = int(i==j)
         return cls(data=data, validate=False)
+
+def get_row_echelon(matrix:Matrix) -> tp.Tuple[Matrix, tp.Iterable[Matrix]]:
+    h = 1
+    k = 1
+    n = matrix.n
+    m = matrix.m
+    cols = matrix.cols
+    while h <= n and k <= m:
+        col = next(cols)
+        pivot = col.pivot
+        

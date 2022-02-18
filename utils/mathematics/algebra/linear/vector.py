@@ -14,9 +14,9 @@ from .container import Container, Numeric, numeric_types
 class Vector(Container):
 
     def __init__(self, data:object, validate:bool=True):
-        self.data = self.normalize_data(data=data)
+        self.data = self._normalize_data(data=data)
         if validate:
-            self.validate()
+            self._validate_data()
     
     @property
     def n(self) -> int:
@@ -26,15 +26,22 @@ class Vector(Container):
     def I(self) -> tp.Iterator[int]:
         return self.range(self.n)
     
+    @property
+    def pivot(self) -> tp.Union[Numeric, None]:
+        for i in self.I:
+            if self.data[i] != 0:
+                return i
+        return None
+
     @staticmethod
-    def normalize_data(data:object) -> tp.Dict[int, Numeric]:
+    def _normalize_data(data:object) -> tp.Dict[int, Numeric]:
         if isinstance(data, dict):
             return data
         if isinstance(data, tp.Iterable):
             return {i:datum for i, datum in Container.enumerate(data)}
         raise ValueError
     
-    def validate(self) -> None:
+    def _validate_data(self) -> None:
         if not isinstance(self.data, dict):
             raise ValueError(f"Data {type(self.data)} is not a dict")
         if not self.data:
@@ -45,6 +52,13 @@ class Vector(Container):
             if not isinstance(datum, numeric_types):
                 raise ValueError(f"Data {type(datum)} is not {numeric_types}")
 
+    def __getitem__(self, i:tp.Union[int, slice]) -> object:
+        I = self.I[self.slice(i)]
+        if isinstance(I, int):
+            return self.data[I]
+        data = {i:self.data[i] for i in I}
+        return Vector(data=data, validate=False)
+    
     def __str__(self) -> str:
         return "\n".join(map(self._value_frmt.format, self.data.values()))
 
@@ -67,8 +81,8 @@ class Vector(Container):
 
     @classmethod
     def zero(cls, n:int):
-        return cls.constant(constant=0, n=0)
+        return cls.constant(constant=0, n=n)
 
     @classmethod
     def unit(cls, n:int):
-        return cls.constant(constant=1, n=0)
+        return cls.constant(constant=1, n=n)
