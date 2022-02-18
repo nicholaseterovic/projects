@@ -1,8 +1,15 @@
+# Nicholas Eterovic 2022Q1
+####################################################################################################
+
+# Open-source imports.
 import typing as tp
 import itertools as it
 
-from .container import Container, Numeric, numeric_types
+# In-house imports.
 from ..expression import Variable
+from .container import Container, Numeric, numeric_types
+
+####################################################################################################
 
 class Vector(Container):
 

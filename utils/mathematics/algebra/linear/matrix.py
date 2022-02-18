@@ -1,6 +1,11 @@
+# Nicholas Eterovic 2022Q1
+####################################################################################################
+
+# Open-source imports.
 import typing as tp
 import itertools as it
-
+ 
+# In-house imports.
 from .container import Container, Numeric, numeric_types
 from .vector import Vector
 from ..expression import Variable

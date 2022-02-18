@@ -1,7 +1,10 @@
-import typing as tp
-import functools as ft
+# Nicholas Eterovic 2022Q1
+####################################################################################################
 
-from numpy import isin
+# Open-source imports.
+import typing as tp
+ 
+# In-house imports.
 from ..expression import Expression
 
 ####################################################################################################
