@@ -25,13 +25,8 @@ class Vector(Container):
     @property
     def I(self) -> tp.Iterator[int]:
         return self.range(self.n)
-    
-    @property
-    def pivot(self) -> tp.Union[Numeric, None]:
-        for i in self.I:
-            if self.data[i] != 0:
-                return i
-        return None
+
+##################################################################################################
 
     def dot(self, other:object) -> object:
         if isinstance(other, numeric_types):
@@ -42,7 +37,9 @@ class Vector(Container):
                 raise ValueError(f"Incompatible dimensions {self.n} and {other.n}")
             return sum(self.data[i]*other.data[i] for i in self.I)
         raise NotImplementedError(type(other))
-    
+
+##################################################################################################
+
     @staticmethod
     def _normalize_data(data:object) -> tp.Dict[int, Numeric]:
         if isinstance(data, dict):
@@ -66,8 +63,8 @@ class Vector(Container):
         I = self.I[self.slice(i)]
         if isinstance(I, int):
             return self.data[I]
-        elif isinstance(I, slice):
-            return Vector(data={i:self.data[i] for i in I}, validate=False)
+        elif isinstance(I, (range, slice)):
+            return Vector(data={j:self.data[i] for j, i in self.enumerate(I)}, validate=False)
         raise NotImplementedError(type(I))
     
     def __str__(self) -> str:
@@ -75,6 +72,10 @@ class Vector(Container):
 
     def __mul__(self, other:object) -> object:
         return self.dot(other=other)
+
+    def __iter__(self) -> tp.Iterator:
+        for i in self.I:
+            yield self.data[i]
         
 ####################################################################################################
 
