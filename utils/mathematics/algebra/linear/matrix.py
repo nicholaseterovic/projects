@@ -5,7 +5,8 @@
 import math
 import typing as tp
 import itertools as it
- 
+import functools as ft
+
 # In-house imports.
 from .vector import Vector
 from ..expression import Variable
@@ -37,15 +38,13 @@ class Matrix(Container):
     
     @property
     def rows(self) -> tp.Iterable[Vector]:
-        I = list(self.I)
         J = list(self.J)
-        return (Vector(data=(self.data[(i, j)] for j in J)) for i in I)
+        return (Vector(data=[self.data[(i, j)] for j in J]) for i in self.I)
 
     @property
     def cols(self) -> tp.Iterable[Vector]:
         I = list(self.I)
-        J = list(self.J)
-        return (Vector(data=(self.data[(i, j)] for i in I)) for j in J)
+        return (Vector(data=[self.data[(i, j)] for i in I]) for j in self.J)
     
     @property
     def T(self) -> object:
@@ -55,9 +54,21 @@ class Matrix(Container):
         return self.__class__(data=data, validate=False)
 
     @property
+    def is_square(self) -> bool:
+        return self.n == self.m
+    
+    @property
     def is_symmetric(self) -> bool:
         return self == self.T
-    
+
+    @property
+    def LU(self) -> tp.Tuple[object, object]:
+        U, ops = get_row_echelon_form(M=self)
+        L = ft.reduce(Matrix.dot, reversed(op.inv() for op in ops))
+        return L, U
+
+##################################################################################################
+
     def dot(self, other) -> object:
         if isinstance(other, numeric_types):
             data = {key:other*val for key, val in self.data.items()}
@@ -65,15 +76,24 @@ class Matrix(Container):
         if isinstance(other, Vector):
             if self.m != other.n:
                 raise ValueError(f"Incompatible dimensions {self.m} and {other.n}")
-            data = (row*other for row in self.rows)
+            data = [row*other for row in self.rows]
             return Vector(data=data, validate=False)
         if isinstance(other, Matrix):
             if self.m != other.n:
                 raise ValueError(f"Incompatible dimensions {self.m} and {other.n}")
-            data = ((row*col for row in self.rows) for col in other.cols)
+            data = [[row*col for col in other.cols] for row in self.rows]
             return Matrix(data=data, validate=False)
         raise NotImplementedError(type(other))
-    
+
+    def inv(self) -> object:
+        if self.is_identity:
+            return self
+        if self.is_row_permuter:
+            return self.T            
+        raise NotImplementedError
+
+##################################################################################################
+
     @staticmethod
     def _normalize_data(data:object) -> tp.Dict[tp.Tuple[int, int], Numeric]:
         if isinstance(data, dict):
@@ -111,13 +131,17 @@ class Matrix(Container):
         if isinstance(I, int):
             if isinstance(J, int):
                 return self.data[(i, j)]
-            data = {j:self.data[(i, j)] for j in J}
-            return Vector(data=data, validate=False)
-        if isinstance(J, int):
-            data = {i:self.data[(i, j)] for i in I}
-            return Vector(data=data, validate=False)
-        data = {(i, j):self.data[(i, j)] for i in I for j in J}
-        return Matrix(data=data, validate=False)
+            elif isinstance(J, (range, slice)):
+                data = {l:self.data[(i, j)] for l, j in self.enumerate(J)}
+                return Vector(data=data, validate=False)
+        elif isinstance(I, (range, slice)):
+            if isinstance(J, int):
+                data = {k:self.data[(i, j)] for k, i in self.enumerate(I)}
+                return Vector(data=data, validate=False)
+            elif isinstance(J, (range, slice)):
+                data = {(k, l):self.data[(i, j)] for k, i in self.enumerate(I) for l, j in self.enumerate(J)}
+                return Matrix(data=data, validate=False)
+        raise ValueError(type(I), type(J))
             
     def __str__(self) -> str:
         matrix_str = ""
@@ -148,6 +172,17 @@ class Matrix(Container):
         for i, j in it.product(cls.range(n), cls.range(m)):
             data[(i, j)] = int(i==j)
         return cls(data=data, validate=False)
+    
+    @property
+    def is_identity(self) -> bool:
+        for (i, j), val in self.data.items():
+            if i == j:
+                if val != 1:
+                    return False
+            else:
+                if val != 0:
+                    return False
+        return True
 
     @classmethod
     def RowPermuter(cls, ri:int, rj:int, n:int, m:int=None):
@@ -162,19 +197,43 @@ class Matrix(Container):
             else:
                 data[(i, j)] = int(i==j)
         return cls(data=data, validate=False)
-
+    
+    @property
+    def is_row_permuter(self) -> bool:
+        raise NotImplementedError
+    
     @classmethod
-    def RowAdder(cls, ri:int, rj:int, constant:Numeric, n:int, m:int=None):
+    def RowAdder(cls, ri:int, rj:int, n:int, m:int=None):
         if m is None:
             m = n
         data = {}
         for i, j in it.product(cls.range(n), cls.range(m)):
             if (i, j) == (ri, rj):
+                data[(i, j)] = 1
+            else:
+                data[(i, j)] = int(i==j)
+        return cls(data=data, validate=False)
+
+    @property
+    def is_row_adder(self) -> bool:
+        raise NotImplementedError
+    
+    @classmethod
+    def RowMultiplier(cls, ri:int, constant:Numeric, n:int, m:int=None):
+        if m is None:
+            m = n
+        data = {}
+        for i, j in it.product(cls.range(n), cls.range(m)):
+            if (i, j) == (ri, ri):
                 data[(i, j)] = constant
             else:
                 data[(i, j)] = int(i==j)
         return cls(data=data, validate=False)
 
+    @property
+    def is_row_multiplier(self) -> tp.Tuple[int, Numeric]:
+        raise NotImplementedError
+    
     @classmethod
     def Rotator(cls, radians:float, n:int):
         if n == 2:
@@ -189,13 +248,42 @@ class Matrix(Container):
 
 ##################################################################################################
 
-def get_row_echelon(matrix:Matrix) -> tp.Tuple[Matrix, tp.Iterable[Matrix]]:
-    h = 1
-    k = 1
-    n = matrix.n
-    m = matrix.m
-    cols = matrix.cols
-    while h <= n and k <= m:
-        col = next(cols)
-        pivot = col.pivot
-        
+def get_row_echelon_form(M:Matrix) -> tp.Tuple[Matrix, tp.List[Matrix]]:
+    """
+    Returns:
+        Matrix, input matrix transformed to row-echelon form.
+        List of Matrix, sequence of applied elementary operations.
+    """
+    i = 1
+    j = 1
+    n = M.n
+    m = M.m
+    ops = []
+    while i <= n and j <= m:
+        vals = M[i:n, j]
+        pivot = max(vals, key=abs, default=0)
+        if pivot == 0:
+            j += 1
+            continue
+        k = min(k for k, x in enumerate(vals, i) if x == pivot)
+        if k != i:
+            # Swap rows so that largest non-zero value is in pivot position.
+            P = Matrix.RowPermuter(ri=i, rj=k, n=n)
+            M = P * M
+            ops.append(P)
+        vals = M[i+1:n, j]
+        for k, val in enumerate(vals, i+1):
+            if val == 0:
+                continue
+            # Scale row so that first value is equal and opposite to pivot.
+            c = - pivot / val
+            C = Matrix.RowMultiplier(ri=k, constant=c, n=n)
+            M = C * M
+            # Add pivot row to cancel out first value.
+            ops.append(C)
+            A = Matrix.RowAdder(ri=k, rj=i, n=n)
+            M = A * M
+            ops.append(A)
+        i += 1
+        j += 1
+    return M, ops
