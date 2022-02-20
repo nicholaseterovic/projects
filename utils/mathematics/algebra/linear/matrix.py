@@ -2,7 +2,7 @@
 ####################################################################################################
 
 # Open-source imports.
-from multiprocessing.sharedctypes import Value
+import math
 import typing as tp
 import itertools as it
  
@@ -54,8 +54,25 @@ class Matrix(Container):
         data = dict(zip(keys, vals))
         return self.__class__(data=data, validate=False)
 
+    @property
     def is_symmetric(self) -> bool:
         return self == self.T
+    
+    def dot(self, other) -> object:
+        if isinstance(other, numeric_types):
+            data = {key:other*val for key, val in self.data.items()}
+            return Matrix(data=data, validate=False)
+        if isinstance(other, Vector):
+            if self.m != other.n:
+                raise ValueError(f"Incompatible dimensions {self.m} and {other.n}")
+            data = (row*other for row in self.rows)
+            return Vector(data=data, validate=False)
+        if isinstance(other, Matrix):
+            if self.m != other.n:
+                raise ValueError(f"Incompatible dimensions {self.m} and {other.n}")
+            data = ((row*col for row in self.rows) for col in other.cols)
+            return Matrix(data=data, validate=False)
+        raise NotImplementedError(type(other))
     
     @staticmethod
     def _normalize_data(data:object) -> tp.Dict[tp.Tuple[int, int], Numeric]:
@@ -84,6 +101,9 @@ class Matrix(Container):
         if sorted(self.data.keys()) != sorted(it.product(self.I, self.J)):
             raise ValueError
     
+    def __mul__(self, other) -> object:
+        return self.dot(other=other)
+    
     def __getitem__(self, arg:tp.Tuple[tp.Union[int, slice]]) -> object:
         i, j = arg
         I = self.I[self.slice(i)]
@@ -108,14 +128,11 @@ class Matrix(Container):
             row_str = " ".join(map(self._value_frmt.format, row_values))
             matrix_str += row_str + "\n"
         return matrix_str
-
-    def __mul__(self, other) -> object:
-        if isinstance(other, Vector):
-            return Vector(data=(row*other for row in self.rows))
-        raise NotImplementedError(type(other))
+        
+##################################################################################################
 
     @classmethod
-    def variable(cls, name:str, n:int, m:int=None):
+    def Variable(cls, name:str, n:int, m:int=None):
         if m is None:
             m = n
         data = {}
@@ -124,7 +141,7 @@ class Matrix(Container):
         return cls(data=data, validate=False)
 
     @classmethod
-    def identity(cls, n:int, m:int=None):
+    def Identity(cls, n:int, m:int=None):
         if m is None:
             m = n
         data = {}
@@ -133,7 +150,7 @@ class Matrix(Container):
         return cls(data=data, validate=False)
 
     @classmethod
-    def row_permuter(cls, ri:int, rj:int, n:int, m:int=None):
+    def RowPermuter(cls, ri:int, rj:int, n:int, m:int=None):
         if m is None:
             m = n
         data = {}
@@ -147,7 +164,7 @@ class Matrix(Container):
         return cls(data=data, validate=False)
 
     @classmethod
-    def row_adder(cls, ri:int, rj:int, constant:Numeric, n:int, m:int=None):
+    def RowAdder(cls, ri:int, rj:int, constant:Numeric, n:int, m:int=None):
         if m is None:
             m = n
         data = {}
@@ -157,6 +174,20 @@ class Matrix(Container):
             else:
                 data[(i, j)] = int(i==j)
         return cls(data=data, validate=False)
+
+    @classmethod
+    def Rotator(cls, radians:float, n:int):
+        if n == 2:
+            cos = math.cos(radians)
+            sin = math.sin(radians)
+            data = [
+                [+cos, -sin],
+                [+sin, +cos],
+            ]
+            return cls(data=data, validate=False)
+        raise NotImplementedError(n)
+
+##################################################################################################
 
 def get_row_echelon(matrix:Matrix) -> tp.Tuple[Matrix, tp.Iterable[Matrix]]:
     h = 1

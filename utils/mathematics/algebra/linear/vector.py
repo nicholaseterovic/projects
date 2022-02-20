@@ -33,6 +33,16 @@ class Vector(Container):
                 return i
         return None
 
+    def dot(self, other:object) -> object:
+        if isinstance(other, numeric_types):
+            data = {key:other*val for key, val in self.data.items()}
+            return Vector(data=data, validate=False)
+        if isinstance(other, Vector):
+            if self.n != other.n:
+                raise ValueError(f"Incompatible dimensions {self.n} and {other.n}")
+            return sum(self.data[i]*other.data[i] for i in self.I)
+        raise NotImplementedError(type(other))
+    
     @staticmethod
     def _normalize_data(data:object) -> tp.Dict[int, Numeric]:
         if isinstance(data, dict):
@@ -56,33 +66,32 @@ class Vector(Container):
         I = self.I[self.slice(i)]
         if isinstance(I, int):
             return self.data[I]
-        data = {i:self.data[i] for i in I}
-        return Vector(data=data, validate=False)
+        elif isinstance(I, slice):
+            return Vector(data={i:self.data[i] for i in I}, validate=False)
+        raise NotImplementedError(type(I))
     
     def __str__(self) -> str:
         return "\n".join(map(self._value_frmt.format, self.data.values()))
 
     def __mul__(self, other:object) -> object:
-        if isinstance(other, Vector):
-            if self.n != other.n:
-                raise ValueError(f"Lengths {self.n} and {other.n} are not equal")
-            return sum(self.data[i]*other.data[i] for i in self.I)
-        raise NotImplementedError(type(other))
+        return self.dot(other=other)
+        
+####################################################################################################
 
     @classmethod
-    def variable(cls, name:str, n:int):
+    def Variable(cls, name:str, n:int):
         data = {i:Variable(name=f"{name}_{i}") for i in cls.range(n)}
         return cls(data=data, validate=False)
 
     @classmethod
-    def constant(cls, constant:Numeric, n:int):
+    def Constant(cls, constant:Numeric, n:int):
         data = {i:constant for i in cls.range(n)}
         return cls(data=data, validate=False)
 
     @classmethod
-    def zero(cls, n:int):
+    def Zero(cls, n:int):
         return cls.constant(constant=0, n=n)
 
     @classmethod
-    def unit(cls, n:int):
+    def Unit(cls, n:int):
         return cls.constant(constant=1, n=n)
