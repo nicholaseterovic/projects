@@ -26,6 +26,13 @@ class Vector(Container):
     def I(self) -> tp.Iterator[int]:
         return self.range(self.n)
 
+    @property
+    def pivot(self) -> tp.Union[None, Numeric]:
+        for val in self:
+            if val != 0:
+                return val
+        return None
+
 ##################################################################################################
 
     def dot(self, other:object) -> object:
@@ -79,20 +86,20 @@ class Vector(Container):
         
 ####################################################################################################
 
-    @classmethod
-    def Variable(cls, name:str, n:int):
+class VariableVector(Vector):
+    def __init__(self, name:str, n:int):
         data = {i:Variable(name=f"{name}_{i}") for i in cls.range(n)}
-        return cls(data=data, validate=False)
+        return super().__init__(data=data, validate=False)
 
-    @classmethod
-    def Constant(cls, constant:Numeric, n:int):
+class ConstantVector(Vector):
+    def __init__(self, constant:Numeric, n:int):
         data = {i:constant for i in cls.range(n)}
-        return cls(data=data, validate=False)
+        return super().__init__(data=data, validate=False)
 
-    @classmethod
-    def Zero(cls, n:int):
-        return cls.constant(constant=0, n=n)
+class ZeroVector(Vector):
+    def __init__(self, n:int):
+        return super().__init__.constant(constant=0, n=n)
 
-    @classmethod
-    def Unit(cls, n:int):
-        return cls.constant(constant=1, n=n)
+class UnitVector(Vector):
+    def __init__(self, n:int):
+        return super().__init__.constant(constant=1, n=n)
