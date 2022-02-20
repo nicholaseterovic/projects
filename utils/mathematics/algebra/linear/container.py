@@ -28,10 +28,10 @@ class Container:
         if isinstance(i, int):
             if i == 0:
                 raise KeyError(i)
-            elif i > 1:
+            else:
                 i -= 1
         elif isinstance(i, slice):
-            if i.start is not None and i.start > 1:
+            if i.start is not None:
                 i = slice(i.start-1, i.stop, i.step)
         else:
             raise NotImplementedError(i)
