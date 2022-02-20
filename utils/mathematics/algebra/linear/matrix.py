@@ -4,6 +4,7 @@
 # Open-source imports.
 import math
 import typing as tp
+import operator as op
 import itertools as it
 import functools as ft
 
@@ -13,6 +14,14 @@ from ..expression import Variable
 from .container import Container, Numeric, numeric_types
 
 ##################################################################################################
+
+def check_is_square(func:tp.Callable) -> tp.Callable:
+    @ft.wraps(func)
+    def wrapped(self, *args, **kwargs) -> object:
+        if not self.is_square:
+            raise NotImplemented(f"Matrix is not square")
+        return func(self, *args, **kwargs)
+    return wrapped
 
 class Matrix(Container):
     def __init__(self, data:object, validate:bool=True):
@@ -59,37 +68,33 @@ class Matrix(Container):
     
     @property
     def is_symmetric(self) -> bool:
+        if not self.is_square:
+            return False
         return self == self.T
 
     @property
+    def is_skew_symmetric(self) -> bool:
+        if not self.is_square:
+            return False
+        return self == - self.T
+    
+    @property
     def LU(self) -> tp.Tuple[object, object]:
         U, ops = get_row_echelon_form(M=self)
-        L = ft.reduce(Matrix.dot, reversed(op.inv() for op in ops))
+        L = ft.reduce(op.mul, [op.inv() for op in ops], IdentityMatrix(n=U.n))
         return L, U
+    
+    @property
+    def LDV(self) -> tp.Tuple[object, object, object]:
+        L, U = self.LU
+        V, ops = get_reduced_row_echelon_form(M=U)
+        D = ft.reduce(op.mul, [op.inv() for op in ops], IdentityMatrix(n=U.n))
+        return L, D, V
 
 ##################################################################################################
-
-    def dot(self, other) -> object:
-        if isinstance(other, numeric_types):
-            data = {key:other*val for key, val in self.data.items()}
-            return Matrix(data=data, validate=False)
-        if isinstance(other, Vector):
-            if self.m != other.n:
-                raise ValueError(f"Incompatible dimensions {self.m} and {other.n}")
-            data = [row*other for row in self.rows]
-            return Vector(data=data, validate=False)
-        if isinstance(other, Matrix):
-            if self.m != other.n:
-                raise ValueError(f"Incompatible dimensions {self.m} and {other.n}")
-            data = [[row*col for col in other.cols] for row in self.rows]
-            return Matrix(data=data, validate=False)
-        raise NotImplementedError(type(other))
-
+    
+    @check_is_square
     def inv(self) -> object:
-        if self.is_identity:
-            return self
-        if self.is_row_permuter:
-            return self.T            
         raise NotImplementedError
 
 ##################################################################################################
@@ -121,8 +126,45 @@ class Matrix(Container):
         if sorted(self.data.keys()) != sorted(it.product(self.I, self.J)):
             raise ValueError
     
+    def __neg__(self) -> object:
+        return self * -1
+    
+    def __add__(self, other) -> object:
+        if isinstance(other, numeric_types):
+            data = {key:other+val for key, val in self.data.items()}
+            return Matrix(data=data, validate=False)
+        if isinstance(other, Matrix):
+            if (self.n, self.m) != (other.n, other.m):
+                raise 
+            if self.m != other.n:
+                raise ValueError(f"Incompatible dimensions {self.m} and {other.n}")
+            data = {}
+            for key, val in it.chain(self.data.items(), other.data.items()):
+                if key not in data:
+                    data[key] = val
+                else:
+                    data[key] += val
+            return Matrix(data=data, validate=False)
+        raise NotImplementedError(type(other))
+        
     def __mul__(self, other) -> object:
-        return self.dot(other=other)
+        if isinstance(other, numeric_types):
+            data = {key:other*val for key, val in self.data.items()}
+            return Matrix(data=data, validate=False)
+        if isinstance(other, Vector):
+            if self.m != other.n:
+                raise ValueError(f"Incompatible dimensions {self.m} and {other.n}")
+            data = [row*other for row in self.rows]
+            return Vector(data=data, validate=False)
+        if isinstance(other, Matrix):
+            if self.m != other.n:
+                raise ValueError(f"Incompatible dimensions {self.m} and {other.n}")
+            data = [[row*col for col in other.cols] for row in self.rows]
+            return Matrix(data=data, validate=False)
+        raise NotImplementedError(type(other))
+
+    def __add__(self, other) -> object:
+        return self.add(other=other)
     
     def __getitem__(self, arg:tp.Tuple[tp.Union[int, slice]]) -> object:
         i, j = arg
@@ -155,87 +197,100 @@ class Matrix(Container):
         
 ##################################################################################################
 
-    @classmethod
-    def Variable(cls, name:str, n:int, m:int=None):
+class VariableMatrix(Matrix):
+    def __init__(self, name:str, n:int, m:int=None):
+        self.name = name
         if m is None:
             m = n
         data = {}
-        for i, j in it.product(cls.range(n), cls.range(m)):
+        for i, j in it.product(self.range(n), self.range(m)):
             data[(i, j)] = Variable(name=f"{name}_{i}_{j}")
-        return cls(data=data, validate=False)
+        return super().__init__(data=data, validate=False)
 
-    @classmethod
-    def Identity(cls, n:int, m:int=None):
+class IdentityMatrix(Matrix):
+    def __init__(self, n:int, m:int=None):
         if m is None:
             m = n
         data = {}
-        for i, j in it.product(cls.range(n), cls.range(m)):
+        for i, j in it.product(self.range(n), self.range(m)):
             data[(i, j)] = int(i==j)
-        return cls(data=data, validate=False)
-    
-    @property
-    def is_identity(self) -> bool:
-        for (i, j), val in self.data.items():
-            if i == j:
-                if val != 1:
-                    return False
-            else:
-                if val != 0:
-                    return False
-        return True
+        return super().__init__(data=data, validate=False)
 
-    @classmethod
-    def RowPermuter(cls, ri:int, rj:int, n:int, m:int=None):
+    @check_is_square
+    def inv(self):
+        return self
+
+class RowPermuterMatrix(Matrix):
+    """
+    Premultiply to swap row i with row j.
+    """
+    def __init__(self, ri:int, rj:int, n:int, m:int=None):
+        self.ri = ri
+        self.rj = rj
         if m is None:
             m = n
         data = {}
-        for i, j in it.product(cls.range(n), cls.range(m)):
+        for i, j in it.product(self.range(n), self.range(m)):
             if i == ri:
                 data[(i, j)] = int(j==rj)
             elif i == rj:
                 data[(i, j)] = int(j==ri)
             else:
                 data[(i, j)] = int(i==j)
-        return cls(data=data, validate=False)
-    
-    @property
-    def is_row_permuter(self) -> bool:
-        raise NotImplementedError
-    
-    @classmethod
-    def RowAdder(cls, ri:int, rj:int, n:int, m:int=None):
-        if m is None:
-            m = n
-        data = {}
-        for i, j in it.product(cls.range(n), cls.range(m)):
-            if (i, j) == (ri, rj):
-                data[(i, j)] = 1
-            else:
-                data[(i, j)] = int(i==j)
-        return cls(data=data, validate=False)
+        return super().__init__(data=data, validate=False)
 
-    @property
-    def is_row_adder(self) -> bool:
-        raise NotImplementedError
-    
-    @classmethod
-    def RowMultiplier(cls, ri:int, constant:Numeric, n:int, m:int=None):
+    def inv(self):
+        return RowPermuterMatrix(ri=self.rj, rj=self.ri, n=self.n, m=self.m)
+
+class RowMultiplierMatrix(Matrix): 
+    """
+    Premultiply to multiply row i by a constant.
+    """
+    def __init__(self, ri:int, constant:Numeric, n:int, m:int=None):
+        self.ri = ri
+        self.constant = constant
         if m is None:
             m = n
         data = {}
-        for i, j in it.product(cls.range(n), cls.range(m)):
+        for i, j in it.product(self.range(n), self.range(m)):
             if (i, j) == (ri, ri):
                 data[(i, j)] = constant
             else:
                 data[(i, j)] = int(i==j)
-        return cls(data=data, validate=False)
+        return super().__init__(data=data, validate=False)
 
-    @property
-    def is_row_multiplier(self) -> tp.Tuple[int, Numeric]:
-        raise NotImplementedError
-    
-    @classmethod
-    def Rotator(cls, radians:float, n:int):
+    def inv(self):
+        return RowMultiplierMatrix(ri=self.ri, constant=1/self.constant, n=self.n, m=self.m)
+
+class RowAdderMatrix(Matrix):
+    """
+    Premultiply to add row j multiplied by a constant to row i.
+    """
+    def __init__(self, ri:int, rj:int, constant:Numeric, n:int, m:int=None):
+        self.ri = ri
+        self.rj = rj
+        self.constant = constant
+        if m is None:
+            m = n
+        data = {}
+        for i, j in it.product(self.range(n), self.range(m)):
+            if (i, j) == (ri, rj):
+                if i == j:
+                    data[(i, j)] = 1 + constant
+                else:
+                    data[(i, j)] = constant
+            else:
+                data[(i, j)] = int(i==j)
+        return super().__init__(data=data, validate=False)
+
+    def inv(self):
+        return RowAdderMatrix(ri=self.ri, rj=self.rj, constant=-self.constant, n=self.n, m=self.m)
+
+class RotatorMatrix(Matrix):
+    """
+    Premultiply to rotate by radians about the origin.
+    """
+    def __init__(self, radians:float, n:int):
         if n == 2:
             cos = math.cos(radians)
             sin = math.sin(radians)
@@ -243,8 +298,11 @@ class Matrix(Container):
                 [+cos, -sin],
                 [+sin, +cos],
             ]
-            return cls(data=data, validate=False)
+            return super().__init__(data=data, validate=False)
         raise NotImplementedError(n)
+
+    def inv(self):
+        return RotatorMatrix(radians=-self.radians, n=self.n)
 
 ##################################################################################################
 
@@ -268,22 +326,35 @@ def get_row_echelon_form(M:Matrix) -> tp.Tuple[Matrix, tp.List[Matrix]]:
         k = min(k for k, x in enumerate(vals, i) if x == pivot)
         if k != i:
             # Swap rows so that largest non-zero value is in pivot position.
-            P = Matrix.RowPermuter(ri=i, rj=k, n=n)
+            P = RowPermuterMatrix(ri=i, rj=k, n=n)
             M = P * M
             ops.append(P)
+        # For each row below the pivot row
         vals = M[i+1:n, j]
         for k, val in enumerate(vals, i+1):
+            # Subtract scaled pivot row to eliminate leading value. 
             if val == 0:
                 continue
-            # Scale row so that first value is equal and opposite to pivot.
-            c = - pivot / val
-            C = Matrix.RowMultiplier(ri=k, constant=c, n=n)
-            M = C * M
-            # Add pivot row to cancel out first value.
-            ops.append(C)
-            A = Matrix.RowAdder(ri=k, rj=i, n=n)
+            q = - val / pivot
+            A = RowAdderMatrix(ri=k, rj=i, constant=q, n=n)
             M = A * M
             ops.append(A)
         i += 1
         j += 1
+    return M, ops
+
+def get_reduced_row_echelon_form(M:Matrix) -> tp.Tuple[Matrix, tp.List[Matrix]]:
+    """
+    Returns:
+        Matrix, input matrix transformed to reduced-row-echelon form.
+        List of Matrix, sequence of applied elementary operations.
+    """
+    M, ops = get_row_echelon_form(M=M)
+    for i, row in enumerate(M.rows, 1):
+        pivot = row.pivot
+        if pivot is None:
+            continue
+        D = RowMultiplierMatrix(ri=i, constant=1/pivot, n=M.n)
+        M = D * M
+        ops.append(D)
     return M, ops
