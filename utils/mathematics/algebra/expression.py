@@ -14,7 +14,7 @@ class Expression:
         return self.__class__(**children)
 
     def __eq__(self, other) -> bool:
-        raise NotImplementedError(type(other))
+        return False
     
     def __neg__(self):
         return Negation(child=self)
@@ -53,7 +53,7 @@ class Variable(Expression):
     def __eq__(self, other):
         if isinstance(other, Variable):
             return self.name.__eq__(other.name)
-        raise NotImplementedError(type(other))
+        return False
     
     def __str__(self) -> str:
         return self.name
