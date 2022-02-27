@@ -81,14 +81,16 @@ class Matrix(Container):
     @property
     def LU(self) -> tp.Tuple[object, object]:
         U, ops = get_row_echelon_form(M=self)
-        L = ft.reduce(op.mul, [op.inv() for op in ops], IdentityMatrix(n=U.n))
+        inv_ops = [op.inv() for op in ops]
+        L = ft.reduce(op.mul, inv_ops, IdentityMatrix(n=U.n))
         return L, U
     
     @property
     def LDV(self) -> tp.Tuple[object, object, object]:
         L, U = self.LU
         V, ops = get_reduced_row_echelon_form(M=U)
-        D = ft.reduce(op.mul, [op.inv() for op in ops], IdentityMatrix(n=U.n))
+        inv_ops = [op.inv() for op in ops]
+        D = ft.reduce(op.mul, inv_ops, IdentityMatrix(n=U.n))
         return L, D, V
 
 ##################################################################################################
@@ -220,61 +222,61 @@ class IdentityMatrix(Matrix):
     def inv(self):
         return self
 
-class RowPermuterMatrix(Matrix):
+class PermuterMatrix(Matrix):
     """
-    Premultiply to swap row i with row j.
+    Premultiply (postmultiply) to swap row (column) i with row (column) j.
     """
     def __init__(self, ri:int, rj:int, n:int, m:int=None):
-        self.ri = ri
-        self.rj = rj
+        self.i = i
+        self.j = j
         if m is None:
             m = n
         data = {}
         for i, j in it.product(self.range(n), self.range(m)):
-            if i == ri:
-                data[(i, j)] = int(j==rj)
-            elif i == rj:
-                data[(i, j)] = int(j==ri)
+            if i == self.i:
+                data[(i, j)] = int(j==self.j)
+            elif i == self.j:
+                data[(i, j)] = int(j==self.i)
             else:
                 data[(i, j)] = int(i==j)
         return super().__init__(data=data, validate=False)
 
     def inv(self):
-        return RowPermuterMatrix(ri=self.rj, rj=self.ri, n=self.n, m=self.m)
+        return PermuterMatrix(i=self.i, j=self.j, n=self.n, m=self.m)
 
-class RowMultiplierMatrix(Matrix): 
+class MultiplierMatrix(Matrix): 
     """
-    Premultiply to multiply row i by a constant.
+    Premultiply (postmultiply) to multiply row (column) i by a constant.
     """
-    def __init__(self, ri:int, constant:Numeric, n:int, m:int=None):
-        self.ri = ri
+    def __init__(self, i:int, constant:Numeric, n:int, m:int=None):
+        self.i = i
         self.constant = constant
         if m is None:
             m = n
         data = {}
         for i, j in it.product(self.range(n), self.range(m)):
-            if (i, j) == (ri, ri):
+            if (i, j) == (self.i, self.i):
                 data[(i, j)] = constant
             else:
                 data[(i, j)] = int(i==j)
         return super().__init__(data=data, validate=False)
 
     def inv(self):
-        return RowMultiplierMatrix(ri=self.ri, constant=1/self.constant, n=self.n, m=self.m)
+        return MultiplierMatrix(i=self.i, constant=1/self.constant, n=self.n, m=self.m)
 
-class RowAdderMatrix(Matrix):
+class AdderMatrix(Matrix):
     """
     Premultiply to add row j multiplied by a constant to row i.
     """
-    def __init__(self, ri:int, rj:int, constant:Numeric, n:int, m:int=None):
-        self.ri = ri
-        self.rj = rj
+    def __init__(self, i:int, j:int, constant:Numeric, n:int, m:int=None):
+        self.i = i
+        self.j = j
         self.constant = constant
         if m is None:
             m = n
         data = {}
         for i, j in it.product(self.range(n), self.range(m)):
-            if (i, j) == (ri, rj):
+            if (i, j) == (self.i, self.j):
                 if i == j:
                     data[(i, j)] = 1 + constant
                 else:
@@ -284,7 +286,7 @@ class RowAdderMatrix(Matrix):
         return super().__init__(data=data, validate=False)
 
     def inv(self):
-        return RowAdderMatrix(ri=self.ri, rj=self.rj, constant=-self.constant, n=self.n, m=self.m)
+        return AdderMatrix(i=self.i, j=self.j, constant=-self.constant, n=self.n, m=self.m)
 
 class RotatorMatrix(Matrix):
     """
@@ -326,7 +328,7 @@ def get_row_echelon_form(M:Matrix) -> tp.Tuple[Matrix, tp.List[Matrix]]:
         k = min(k for k, x in enumerate(vals, i) if x == pivot)
         if k != i:
             # Swap rows so that largest non-zero value is in pivot position.
-            P = RowPermuterMatrix(ri=i, rj=k, n=n)
+            P = PermuterMatrix(ri=i, rj=k, n=n)
             M = P * M
             ops.append(P)
         # For each row below the pivot row
@@ -336,7 +338,7 @@ def get_row_echelon_form(M:Matrix) -> tp.Tuple[Matrix, tp.List[Matrix]]:
             if val == 0:
                 continue
             q = - val / pivot
-            A = RowAdderMatrix(ri=k, rj=i, constant=q, n=n)
+            A = AdderMatrix(ri=k, rj=i, constant=q, n=n)
             M = A * M
             ops.append(A)
         i += 1
@@ -354,7 +356,7 @@ def get_reduced_row_echelon_form(M:Matrix) -> tp.Tuple[Matrix, tp.List[Matrix]]:
         pivot = row.pivot
         if pivot is None:
             continue
-        D = RowMultiplierMatrix(ri=i, constant=1/pivot, n=M.n)
+        D = MultiplierMatrix(ri=i, constant=1/pivot, n=M.n)
         M = D * M
         ops.append(D)
     return M, ops
