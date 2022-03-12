@@ -24,10 +24,6 @@ def check_is_square(func:tp.Callable) -> tp.Callable:
     return wrapped
 
 class Matrix(Container):
-    def __init__(self, data:object, validate:bool=True):
-        self.data = self._normalize_data(data=data)
-        if validate:
-            self._validate_data()
     
     @property
     def n(self) -> int:
@@ -207,7 +203,7 @@ class VariableMatrix(Matrix):
         data = {}
         for i, j in it.product(self.range(n), self.range(m)):
             data[(i, j)] = Variable(name=f"{name}_{i}_{j}")
-        return super().__init__(data=data, validate=False)
+        super().__init__(data=data, validate=False)
 
 class IdentityMatrix(Matrix):
     def __init__(self, n:int, m:int=None):
@@ -216,7 +212,7 @@ class IdentityMatrix(Matrix):
         data = {}
         for i, j in it.product(self.range(n), self.range(m)):
             data[(i, j)] = int(i==j)
-        return super().__init__(data=data, validate=False)
+        super().__init__(data=data, validate=False)
 
     @check_is_square
     def inv(self):
@@ -239,7 +235,7 @@ class PermuterMatrix(Matrix):
                 data[(i, j)] = int(j==self.i)
             else:
                 data[(i, j)] = int(i==j)
-        return super().__init__(data=data, validate=False)
+        super().__init__(data=data, validate=False)
 
     def inv(self):
         return PermuterMatrix(i=self.i, j=self.j, n=self.n, m=self.m)
@@ -259,7 +255,7 @@ class MultiplierMatrix(Matrix):
                 data[(i, j)] = constant
             else:
                 data[(i, j)] = int(i==j)
-        return super().__init__(data=data, validate=False)
+        super().__init__(data=data, validate=False)
 
     def inv(self):
         return MultiplierMatrix(i=self.i, constant=1/self.constant, n=self.n, m=self.m)
@@ -283,7 +279,7 @@ class AdderMatrix(Matrix):
                     data[(i, j)] = constant
             else:
                 data[(i, j)] = int(i==j)
-        return super().__init__(data=data, validate=False)
+        super().__init__(data=data, validate=False)
 
     def inv(self):
         return AdderMatrix(i=self.i, j=self.j, constant=-self.constant, n=self.n, m=self.m)
@@ -300,8 +296,9 @@ class RotatorMatrix(Matrix):
                 [+cos, -sin],
                 [+sin, +cos],
             ]
-            return super().__init__(data=data, validate=False)
-        raise NotImplementedError(n)
+            super().__init__(data=data, validate=False)
+        else:
+            raise NotImplementedError(n)
 
     def inv(self):
         return RotatorMatrix(radians=-self.radians, n=self.n)

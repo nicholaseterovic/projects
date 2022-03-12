@@ -13,11 +13,6 @@ from .container import Container, Numeric, numeric_types
 
 class Vector(Container):
 
-    def __init__(self, data:object, validate:bool=True):
-        self.data = self._normalize_data(data=data)
-        if validate:
-            self._validate_data()
-    
     @property
     def n(self) -> int:
         return len(self.data)
@@ -88,18 +83,18 @@ class Vector(Container):
 
 class VariableVector(Vector):
     def __init__(self, name:str, n:int):
-        data = {i:Variable(name=f"{name}_{i}") for i in cls.range(n)}
-        return super().__init__(data=data, validate=False)
+        data = {i:Variable(name=f"{name}_{i}") for i in self.range(n)}
+        super().__init__(data=data, validate=False)
 
 class ConstantVector(Vector):
     def __init__(self, constant:Numeric, n:int):
-        data = {i:constant for i in cls.range(n)}
-        return super().__init__(data=data, validate=False)
+        data = {i:constant for i in self.range(n)}
+        super().__init__(data=data, validate=False)
 
-class ZeroVector(Vector):
+class ZeroVector(ConstantVector):
     def __init__(self, n:int):
-        return super().__init__.constant(constant=0, n=n)
+        super().__init__(constant=0, n=n)
 
-class UnitVector(Vector):
+class UnitVector(ConstantVector):
     def __init__(self, n:int):
-        return super().__init__.constant(constant=1, n=n)
+        return super().__init__(constant=1, n=n)

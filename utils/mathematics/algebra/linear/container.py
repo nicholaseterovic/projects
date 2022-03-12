@@ -15,6 +15,11 @@ Numeric = tp.Union[int, float, complex, Expression]
 class Container:
     _value_frmt = "{:}"
     
+    def __init__(self, data:object, validate:bool=True):
+        self.data = self._normalize_data(data=data)
+        if validate:
+            self._validate_data()
+            
     @staticmethod
     def range(n:int) -> range:
         return range(1, n+1)
