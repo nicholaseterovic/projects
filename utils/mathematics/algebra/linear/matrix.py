@@ -9,9 +9,10 @@ import itertools as it
 import functools as ft
 
 # In-house imports.
-from .vector import Vector
-from ..expression import Variable
-from .container import Container, Numeric, numeric_types
+from .space import *
+from .vector import *
+from .container import *
+from ..expression import *
 
 ##################################################################################################
 
@@ -47,9 +48,17 @@ class Matrix(Container):
         return (Vector(data=[self.data[(i, j)] for j in J]) for i in self.I)
 
     @property
+    def rowspace(self) -> Span:
+        return Span(*self.rows)
+    
+    @property
     def cols(self) -> tp.Iterable[Vector]:
         I = list(self.I)
         return (Vector(data=[self.data[(i, j)] for i in I]) for j in self.J)
+    
+    @property
+    def colspace(self) -> Span:
+        return Span(*self.cols)
     
     @property
     def T(self) -> object:
@@ -73,6 +82,15 @@ class Matrix(Container):
         if not self.is_square:
             return False
         return self == - self.T
+    
+    @property
+    def is_positive_definite(self) -> bool:
+        U, ops = get_row_echelon_form(M=self)
+        for row in U.rows:
+            pivot = row.pivot
+            if pivot is None or pivot <= 0:
+                return False
+        return True
     
     @property
     def LU(self) -> tp.Tuple[object, object]:
@@ -200,18 +218,32 @@ class VariableMatrix(Matrix):
         self.name = name
         if m is None:
             m = n
-        data = {}
-        for i, j in it.product(self.range(n), self.range(m)):
-            data[(i, j)] = Variable(name=f"{name}_{i}_{j}")
+        data = {
+            (i, j):Variable(name=f"{name}_{i}_{j}")
+            for i, j in it.product(self.range(n), self.range(m))
+        }
         super().__init__(data=data, validate=False)
+
+class ConstantMatrix(Matrix):
+    def __init__(self, constant:Numeric, n:int, m:int):
+        data = {
+            (i, j):constant
+            for i, j in it.product(self.range(n), self.range(m))
+        }
+        super().__init__(data=data, validate=False)
+
+class ZeroMatrix(ConstantMatrix):
+    def __init__(self, n:int, m:int):
+        super().__init__(constant=0, n=n, m=m)
 
 class IdentityMatrix(Matrix):
     def __init__(self, n:int, m:int=None):
         if m is None:
             m = n
-        data = {}
-        for i, j in it.product(self.range(n), self.range(m)):
-            data[(i, j)] = int(i==j)
+        data = {
+            (i, j):int(i==j)
+            for i, j in it.product(self.range(n), self.range(m))
+        }
         super().__init__(data=data, validate=False)
 
     @check_is_square
@@ -222,7 +254,7 @@ class PermuterMatrix(Matrix):
     """
     Premultiply (postmultiply) to swap row (column) i with row (column) j.
     """
-    def __init__(self, ri:int, rj:int, n:int, m:int=None):
+    def __init__(self, i:int, j:int, n:int, m:int=None):
         self.i = i
         self.j = j
         if m is None:
@@ -325,7 +357,7 @@ def get_row_echelon_form(M:Matrix) -> tp.Tuple[Matrix, tp.List[Matrix]]:
         k = min(k for k, x in enumerate(vals, i) if x == pivot)
         if k != i:
             # Swap rows so that largest non-zero value is in pivot position.
-            P = PermuterMatrix(ri=i, rj=k, n=n)
+            P = PermuterMatrix(i=i, j=k, n=n)
             M = P * M
             ops.append(P)
         # For each row below the pivot row
@@ -335,7 +367,7 @@ def get_row_echelon_form(M:Matrix) -> tp.Tuple[Matrix, tp.List[Matrix]]:
             if val == 0:
                 continue
             q = - val / pivot
-            A = AdderMatrix(ri=k, rj=i, constant=q, n=n)
+            A = AdderMatrix(i=k, j=i, constant=q, n=n)
             M = A * M
             ops.append(A)
         i += 1
@@ -353,7 +385,7 @@ def get_reduced_row_echelon_form(M:Matrix) -> tp.Tuple[Matrix, tp.List[Matrix]]:
         pivot = row.pivot
         if pivot is None:
             continue
-        D = MultiplierMatrix(ri=i, constant=1/pivot, n=M.n)
+        D = MultiplierMatrix(i=i, constant=1/pivot, n=M.n)
         M = D * M
         ops.append(D)
     return M, ops
