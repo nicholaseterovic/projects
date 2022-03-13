@@ -6,6 +6,7 @@ import typing as tp
 import itertools as it
 
 # In-house imports.
+from .matrix import *
 from .container import *
 from ..expression import *
 
@@ -110,3 +111,9 @@ class ZeroVector(ConstantVector):
 class UnitVector(ConstantVector):
     def __init__(self, n:int):
         return super().__init__(constant=1, n=n)
+
+##################################################################################################
+
+def is_linearly_independent(*vectors:tp.Iterable[Vector]) -> bool:
+    matrix = Matrix.from_vectors(vectors=vectors, orient="cols")
+    return matrix.rank == matrix.n

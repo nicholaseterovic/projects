@@ -26,6 +26,15 @@ def check_is_square(func:tp.Callable) -> tp.Callable:
 
 class Matrix(Container):
     
+    @classmethod
+    def from_vectors(cls, vectors:tp.Iterable[Vector], orient:str="cols"):
+        matrix = cls(data=vectors)
+        if orient == "rows":
+            return matrix
+        if orient == "cols":
+            return matrix.T
+        raise NotImplementedError
+
     @property
     def n(self) -> int:
         return len(set(i for i, j in self.data.keys()))
@@ -46,10 +55,6 @@ class Matrix(Container):
     def rows(self) -> tp.Iterable[Vector]:
         J = list(self.J)
         return (Vector(data=[self.data[(i, j)] for j in J]) for i in self.I)
-
-    @property
-    def rowspace(self) -> Span:
-        return Span(*self.rows)
     
     @property
     def cols(self) -> tp.Iterable[Vector]:
@@ -57,9 +62,17 @@ class Matrix(Container):
         return (Vector(data=[self.data[(i, j)] for i in I]) for j in self.J)
     
     @property
-    def colspace(self) -> Span:
+    def row_space(self) -> Span:
+        return Span(*self.rows)
+
+    @property
+    def col_space(self) -> Span:
         return Span(*self.cols)
     
+    @property
+    def null_space(self) -> VectorSpace:
+        raise NotImplementedError
+
     @property
     def T(self) -> object:
         keys = ((j, i) for i, j in self.data.keys())
@@ -84,15 +97,6 @@ class Matrix(Container):
         return self == - self.T
     
     @property
-    def is_positive_definite(self) -> bool:
-        U, ops = get_row_echelon_form(M=self)
-        for row in U.rows:
-            pivot = row.pivot
-            if pivot is None or pivot <= 0:
-                return False
-        return True
-    
-    @property
     def LU(self) -> tp.Tuple[object, object]:
         U, ops = get_row_echelon_form(M=self)
         inv_ops = [op.inv() for op in ops]
@@ -106,6 +110,14 @@ class Matrix(Container):
         inv_ops = [op.inv() for op in ops]
         D = ft.reduce(op.mul, inv_ops, IdentityMatrix(n=U.n))
         return L, D, V
+
+    @property
+    def rank(self) -> tp.Iterable[Numeric]:
+        L, U  = self.LU
+        pivots = [row.pivot for row in U.rows]
+        pivots = [pivot for pivot in pivots if pivot is not None]
+        rank = len(pivots)
+        return rank
 
 ##################################################################################################
     
@@ -360,7 +372,7 @@ def get_row_echelon_form(M:Matrix) -> tp.Tuple[Matrix, tp.List[Matrix]]:
             P = PermuterMatrix(i=i, j=k, n=n)
             M = P * M
             ops.append(P)
-        # For each row below the pivot row
+        # For each row below the pivot row.
         vals = M[i+1:n, j]
         for k, val in enumerate(vals, i+1):
             # Subtract scaled pivot row to eliminate leading value. 
