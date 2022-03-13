@@ -6,8 +6,8 @@ import typing as tp
 import itertools as it
 
 # In-house imports.
-from ..expression import Variable
-from .container import Container, Numeric, numeric_types
+from .container import *
+from ..expression import *
 
 ####################################################################################################
 
@@ -40,6 +40,9 @@ class Vector(Container):
             return sum(self.data[i]*other.data[i] for i in self.I)
         raise NotImplementedError(type(other))
 
+    def __mul__(self, other:object) -> object:
+        return self.dot(other=other)
+    
 ##################################################################################################
 
     @staticmethod
@@ -72,8 +75,17 @@ class Vector(Container):
     def __str__(self) -> str:
         return "\n".join(map(self._value_frmt.format, self.data.values()))
 
-    def __mul__(self, other:object) -> object:
-        return self.dot(other=other)
+    def __add__(self, other:object) -> object:
+        if isinstance(other, numeric_types):
+            data = {key:val+other for key, val in self.data.items()}
+            return Vector(data=data, validate=False)
+        if isinstance(other, Vector):
+            if self.n != other.n:
+                raise ValueError(f"Incompatible dimensions {self.n} and {other.n}")
+            data = {key:val+other[key] for key, val in self.data.items()}
+            return Vector(data=data, validate=False)
+        raise NotImplementedError(type(other))
+
 
     def __iter__(self) -> tp.Iterator:
         for i in self.I:
